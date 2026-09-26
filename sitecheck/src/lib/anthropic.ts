@@ -15,3 +15,10 @@ export function getAnthropic(): Anthropic {
 export function analysisModel(): string {
   return process.env.ANALYSIS_MODEL || "claude-sonnet-5";
 }
+
+/**
+ * The model thinks before answering and those tokens count toward max_tokens.
+ * Default effort used 1.5k-2k thinking tokens and 20 s+ per photo; medium gave
+ * the same readings on our test photos in under 10 s.
+ */
+export const AI_EFFORT = "medium" as const;

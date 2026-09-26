@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { withAiRetries, responseText } from "./aiRetry";
-import { analysisModel } from "./anthropic";
+import { AI_EFFORT, analysisModel } from "./anthropic";
 import { latestFinishedByStep } from "./plan";
 import { SPACE_STEPS, stepTitle } from "./steps";
 import { getSupabase, PHOTO_BUCKET } from "./supabase";
@@ -118,10 +118,11 @@ export async function runSiteCheck(home: HomeRow, photos: PhotoRow[]): Promise<S
       const response = await client.messages.create(
         {
           model,
-          max_tokens: 1024,
+          max_tokens: 2048,
           system: SITE_CHECK_SYSTEM_PROMPT,
           messages: [{ role: "user", content }],
           output_config: {
+            effort: AI_EFFORT,
             format: { type: "json_schema", schema: SITE_CHECK_SCHEMA as unknown as Record<string, unknown> },
           },
         },

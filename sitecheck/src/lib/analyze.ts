@@ -1,6 +1,6 @@
 import "server-only";
 import { withAiRetries, responseText } from "./aiRetry";
-import { analysisModel } from "./anthropic";
+import { AI_EFFORT, analysisModel } from "./anthropic";
 import { SYSTEM_PROMPT, stepPrompt } from "./prompts";
 import { PHOTO_ANALYSIS_SCHEMA, parseAnalysisText, type PhotoAnalysis } from "./schema";
 import type { Step } from "./steps";
@@ -26,7 +26,7 @@ export async function analyzePhoto(params: {
       const response = await client.messages.create(
         {
           model,
-          max_tokens: 2048,
+          max_tokens: 4096,
           system: SYSTEM_PROMPT,
           messages: [
             {
@@ -38,6 +38,7 @@ export async function analyzePhoto(params: {
             },
           ],
           output_config: {
+            effort: AI_EFFORT,
             format: {
               type: "json_schema",
               schema: PHOTO_ANALYSIS_SCHEMA as unknown as Record<string, unknown>,
