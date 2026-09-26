@@ -12,10 +12,10 @@ import type {
 } from "./types";
 
 export const CONFIDENCE_MIN = 80;
-export const AMP_MIN_AUSTIN = 150;
+export const AMP_MIN_AUSTIN = 150; // keep unless the team says otherwise
 export const AMP_MIN_ELSEWHERE = 100;
-export const AMP_FOR_TWO_BATTERIES = 200;
-export const AMP_REQUIRED_WITH_SOLAR = 200;
+export const AMP_FOR_TWO_NO_SOLAR = 150;
+export const AMP_FOR_TWO_WITH_SOLAR = 200;
 export const AMP_MAX_KNOWN_RULES = 200;
 
 export type RulesPhoto = {
@@ -120,23 +120,14 @@ export function evaluate(input: RulesInput): RulesResult {
           step,
         );
       }
-      if (input.hasSolar === null && x >= AMP_MIN_ELSEWHERE && x < AMP_REQUIRED_WITH_SOLAR) {
+      // Solar only changes the count between these two thresholds.
+      if (input.hasSolar === null && x >= AMP_FOR_TWO_NO_SOLAR && x < AMP_FOR_TWO_WITH_SOLAR) {
         outcomes.push("REVIEW");
         add(
           "SOLAR_UNKNOWN",
           "REVIEW",
-          `Main breaker is ${x}A. Homes with solar need 200A. Confirm whether the home has solar.`,
+          `Main breaker is ${x}A. Solar homes need 200A for 2 batteries. Confirm whether the home has solar.`,
           step,
-        );
-      }
-      if (input.hasSolar && x < AMP_REQUIRED_WITH_SOLAR) {
-        outcomes.push(
-          failUnlessUnsure(
-            "SOLAR_NEEDS_200A",
-            `Homes with solar need a 200A panel. This one is ${x}A.`,
-            amp.confidence,
-            step,
-          ),
         );
       }
       if (x > AMP_MAX_KNOWN_RULES) {
@@ -147,8 +138,16 @@ export function evaluate(input: RulesInput): RulesResult {
           step,
         );
       } else if (outcomes.length === 0) {
-        ampMaxBatteries = x >= AMP_FOR_TWO_BATTERIES ? 2 : 1;
+        ampMaxBatteries = input.hasSolar ? (x >= AMP_FOR_TWO_WITH_SOLAR ? 2 : 1) : x >= AMP_FOR_TWO_NO_SOLAR ? 2 : 1;
         add("AMP_OK", "PASS", `Main breaker ${x}A supports up to ${batteries(ampMaxBatteries)}.`, step);
+        if (input.hasSolar && x < AMP_FOR_TWO_WITH_SOLAR) {
+          add(
+            "SOLAR_LIMITS_TO_ONE",
+            "PASS",
+            `Solar homes need 200A for 2 batteries. This one is ${x}A, so 1 battery.`,
+            step,
+          );
+        }
       } else if (outcomes.includes("FAIL")) {
         ampMaxBatteries = 0;
       }
@@ -161,10 +160,10 @@ export function evaluate(input: RulesInput): RulesResult {
   }
 
   const panel = accepted.get("panel_wide");
-  if (panel && panel.location === "closet") {
+  if (panel && (panel.location === "closet" || panel.location === "indoor_other")) {
     failUnlessUnsure(
-      "PANEL_IN_CLOSET",
-      "Breaker box is in a closet. It must be away from flammable materials.",
+      "PANEL_IN_LIVING_SPACE",
+      "Breaker box is inside the living space. It must be outdoors or in a garage.",
       panel.confidence,
       "panel_wide",
     );
@@ -174,8 +173,8 @@ export function evaluate(input: RulesInput): RulesResult {
     if (input.panelSameWallAnswer === "no") {
       add(
         "PANEL_NOT_SAME_WALL",
-        "FAIL",
-        "Breaker box is indoors and not on the same wall as the meter.",
+        "REVIEW",
+        "Homeowner says the breaker box is not behind the meter wall. Needs review.",
         null,
       );
     } else if (input.panelSameWallAnswer === "not_sure") {
@@ -193,6 +192,19 @@ export function evaluate(input: RulesInput): RulesResult {
         null,
       );
     }
+  }
+
+  const multipleMetersStep = ["meter_closeup", "meter_area_wide"].find((step) => {
+    const count = accepted.get(step)?.meter_count;
+    return count !== undefined && count > 1;
+  });
+  if (multipleMetersStep) {
+    add(
+      "MULTIPLE_METERS",
+      "REVIEW",
+      "More than one electric meter visible. Confirm which one belongs to this home.",
+      multipleMetersStep,
+    );
   }
 
   const multiplePanelsStep = [...accepted].find(([, a]) => a.multiple_panels_visible)?.[0];

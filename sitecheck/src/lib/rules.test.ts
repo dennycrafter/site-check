@@ -81,10 +81,10 @@ const SPACE_NONE = { clear_ground_space: "none" as const };
 const cases: Case[] = [
   { name: "1. all good, 200A, room_for_two", verdict: "PASS", batteryCount: 2, code: "AMP_OK" },
   {
-    name: "2. all good, 150A, not Austin",
+    name: "2. all good, 150A, not Austin, no solar, room_for_two",
     steps: { main_disconnect_closeup: { amp_rating: 150 } },
     verdict: "PASS",
-    batteryCount: 1,
+    batteryCount: 2,
   },
   {
     name: "3. 125A in Austin",
@@ -101,12 +101,12 @@ const cases: Case[] = [
     batteryCount: 1,
   },
   {
-    name: "5. solar with 150A",
+    name: "5. solar with 150A, room_for_two",
     input: { hasSolar: true },
     steps: { main_disconnect_closeup: { amp_rating: 150 } },
-    verdict: "FAIL",
-    batteryCount: 0,
-    code: "SOLAR_NEEDS_200A",
+    verdict: "PASS",
+    batteryCount: 1,
+    code: "SOLAR_LIMITS_TO_ONE",
   },
   { name: "6. solar with 200A", input: { hasSolar: true }, verdict: "PASS", batteryCount: 2 },
   {
@@ -126,7 +126,7 @@ const cases: Case[] = [
     input: { setupType: "separate_meter_and_panel_outdoors" },
     steps: { panel_wide: { location: "closet" } },
     verdict: "FAIL",
-    code: "PANEL_IN_CLOSET",
+    code: "PANEL_IN_LIVING_SPACE",
     codeOutcome: "FAIL",
   },
   {
@@ -134,14 +134,15 @@ const cases: Case[] = [
     input: { setupType: "separate_meter_and_panel_outdoors" },
     steps: { panel_wide: { location: "closet", confidence: 60 } },
     verdict: "REVIEW",
-    code: "PANEL_IN_CLOSET",
+    code: "PANEL_IN_LIVING_SPACE",
     codeOutcome: "REVIEW",
   },
   {
     name: "11. panel_indoors, answer no",
     input: { setupType: "panel_indoors", panelSameWallAnswer: "no" },
-    verdict: "FAIL",
+    verdict: "REVIEW",
     code: "PANEL_NOT_SAME_WALL",
+    codeOutcome: "REVIEW",
   },
   {
     name: "12. gas meter near",
@@ -195,6 +196,31 @@ const cases: Case[] = [
     code: "SPACE_OK",
   },
   {
+    name: "20. panel in garage",
+    input: { setupType: "separate_meter_and_panel_outdoors" },
+    steps: { panel_wide: { location: "garage" } },
+    verdict: "PASS",
+  },
+  {
+    name: "21. panel indoor_other",
+    input: { setupType: "separate_meter_and_panel_outdoors" },
+    steps: { panel_wide: { location: "indoor_other" } },
+    verdict: "FAIL",
+    code: "PANEL_IN_LIVING_SPACE",
+  },
+  {
+    name: "22. two meters on meter_closeup",
+    steps: { meter_closeup: { meter_count: 2 } },
+    verdict: "REVIEW",
+    code: "MULTIPLE_METERS",
+  },
+  {
+    name: "23. 125A not Austin, no solar",
+    steps: { main_disconnect_closeup: { amp_rating: 125 } },
+    verdict: "PASS",
+    batteryCount: 1,
+  },
+  {
     name: "U1. location not asked, 125A",
     input: { inAustin: null },
     steps: { main_disconnect_closeup: { amp_rating: 125 } },
@@ -215,6 +241,13 @@ const cases: Case[] = [
     steps: { main_disconnect_closeup: { amp_rating: 150 } },
     verdict: "REVIEW",
     code: "SOLAR_UNKNOWN",
+  },
+  {
+    name: "U5. solar not asked, 125A (count is 1 either way)",
+    input: { hasSolar: null },
+    steps: { main_disconnect_closeup: { amp_rating: 125 } },
+    verdict: "PASS",
+    batteryCount: 1,
   },
   {
     name: "U4. location and solar not asked, 200A",
@@ -246,7 +279,7 @@ describe("evaluate", () => {
         verdict: "REVIEW",
       }),
     );
-    const reason = result.reasons.find((r) => r.code === "PANEL_IN_CLOSET");
+    const reason = result.reasons.find((r) => r.code === "PANEL_IN_LIVING_SPACE");
     expect(reason?.message.endsWith(" (low confidence)")).toBe(true);
   });
 
