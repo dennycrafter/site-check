@@ -30,6 +30,10 @@ const OUTLINES: Record<OutlineId, { shape: Shape; label: string }> = {
     shape: { kind: "rect", cx: 50, cy: 50, w: 76, h: 50, mask: true },
     label: "Main switch here, lid open",
   },
+  tall_center: {
+    shape: { kind: "rect", cx: 50, cy: 50, w: 60, h: 80, mask: true },
+    label: "All switches here, door open",
+  },
 };
 
 const STROKE = {
@@ -64,7 +68,7 @@ export function Outline({ id, aspect }: { id: OutlineId; aspect: number }) {
     outline = <rect x={x} y={top} width={w} height={h} rx={r} {...STROKE} />;
     if (shape.mask) cutout = <rect x={x} y={top} width={w} height={h} rx={r} fill="black" />;
     labelX = shape.cx;
-    labelY = top + h + fontSize * 1.6;
+    labelY = Math.min(top + h + fontSize * 1.6, H - fontSize * 0.6);
   } else if (shape.kind === "circle") {
     const r = shape.d / 2;
     const cy = y(shape.cy);

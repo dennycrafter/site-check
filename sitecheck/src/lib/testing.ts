@@ -1,0 +1,32 @@
+import type { PhotoAnalysis } from "./schema";
+
+/** A clean analysis where every step would be accepted and every rule passes. Tests only. */
+export const GOOD_ANALYSIS: PhotoAnalysis = {
+  photo_matches_request: true,
+  usable: true,
+  retake_reason: "none",
+  retake_instruction: "",
+  confidence: 95,
+  setup_type: "combo_meter_main_unit",
+  amp_rating: 200,
+  amp_rating_legible: true,
+  meter_number_legible: true,
+  location: "outdoor",
+  damage_visible: false,
+  gas_meter_near: false,
+  window_near: false,
+  ac_unit_near: false,
+  fence_present: false,
+  clutter_blocking: false,
+  clear_ground_space: "room_for_two",
+  multiple_panels_visible: false,
+  meter_count: 1,
+  meter_can_edges_visible: true,
+  ground_visible: true,
+  wall_end_visible: true,
+  panel_context_visible: true,
+  panel_brand: "other",
+  panel_label_legible: true,
+  heavy_rust: false,
+  notes: "",
+};

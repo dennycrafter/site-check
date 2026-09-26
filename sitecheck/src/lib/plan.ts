@@ -69,7 +69,7 @@ export function regularSteps(home: PlanHome, photos: PlanPhoto[]): StepId[] {
   );
   return STEP_IDS.filter((id) => {
     if (id === "behind_fence") return fenceSeen;
-    if (id === "panel_wide") return PANEL_WIDE_SETUPS.includes(home.setup_type);
+    if (id === "panel_wide" || id === "panel_open") return PANEL_WIDE_SETUPS.includes(home.setup_type);
     return true;
   });
 }

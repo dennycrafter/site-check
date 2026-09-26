@@ -2,34 +2,10 @@ import { describe, expect, it } from "vitest";
 import { nextStep, planSteps } from "./plan";
 import { evaluate, type RulesInput, type RulesPhoto } from "./rules";
 import type { PhotoAnalysis } from "./schema";
+import { GOOD_ANALYSIS } from "./testing";
 import type { FinishedPhotoStatus, Outcome } from "./types";
 
-const GOOD: PhotoAnalysis = {
-  photo_matches_request: true,
-  usable: true,
-  retake_reason: "none",
-  retake_instruction: "",
-  confidence: 95,
-  setup_type: "combo_meter_main_unit",
-  amp_rating: 200,
-  amp_rating_legible: true,
-  meter_number_legible: true,
-  location: "outdoor",
-  damage_visible: false,
-  gas_meter_near: false,
-  window_near: false,
-  ac_unit_near: false,
-  fence_present: false,
-  clutter_blocking: false,
-  clear_ground_space: "room_for_two",
-  multiple_panels_visible: false,
-  meter_count: 1,
-  meter_can_edges_visible: true,
-  ground_visible: true,
-  wall_end_visible: true,
-  panel_context_visible: true,
-  notes: "",
-};
+const GOOD = GOOD_ANALYSIS;
 
 type Case = {
   name: string;
@@ -221,6 +197,37 @@ const cases: Case[] = [
     batteryCount: 1,
   },
   {
+    name: "24. Federal Pacific breaker box",
+    input: { setupType: "separate_meter_and_panel_outdoors" },
+    steps: { panel_open: { panel_brand: "federal_pacific" } },
+    verdict: "FAIL",
+    batteryCount: 0,
+    code: "PANEL_RECALLED_BRAND",
+    codeOutcome: "FAIL",
+  },
+  {
+    name: "25. Westinghouse breaker box",
+    input: { setupType: "separate_meter_and_panel_outdoors" },
+    steps: { panel_open: { panel_brand: "westinghouse" } },
+    verdict: "REVIEW",
+    code: "PANEL_BRAND_CHECK",
+  },
+  {
+    name: "26. breaker box brand not visible",
+    input: { setupType: "separate_meter_and_panel_outdoors" },
+    steps: { panel_open: { panel_brand: "not_visible", panel_label_legible: false } },
+    verdict: "REVIEW",
+    code: "PANEL_BRAND_UNREADABLE",
+  },
+  {
+    name: "27. heavy rust on the open breaker box",
+    input: { setupType: "separate_meter_and_panel_outdoors" },
+    steps: { panel_open: { heavy_rust: true } },
+    verdict: "FAIL",
+    code: "HEAVY_RUST",
+    codeOutcome: "FAIL",
+  },
+  {
     name: "U1. location not asked, 125A",
     input: { inAustin: null },
     steps: { main_disconnect_closeup: { amp_rating: 125 } },
@@ -335,6 +342,22 @@ describe("planSteps", () => {
       { step: "left_of_meter", status: "retake", analysis: { ...GOOD, fence_present: true } },
     ]);
     expect(steps).not.toContain("behind_fence");
+  });
+
+  it("asks for the open breaker box only when the panel is separate from the meter", () => {
+    const separate = planSteps({ ...combo, setup_type: "separate_meter_and_panel_outdoors" }, []);
+    expect(separate.indexOf("panel_open")).toBe(separate.indexOf("panel_wide") + 1);
+    expect(planSteps(combo, [])).not.toContain("panel_open");
+  });
+
+  it("ignores brand and rust fields missing from older analyses", () => {
+    const newFields = ["panel_brand", "panel_label_legible", "heavy_rust"];
+    const old = Object.fromEntries(Object.entries(GOOD).filter(([k]) => !newFields.includes(k)));
+    const input = build({ name: "old", input: { setupType: "separate_meter_and_panel_outdoors" }, verdict: "PASS" });
+    for (const p of input.photos) p.analysis = old as PhotoAnalysis;
+    const codes = evaluate(input).reasons.map((r) => r.code);
+    expect(codes).not.toContain("PANEL_BRAND_UNREADABLE");
+    expect(codes).not.toContain("HEAVY_RUST");
   });
 
   it("includes panel_wide when setup is unknown", () => {

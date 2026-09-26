@@ -9,6 +9,7 @@ export const STEP_IDS = [
   "adjacent_wall",
   "behind_fence",
   "panel_wide",
+  "panel_open",
   "main_disconnect_closeup",
 ] as const;
 
@@ -21,7 +22,8 @@ export type OutlineId =
   | "small_left_edge"
   | "corner_markers"
   | "medium_center"
-  | "rect_large";
+  | "rect_large"
+  | "tall_center";
 
 export type Step = {
   /** A StepId, or extra_<n> for photos the whole-site check asked for. */
@@ -162,6 +164,16 @@ export const STEPS: Step[] = [
       "damage_visible",
       "panel_context_visible",
     ],
+  },
+  {
+    id: "panel_open",
+    baseSlot: "main_breaker_box_open",
+    title: "Breaker box open",
+    instruction: "Open the breaker box door. Fit all the switches inside the box.",
+    outline: "tall_center",
+    description:
+      "the main breaker box with its door open, showing all the breakers and the label on the inside of the door",
+    fields: ["panel_brand", "panel_label_legible", "heavy_rust", "damage_visible", "multiple_panels_visible"],
   },
   {
     id: "main_disconnect_closeup",

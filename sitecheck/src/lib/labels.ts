@@ -46,6 +46,9 @@ export const FIELD_LABELS: Record<AnalysisField, string> = {
   ground_visible: "Ground visible",
   wall_end_visible: "Wall end visible",
   panel_context_visible: "Surroundings visible",
+  panel_brand: "Breaker box brand",
+  panel_label_legible: "Label legible",
+  heavy_rust: "Heavy rust",
   notes: "Notes",
 };
 
@@ -66,6 +69,7 @@ export const HAZARD_FIELDS: AnalysisField[] = [
   "ac_unit_near",
   "clutter_blocking",
   "multiple_panels_visible",
+  "heavy_rust",
 ];
 
 export function formatTime(iso: string | null): string {
