@@ -1,0 +1,154 @@
+import type { AnalysisField } from "./schema";
+
+export const STEP_IDS = [
+  "meter_area_wide",
+  "meter_closeup",
+  "left_of_meter",
+  "right_of_meter",
+  "adjacent_wall",
+  "behind_fence",
+  "panel_wide",
+  "main_disconnect_closeup",
+] as const;
+
+export type StepId = (typeof STEP_IDS)[number];
+
+export type OutlineId =
+  | "small_center"
+  | "circle_large"
+  | "small_right_edge"
+  | "small_left_edge"
+  | "corner_markers"
+  | "medium_center"
+  | "rect_large";
+
+export type Step = {
+  id: StepId;
+  title: string;
+  instruction: string;
+  outline: OutlineId;
+  /** What the photo is supposed to show, used in the AI prompt. */
+  description: string;
+  /** Analysis fields that matter for this step (prompt and surveyor readout). */
+  fields: AnalysisField[];
+};
+
+export const STEPS: Step[] = [
+  {
+    id: "meter_area_wide",
+    title: "Meter and wall",
+    instruction:
+      "Stand about 10 steps back. Fit your meter inside the small box so we can see the whole wall around it.",
+    outline: "small_center",
+    description:
+      "the homeowner's electric meter taken from about 10 steps back, showing the whole wall and ground around it",
+    fields: [
+      "setup_type",
+      "gas_meter_near",
+      "window_near",
+      "ac_unit_near",
+      "fence_present",
+      "clutter_blocking",
+      "clear_ground_space",
+      "multiple_panels_visible",
+    ],
+  },
+  {
+    id: "meter_closeup",
+    title: "Meter close-up",
+    instruction: "Move close. Fill the circle with your meter so the numbers are readable.",
+    outline: "circle_large",
+    description: "a close-up of the electric meter with its numbers readable",
+    fields: ["meter_number_legible", "damage_visible"],
+  },
+  {
+    id: "left_of_meter",
+    title: "Left of the meter",
+    instruction: "Step back and turn left. Keep the meter at the right edge of the screen.",
+    outline: "small_right_edge",
+    description:
+      "the wall and ground to the left of the electric meter, with the meter at the right edge",
+    fields: [
+      "clear_ground_space",
+      "gas_meter_near",
+      "window_near",
+      "ac_unit_near",
+      "fence_present",
+      "clutter_blocking",
+    ],
+  },
+  {
+    id: "right_of_meter",
+    title: "Right of the meter",
+    instruction: "Step back and turn right. Keep the meter at the left edge of the screen.",
+    outline: "small_left_edge",
+    description:
+      "the wall and ground to the right of the electric meter, with the meter at the left edge",
+    fields: [
+      "clear_ground_space",
+      "gas_meter_near",
+      "window_near",
+      "ac_unit_near",
+      "fence_present",
+      "clutter_blocking",
+    ],
+  },
+  {
+    id: "adjacent_wall",
+    title: "Around the corner",
+    instruction: "Walk to the nearest corner. Show that whole wall from corner to corner.",
+    outline: "corner_markers",
+    description:
+      "the full neighbouring wall of the house around the nearest corner from the meter, corner to corner",
+    fields: ["clear_ground_space", "gas_meter_near", "window_near", "ac_unit_near", "clutter_blocking"],
+  },
+  {
+    id: "behind_fence",
+    title: "Behind the fence",
+    instruction: "Show the full area behind the fence, corner to corner.",
+    outline: "corner_markers",
+    description: "the full area behind a fence next to the meter wall, corner to corner",
+    fields: ["clear_ground_space", "gas_meter_near", "window_near", "ac_unit_near", "clutter_blocking"],
+  },
+  {
+    id: "panel_wide",
+    title: "Breaker box and surroundings",
+    instruction: "Show your main breaker box and what is around it. Zoomed out is better.",
+    outline: "medium_center",
+    description:
+      "the main breaker box and its surroundings, zoomed out enough to see where it is (outside wall, garage, closet)",
+    fields: ["location", "multiple_panels_visible", "damage_visible"],
+  },
+  {
+    id: "main_disconnect_closeup",
+    title: "Main switch",
+    instruction:
+      "Open the lid. Fill the box with the main switch so the number (like 150 or 200) is readable.",
+    outline: "rect_large",
+    description:
+      "a close-up of the main disconnect switch with the lid open and the amp rating number readable",
+    fields: ["amp_rating", "amp_rating_legible", "damage_visible"],
+  },
+];
+
+export const STEP_BY_ID: Record<StepId, Step> = Object.fromEntries(
+  STEPS.map((s) => [s.id, s]),
+) as Record<StepId, Step>;
+
+export function isStepId(value: string): value is StepId {
+  return (STEP_IDS as readonly string[]).includes(value);
+}
+
+export function stepTitle(id: string): string {
+  return isStepId(id) ? STEP_BY_ID[id].title : id;
+}
+
+export const SPACE_STEPS: StepId[] = [
+  "meter_area_wide",
+  "left_of_meter",
+  "right_of_meter",
+  "adjacent_wall",
+  "behind_fence",
+];
+
+export const MAX_ATTEMPTS = 3;
