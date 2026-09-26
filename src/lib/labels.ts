@@ -18,7 +18,7 @@ export const PHOTO_STATUS_LABELS: Record<PhotoStatus | "pending", string> = {
   accepted: "Accepted",
   retake: "Retake requested",
   check_failed: "Automatic check failed",
-  accepted_after_max_attempts: "Kept after 3 tries",
+  accepted_after_max_attempts: "Kept for review",
   pending: "Not taken yet",
 };
 
@@ -44,7 +44,7 @@ export const FIELD_LABELS: Record<AnalysisField, string> = {
   meter_count: "Meters visible",
   meter_can_edges_visible: "Whole meter box in frame",
   ground_visible: "Ground visible",
-  wall_end_visible: "Wall end visible",
+  enough_wall_shown: "Enough wall shown",
   panel_context_visible: "Surroundings visible",
   panel_brand: "Breaker box brand",
   panel_label_legible: "Label legible",

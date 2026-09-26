@@ -91,7 +91,7 @@ export function evaluate(input: RulesInput): RulesResult {
     if (!photo) {
       add("STEP_MISSING", "REVIEW", `Missing photo: ${title}.`, step);
     } else if (photo.status === "accepted_after_max_attempts") {
-      add("STEP_UNCLEAR", "REVIEW", `Homeowner could not get a clear ${title} photo.`, step);
+      add("STEP_UNCLEAR", "REVIEW", `The ${title} photo was flagged for a retake and kept for review.`, step);
     } else if (photo.status === "check_failed" || !photo.analysis) {
       add("CHECK_FAILED", "REVIEW", `Automatic check failed for ${title}. Needs manual review.`, step);
     }

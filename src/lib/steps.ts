@@ -93,7 +93,7 @@ export const STEPS: Step[] = [
       "fence_present",
       "clutter_blocking",
       "ground_visible",
-      "wall_end_visible",
+      "enough_wall_shown",
     ],
   },
   {
@@ -112,7 +112,7 @@ export const STEPS: Step[] = [
       "fence_present",
       "clutter_blocking",
       "ground_visible",
-      "wall_end_visible",
+      "enough_wall_shown",
     ],
   },
   {
@@ -130,7 +130,7 @@ export const STEPS: Step[] = [
       "ac_unit_near",
       "clutter_blocking",
       "ground_visible",
-      "wall_end_visible",
+      "enough_wall_shown",
     ],
   },
   {
@@ -147,7 +147,7 @@ export const STEPS: Step[] = [
       "ac_unit_near",
       "clutter_blocking",
       "ground_visible",
-      "wall_end_visible",
+      "enough_wall_shown",
     ],
   },
   {
