@@ -17,12 +17,15 @@ export function getSupabase(): SupabaseClient {
   return client;
 }
 
-export async function signedUrls(paths: string[]): Promise<Record<string, string>> {
+export async function signedUrls(
+  paths: string[],
+  seconds = SIGNED_URL_SECONDS,
+): Promise<Record<string, string>> {
   const unique = [...new Set(paths.filter(Boolean))];
   if (unique.length === 0) return {};
   const { data, error } = await getSupabase()
     .storage.from(PHOTO_BUCKET)
-    .createSignedUrls(unique, SIGNED_URL_SECONDS);
+    .createSignedUrls(unique, seconds);
   if (error || !data) return {};
   const out: Record<string, string> = {};
   for (const item of data) {

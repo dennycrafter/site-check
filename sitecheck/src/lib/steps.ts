@@ -31,11 +31,14 @@ export type Step = {
   description: string;
   /** Analysis fields that matter for this step (prompt and surveyor readout). */
   fields: AnalysisField[];
+  // External slot name used when exporting photos to another system.
+  baseSlot: string;
 };
 
 export const STEPS: Step[] = [
   {
     id: "meter_area_wide",
+    baseSlot: "electric_meter_surroundings",
     title: "Meter and wall",
     instruction:
       "Stand about 10 steps back. Fit your meter inside the small box so we can see the whole wall around it.",
@@ -55,6 +58,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "meter_closeup",
+    baseSlot: "electric_meter_close_up",
     title: "Meter close-up",
     instruction: "Move close. Fill the circle with your meter so the numbers are readable.",
     outline: "circle_large",
@@ -63,6 +67,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "left_of_meter",
+    baseSlot: "electric_meter_left",
     title: "Left of the meter",
     instruction: "Step back and turn left. Keep the meter at the right edge of the screen.",
     outline: "small_right_edge",
@@ -79,6 +84,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "right_of_meter",
+    baseSlot: "electric_meter_right",
     title: "Right of the meter",
     instruction: "Step back and turn right. Keep the meter at the left edge of the screen.",
     outline: "small_left_edge",
@@ -95,6 +101,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "adjacent_wall",
+    baseSlot: "electric_meter_around_corner",
     title: "Around the corner",
     instruction: "Walk to the nearest corner. Show that whole wall from corner to corner.",
     outline: "corner_markers",
@@ -104,6 +111,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "behind_fence",
+    baseSlot: "electric_meter_behind_fence",
     title: "Behind the fence",
     instruction: "Show the full area behind the fence, corner to corner.",
     outline: "corner_markers",
@@ -112,6 +120,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "panel_wide",
+    baseSlot: "main_breaker_box_wall",
     title: "Breaker box and surroundings",
     instruction: "Show your main breaker box and what is around it. Zoomed out is better.",
     outline: "medium_center",
@@ -121,6 +130,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "main_disconnect_closeup",
+    baseSlot: "main_disconnect_switch_photo",
     title: "Main switch",
     instruction:
       "Open the lid. Fill the box with the main switch so the number (like 150 or 200) is readable.",
@@ -141,6 +151,12 @@ export function isStepId(value: string): value is StepId {
 
 export function stepTitle(id: string): string {
   return isStepId(id) ? STEP_BY_ID[id].title : id;
+}
+
+export const EXTRA_BASE_SLOT = "electric_meter_additional";
+
+export function baseSlotFor(id: string): string {
+  return isStepId(id) ? STEP_BY_ID[id].baseSlot : EXTRA_BASE_SLOT;
 }
 
 export const SPACE_STEPS: StepId[] = [

@@ -108,7 +108,7 @@ export function RecheckButton({ homeId, disabled }: { homeId: string; disabled: 
 
   return (
     <div className="flex flex-col items-end">
-      <Button variant="secondary" onClick={run} disabled={running || disabled} className="min-h-10 px-3 text-sm">
+      <Button variant="secondary" onClick={run} disabled={running || disabled} className="min-h-10 whitespace-nowrap px-3 text-sm">
         {running ? (
           <>
             <Spinner className="h-4 w-4" /> Re-running...

@@ -134,7 +134,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                   <tr>
                     <th className="px-4 py-3">Home</th>
                     <th className="px-4 py-3">Submitted</th>
-                    <th className="px-4 py-3">Verdict</th>
+                    <th className="px-4 py-3">Preliminary check</th>
                     <th className="px-4 py-3">Batteries</th>
                     <th className="px-4 py-3">Top reason</th>
                     <th className="px-4 py-3">Decision</th>
@@ -150,6 +150,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                         {h.customer_name && h.address && (
                           <p className="text-xs text-gray-500">{h.customer_name}</p>
                         )}
+                        {h.external_ref && <p className="text-xs text-gray-500">Order {h.external_ref}</p>}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-gray-700">
                         {h.submitted_at ? formatTime(h.submitted_at) : <span className="text-gray-500">In progress</span>}
@@ -176,7 +177,10 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                   <Link href={`/review/${h.id}`} className="block rounded-2xl border border-gray-200 p-4 active:bg-gray-50">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-semibold text-gray-900">{homeLabel(h)}</span>
-                      <VerdictBadge verdict={h.verdict} />
+                      <span className="flex shrink-0 items-center gap-1.5">
+                        <span className="text-xs text-gray-500">Preliminary check</span>
+                        <VerdictBadge verdict={h.verdict} />
+                      </span>
                     </div>
                     <p className="mt-1 text-sm text-gray-500">
                       {h.submitted_at ? formatTime(h.submitted_at) : "In progress"}

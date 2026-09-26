@@ -36,7 +36,21 @@ export type HomeRow = {
   submitted_at: string | null;
   /** Order ID from the system that sent the customer here. */
   external_ref: string | null;
+  site_check_status: SiteCheckStatus;
+  site_check: SiteCheckResult | null;
+  extra_steps: ExtraStep[];
 };
+
+export type SiteCheckStatus = "not_run" | "done" | "failed";
+
+export type SiteCheckResult = {
+  covered: boolean;
+  missing_views: { instruction: string; reason: string }[];
+  summary: string;
+  confidence: number;
+};
+
+export type ExtraStep = { id: string; instruction: string; reason: string };
 
 export type PhotoRow = {
   id: string;
