@@ -16,7 +16,16 @@ Definitions:
 - clear_ground_space: is there a clear patch of ground next to the wall near the meter, free of obstacles, roughly 3 ft by 3 ft for one battery ("room_for_one") or about 6 ft wide for two ("room_for_two")?
 - gas_meter_near / window_near / ac_unit_near: that item is within a few feet of the meter or of the clear ground space.
 - clutter_blocking: loose objects (wood piles, bins, bikes, plants) block the view of the meter, the wall or the ground.
-- location: where the breaker box is: outdoor, garage, closet, indoor_other, unknown.`;
+- location: where the breaker box is: outdoor, garage, closet, indoor_other, unknown.
+
+A photo is only usable if a reviewer could answer this step's questions from this photo alone, without asking the homeowner for another one. If something the step needs is cut off or out of frame, the photo is not usable.
+
+More definitions:
+- meter_count: how many electric meters are visible. 0 if none.
+- meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge.
+- ground_visible: the ground along the bottom of the wall is visible in the photo.
+- wall_end_visible: the wall is shown all the way to where it ends on the side this photo is about (a corner, a fence, a garage, or the end of the house).
+- panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).`;
 
 export function stepPrompt(step: StepId): string {
   const s = STEP_BY_ID[step];

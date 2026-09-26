@@ -54,16 +54,24 @@ export const STEPS: Step[] = [
       "clutter_blocking",
       "clear_ground_space",
       "multiple_panels_visible",
+      "meter_count",
+      "ground_visible",
     ],
   },
   {
     id: "meter_closeup",
     baseSlot: "electric_meter_close_up",
     title: "Meter close-up",
-    instruction: "Move close. Fill the circle with your meter so the numbers are readable.",
+    instruction: "Move close so the numbers are readable. Keep the whole meter box in the photo.",
     outline: "circle_large",
-    description: "a close-up of the electric meter with its numbers readable",
-    fields: ["meter_number_legible", "damage_visible"],
+    description:
+      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge",
+    fields: [
+      "meter_number_legible",
+      "damage_visible",
+      "meter_count",
+      "meter_can_edges_visible",
+    ],
   },
   {
     id: "left_of_meter",
@@ -80,6 +88,8 @@ export const STEPS: Step[] = [
       "ac_unit_near",
       "fence_present",
       "clutter_blocking",
+      "ground_visible",
+      "wall_end_visible",
     ],
   },
   {
@@ -97,6 +107,8 @@ export const STEPS: Step[] = [
       "ac_unit_near",
       "fence_present",
       "clutter_blocking",
+      "ground_visible",
+      "wall_end_visible",
     ],
   },
   {
@@ -107,7 +119,15 @@ export const STEPS: Step[] = [
     outline: "corner_markers",
     description:
       "the full neighbouring wall of the house around the nearest corner from the meter, corner to corner",
-    fields: ["clear_ground_space", "gas_meter_near", "window_near", "ac_unit_near", "clutter_blocking"],
+    fields: [
+      "clear_ground_space",
+      "gas_meter_near",
+      "window_near",
+      "ac_unit_near",
+      "clutter_blocking",
+      "ground_visible",
+      "wall_end_visible",
+    ],
   },
   {
     id: "behind_fence",
@@ -116,7 +136,15 @@ export const STEPS: Step[] = [
     instruction: "Show the full area behind the fence, corner to corner.",
     outline: "corner_markers",
     description: "the full area behind a fence next to the meter wall, corner to corner",
-    fields: ["clear_ground_space", "gas_meter_near", "window_near", "ac_unit_near", "clutter_blocking"],
+    fields: [
+      "clear_ground_space",
+      "gas_meter_near",
+      "window_near",
+      "ac_unit_near",
+      "clutter_blocking",
+      "ground_visible",
+      "wall_end_visible",
+    ],
   },
   {
     id: "panel_wide",
@@ -126,7 +154,12 @@ export const STEPS: Step[] = [
     outline: "medium_center",
     description:
       "the main breaker box and its surroundings, zoomed out enough to see where it is (outside wall, garage, closet)",
-    fields: ["location", "multiple_panels_visible", "damage_visible"],
+    fields: [
+      "location",
+      "multiple_panels_visible",
+      "damage_visible",
+      "panel_context_visible",
+    ],
   },
   {
     id: "main_disconnect_closeup",

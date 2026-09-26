@@ -45,6 +45,11 @@ export const PHOTO_ANALYSIS_SCHEMA = {
     "clutter_blocking",
     "clear_ground_space",
     "multiple_panels_visible",
+    "meter_count",
+    "meter_can_edges_visible",
+    "ground_visible",
+    "wall_end_visible",
+    "panel_context_visible",
     "notes",
   ],
   properties: {
@@ -66,6 +71,11 @@ export const PHOTO_ANALYSIS_SCHEMA = {
     clutter_blocking: { type: "boolean" },
     clear_ground_space: { type: "string", enum: [...GROUND_SPACE] },
     multiple_panels_visible: { type: "boolean" },
+    meter_count: { type: "integer" },
+    meter_can_edges_visible: { type: "boolean" },
+    ground_visible: { type: "boolean" },
+    wall_end_visible: { type: "boolean" },
+    panel_context_visible: { type: "boolean" },
     notes: { type: "string" },
   },
 } as const;
@@ -89,6 +99,11 @@ export const PhotoAnalysisZod = z.object({
   clutter_blocking: z.boolean(),
   clear_ground_space: z.enum(GROUND_SPACE),
   multiple_panels_visible: z.boolean(),
+  meter_count: z.number(),
+  meter_can_edges_visible: z.boolean(),
+  ground_visible: z.boolean(),
+  wall_end_visible: z.boolean(),
+  panel_context_visible: z.boolean(),
   notes: z.string(),
 });
 
@@ -114,5 +129,6 @@ export function parseAnalysisText(text: string): PhotoAnalysis {
     ...parsed,
     confidence: Math.min(100, Math.max(0, Math.round(parsed.confidence))),
     amp_rating: Math.round(parsed.amp_rating),
+    meter_count: Math.max(0, Math.round(parsed.meter_count)),
   };
 }

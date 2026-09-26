@@ -50,7 +50,7 @@ async function attemptOnce(step: StepId, base64Jpeg: string, model: string): Pro
     const response = await client.messages.create(
       {
         model,
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: SYSTEM_PROMPT,
         messages: [
           {

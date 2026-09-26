@@ -41,11 +41,17 @@ export const FIELD_LABELS: Record<AnalysisField, string> = {
   clutter_blocking: "Clutter blocking",
   clear_ground_space: "Clear ground space",
   multiple_panels_visible: "Multiple panels",
+  meter_count: "Meters visible",
+  meter_can_edges_visible: "Whole meter box in frame",
+  ground_visible: "Ground visible",
+  wall_end_visible: "Wall end visible",
+  panel_context_visible: "Surroundings visible",
   notes: "Notes",
 };
 
 export function formatField(field: AnalysisField, analysis: PhotoAnalysis): string {
   const value = analysis[field];
+  if (value === undefined) return "Not checked";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (field === "amp_rating") return value ? `${value}A` : "Not read";
   if (field === "confidence") return `${value}%`;
