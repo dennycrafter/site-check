@@ -92,13 +92,15 @@ export async function buildStepViews(home: HomeRow, photos: PhotoRow[]): Promise
   });
 }
 
+export function homeLabel(home: Pick<HomeRow, "address" | "customer_name">): string {
+  return home.address || home.customer_name || "Address not given";
+}
+
 /** The homeowner-facing subset of a home. The verdict is for surveyors only. */
 export function publicHome(home: HomeRow) {
   return {
     id: home.id,
-    customer_name: home.customer_name,
-    in_austin: home.in_austin,
-    has_solar: home.has_solar,
+    address: home.address,
     setup_type: home.setup_type,
     panel_same_wall_answer: home.panel_same_wall_answer,
     status: home.status,

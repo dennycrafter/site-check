@@ -10,7 +10,7 @@ export default function StartPage() {
       <Link href="/" className="text-sm font-semibold text-accent">
         SiteCheck
       </Link>
-      <h1 className="mt-4 text-2xl font-bold text-gray-900">A few quick questions</h1>
+      <h1 className="mt-4 text-2xl font-bold text-gray-900">Where is the home?</h1>
       <p className="mt-2 text-base text-gray-600">
         Takes about 5 minutes. You&apos;ll be outside next to your electric meter.
       </p>

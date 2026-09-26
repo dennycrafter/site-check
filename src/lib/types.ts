@@ -19,10 +19,12 @@ export type SurveyorDecision = "approved" | "rejected" | "needs_site_visit";
 export type HomeRow = {
   id: string;
   created_at: string;
-  customer_name: string;
-  customer_email: string;
-  in_austin: boolean;
-  has_solar: boolean;
+  address: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  /** null means not asked yet. */
+  in_austin: boolean | null;
+  has_solar: boolean | null;
   panel_same_wall_answer: PanelSameWallAnswer;
   setup_type: SetupType;
   status: "in_progress" | "submitted";

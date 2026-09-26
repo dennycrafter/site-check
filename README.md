@@ -80,6 +80,8 @@ Rules are derived from Base Power's public help center: [article 10280705](https
 | `AMP_UNREADABLE` | REVIEW | Main breaker amp rating not legible |
 | `AMP_TOO_LOW` | FAIL | Below 150A in Austin, below 100A elsewhere |
 | `SOLAR_NEEDS_200A` | FAIL | Home has solar and main breaker is below 200A |
+| `AMP_LOCATION_UNKNOWN` | REVIEW | 100-149A and it is not yet known if the home is in Austin |
+| `SOLAR_UNKNOWN` | REVIEW | Below 200A and it is not yet known if the home has solar |
 | `AMP_ABOVE_200` | REVIEW | Above the published 100-200A range |
 | `AMP_OK` | PASS | 200A supports 2 batteries, otherwise 1 |
 | `SETUP_UNCLEAR` | REVIEW | Could not tell the meter and breaker box setup |
@@ -93,6 +95,8 @@ Rules are derived from Base Power's public help center: [article 10280705](https
 | `SPACE_UNCLEAR` | REVIEW | Ground space could not be judged |
 | `SPACE_OK` | PASS | Space fits 1 or 2 batteries |
 | `CAPPED_BY_SPACE` | PASS | Panel supports 2 batteries but space fits 1 |
+
+The homeowner is only asked for the home address. Whether the home is in Austin and whether it has solar are meant to come from another part of the booking system: `POST /api/homes` accepts optional `inAustin`, `hasSolar`, `customerName` and `customerEmail` alongside `address`. Until they are known, any rule that depends on them goes to REVIEW instead of guessing.
 
 Any FAIL makes the verdict FAIL with 0 batteries. Otherwise any REVIEW makes it REVIEW with a provisional count. Otherwise PASS with the smaller of the panel and space limits. Any FAIL that comes from a photo read with confidence below 80 is downgraded to REVIEW.
 

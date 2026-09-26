@@ -17,8 +17,9 @@ export type RulesPhoto = {
 };
 
 export type RulesInput = {
-  inAustin: boolean;
-  hasSolar: boolean;
+  /** null means not asked yet; rules that depend on it go to REVIEW. */
+  inAustin: boolean | null;
+  hasSolar: boolean | null;
   panelSameWallAnswer: PanelSameWallAnswer;
   setupType: SetupType;
   photos: RulesPhoto[];
@@ -85,11 +86,29 @@ export function evaluate(input: RulesInput): RulesResult {
     if (!amp.amp_rating_legible || x <= 0) {
       add("AMP_UNREADABLE", "REVIEW", "Could not read the main breaker amp rating.", step);
     } else {
+      // Unknown location: only the lowest minimum can FAIL; the Austin gap goes to a human.
       const min = input.inAustin ? AMP_MIN_AUSTIN : AMP_MIN_ELSEWHERE;
       const outcomes: Outcome[] = [];
       if (x < min) {
         outcomes.push(
           failUnlessUnsure("AMP_TOO_LOW", `Main breaker is ${x}A. Minimum here is ${min}A.`, amp.confidence, step),
+        );
+      } else if (input.inAustin === null && x < AMP_MIN_AUSTIN) {
+        outcomes.push("REVIEW");
+        add(
+          "AMP_LOCATION_UNKNOWN",
+          "REVIEW",
+          `Main breaker is ${x}A. Austin homes need ${AMP_MIN_AUSTIN}A. Confirm whether the home is in Austin.`,
+          step,
+        );
+      }
+      if (input.hasSolar === null && x >= AMP_MIN_ELSEWHERE && x < AMP_REQUIRED_WITH_SOLAR) {
+        outcomes.push("REVIEW");
+        add(
+          "SOLAR_UNKNOWN",
+          "REVIEW",
+          `Main breaker is ${x}A. Homes with solar need 200A. Confirm whether the home has solar.`,
+          step,
         );
       }
       if (input.hasSolar && x < AMP_REQUIRED_WITH_SOLAR) {

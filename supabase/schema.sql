@@ -2,10 +2,11 @@
 create table if not exists public.homes (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  customer_name text not null,
-  customer_email text not null,
-  in_austin boolean not null,
-  has_solar boolean not null,
+  address text,
+  customer_name text,
+  customer_email text,
+  in_austin boolean,
+  has_solar boolean,
   panel_same_wall_answer text not null default 'not_asked'
     check (panel_same_wall_answer in ('yes','no','not_sure','not_asked')),
   setup_type text not null default 'unknown'
@@ -36,6 +37,15 @@ create table if not exists public.photos (
   latency_ms int,
   ai_attempts int not null default 1
 );
+
+-- Upgrade projects created with the first schema: address is now the only
+-- homeowner question; name, email, Austin and solar can arrive later from
+-- another system (null means not asked yet).
+alter table public.homes add column if not exists address text;
+alter table public.homes alter column customer_name drop not null;
+alter table public.homes alter column customer_email drop not null;
+alter table public.homes alter column in_austin drop not null;
+alter table public.homes alter column has_solar drop not null;
 
 create index if not exists photos_home_idx on public.photos(home_id, step, attempt);
 create index if not exists homes_created_idx on public.homes(created_at desc);

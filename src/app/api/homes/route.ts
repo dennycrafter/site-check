@@ -7,26 +7,29 @@ import { getSupabase } from "@/lib/supabase";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+/** Only the address is asked in the app; the rest can be supplied by an integrating system. */
 const CreateHomeZod = z.object({
-  customerName: z.string().trim().min(1).max(200),
-  customerEmail: z.email().max(320),
-  inAustin: z.boolean(),
-  hasSolar: z.boolean(),
+  address: z.string().trim().min(5).max(300),
+  customerName: z.string().trim().min(1).max(200).optional(),
+  customerEmail: z.email().max(320).optional(),
+  inAustin: z.boolean().optional(),
+  hasSolar: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
   const body = CreateHomeZod.safeParse(await readJson(request));
   if (!body.success) {
-    return jsonError(400, "Please fill in your name, a valid email, and answer both questions.");
+    return jsonError(400, "Please enter the full address of the home.");
   }
   try {
     const { data, error } = await getSupabase()
       .from("homes")
       .insert({
-        customer_name: body.data.customerName,
-        customer_email: body.data.customerEmail,
-        in_austin: body.data.inAustin,
-        has_solar: body.data.hasSolar,
+        address: body.data.address,
+        customer_name: body.data.customerName ?? null,
+        customer_email: body.data.customerEmail ?? null,
+        in_austin: body.data.inAustin ?? null,
+        has_solar: body.data.hasSolar ?? null,
       })
       .select("id")
       .single();

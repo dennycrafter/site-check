@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { VerdictBadge } from "@/components/ui";
-import { loadHome } from "@/lib/homes";
+import { homeLabel, loadHome } from "@/lib/homes";
 import {
   DECISION_LABELS,
   FIELD_LABELS,
@@ -39,7 +39,8 @@ const STATUS_STYLES: Record<PhotoStatus | "pending", string> = {
   pending: "bg-gray-100 text-gray-500",
 };
 
-function YesNo({ value }: { value: boolean }) {
+function YesNo({ value }: { value: boolean | null }) {
+  if (value === null) return <span className="font-semibold text-gray-400">Not asked</span>;
   return <span className="font-semibold text-gray-900">{value ? "Yes" : "No"}</span>;
 }
 
@@ -146,10 +147,14 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
         <header className="mt-3 flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{home.customer_name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{homeLabel(home)}</h1>
               <VerdictBadge verdict={home.verdict} />
             </div>
-            <p className="mt-1 text-gray-600">{home.customer_email}</p>
+            {(home.customer_name || home.customer_email) && home.address && (
+              <p className="mt-1 text-gray-600">
+                {[home.customer_name, home.customer_email].filter(Boolean).join(" · ")}
+              </p>
+            )}
             <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
               <span>
                 Austin: <YesNo value={home.in_austin} />

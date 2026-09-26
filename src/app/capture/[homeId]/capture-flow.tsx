@@ -17,7 +17,7 @@ type StepView = {
 };
 
 type HomeData = {
-  home: { id: string; customer_name: string; status: "in_progress" | "submitted" };
+  home: { id: string; address: string | null; status: "in_progress" | "submitted" };
   steps: StepView[];
   nextStep: StepId | "question_5" | null;
 };
@@ -227,7 +227,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
           <CheckIcon className="mx-auto h-16 w-16 text-pass" />
           <h1 className="mt-4 text-2xl font-bold text-gray-900">Thanks! A Base surveyor will review your home.</h1>
           <p className="mt-3 text-gray-600">
-            We have everything we need. You&apos;ll hear back by email at the address you gave us.
+            We have everything we need from you for now. The survey team will be in touch.
           </p>
         </div>
       </Shell>
@@ -293,7 +293,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
           <span>
             Step {index + 1} of {total}
           </span>
-          <span className="truncate pl-4">{data.home.customer_name}</span>
+          <span className="truncate pl-4">{data.home.address}</span>
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200">
           <div

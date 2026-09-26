@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { VerdictBadge } from "@/components/ui";
+import { homeLabel } from "@/lib/homes";
 import { DECISION_LABELS, formatTime } from "@/lib/labels";
 import { getSupabase } from "@/lib/supabase";
 import type { HomeRow, Outcome } from "@/lib/types";
@@ -131,7 +132,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
               <table className="w-full text-left text-sm">
                 <thead className="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                   <tr>
-                    <th className="px-4 py-3">Customer</th>
+                    <th className="px-4 py-3">Home</th>
                     <th className="px-4 py-3">Submitted</th>
                     <th className="px-4 py-3">Verdict</th>
                     <th className="px-4 py-3">Batteries</th>
@@ -144,9 +145,11 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                     <tr key={h.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <Link href={`/review/${h.id}`} className="font-semibold text-gray-900 hover:text-accent">
-                          {h.customer_name}
+                          {homeLabel(h)}
                         </Link>
-                        <p className="text-xs text-gray-500">{h.customer_email}</p>
+                        {h.customer_name && h.address && (
+                          <p className="text-xs text-gray-500">{h.customer_name}</p>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-gray-700">
                         {h.submitted_at ? formatTime(h.submitted_at) : <span className="text-gray-500">In progress</span>}
@@ -172,7 +175,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                 <li key={h.id}>
                   <Link href={`/review/${h.id}`} className="block rounded-2xl border border-gray-200 p-4 active:bg-gray-50">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="font-semibold text-gray-900">{h.customer_name}</span>
+                      <span className="font-semibold text-gray-900">{homeLabel(h)}</span>
                       <VerdictBadge verdict={h.verdict} />
                     </div>
                     <p className="mt-1 text-sm text-gray-500">

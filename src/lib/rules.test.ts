@@ -168,6 +168,35 @@ const cases: Case[] = [
     verdict: "REVIEW",
     code: "SPACE_UNCLEAR",
   },
+  {
+    name: "18. location not asked, 125A",
+    input: { inAustin: null },
+    steps: { main_disconnect_closeup: { amp_rating: 125 } },
+    verdict: "REVIEW",
+    batteryCount: 1,
+    code: "AMP_LOCATION_UNKNOWN",
+  },
+  {
+    name: "19. location not asked, 90A",
+    input: { inAustin: null },
+    steps: { main_disconnect_closeup: { amp_rating: 90 } },
+    verdict: "FAIL",
+    code: "AMP_TOO_LOW",
+  },
+  {
+    name: "20. solar not asked, 150A",
+    input: { hasSolar: null },
+    steps: { main_disconnect_closeup: { amp_rating: 150 } },
+    verdict: "REVIEW",
+    code: "SOLAR_UNKNOWN",
+  },
+  {
+    name: "21. location and solar not asked, 200A",
+    input: { inAustin: null, hasSolar: null },
+    verdict: "PASS",
+    batteryCount: 2,
+    code: "AMP_OK",
+  },
 ];
 
 describe("evaluate", () => {
