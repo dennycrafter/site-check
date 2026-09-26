@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
-import { VerdictBadge } from "@/components/ui";
+import { buttonClass, VerdictBadge } from "@/components/ui";
 import { homeLabel, loadHome } from "@/lib/homes";
 import {
   DECISION_LABELS,
@@ -150,6 +150,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               <h1 className="text-2xl font-bold text-gray-900">{homeLabel(home)}</h1>
               <VerdictBadge verdict={home.verdict} />
             </div>
+            {home.external_ref && (
+              <p className="mt-1 text-sm font-semibold text-gray-700">Order {home.external_ref}</p>
+            )}
             {(home.customer_name || home.customer_email) && home.address && (
               <p className="mt-1 text-gray-600">
                 {[home.customer_name, home.customer_email].filter(Boolean).join(" · ")}
@@ -177,19 +180,29 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               {` · Started ${formatTime(home.created_at)}`}
             </p>
           </div>
-          <div className="flex items-center gap-4 rounded-2xl border border-gray-200 px-5 py-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Batteries</p>
-              <p className="text-3xl font-bold text-gray-900">{home.battery_count ?? "-"}</p>
-              {home.verdict === "REVIEW" && <p className="text-xs text-review">provisional</p>}
+          <div className="flex flex-col items-stretch gap-3 md:items-end">
+            <div className="flex items-center gap-4 rounded-2xl border border-gray-200 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Batteries</p>
+                <p className="text-3xl font-bold text-gray-900">{home.battery_count ?? "-"}</p>
+                {home.verdict === "REVIEW" && <p className="text-xs text-review">provisional</p>}
+              </div>
+              <div className="h-12 w-px bg-gray-200" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Decision</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {home.surveyor_decision ? DECISION_LABELS[home.surveyor_decision] : "Undecided"}
+                </p>
+              </div>
             </div>
-            <div className="h-12 w-px bg-gray-200" />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Decision</p>
-              <p className="text-base font-semibold text-gray-900">
-                {home.surveyor_decision ? DECISION_LABELS[home.surveyor_decision] : "Undecided"}
-              </p>
-            </div>
+            <a
+              href={`/api/homes/${home.id}/export`}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClass("secondary", "text-sm")}
+            >
+              Export for Base (JSON)
+            </a>
           </div>
         </header>
 
@@ -272,8 +285,12 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
           <aside className="order-1 space-y-6 lg:order-2">
             <section className="rounded-2xl border border-gray-200 p-5">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-gray-900">Reasons</h2>
+                <h2 className="text-lg font-bold text-gray-900">Preliminary check</h2>
                 <RecheckButton homeId={home.id} disabled={photos.length === 0} />
+              </div>
+              <div className="mt-1 flex items-center gap-2">
+                <VerdictBadge verdict={home.verdict} />
+                <p className="text-xs text-gray-500">Final decision stays with the review team.</p>
               </div>
               <div className="mt-4 space-y-5">
                 {reasons.length === 0 && <p className="text-gray-600">No reasons yet.</p>}
