@@ -23,7 +23,7 @@ export const GOOD_ANALYSIS: PhotoAnalysis = {
   meter_count: 1,
   meter_can_edges_visible: true,
   ground_visible: true,
-  wall_end_visible: true,
+  enough_wall_shown: true,
   panel_context_visible: true,
   panel_brand: "other",
   panel_label_legible: true,

@@ -23,17 +23,17 @@ describe("decidePhoto decidability triggers", () => {
     );
   });
 
-  it("retakes wall photos without ground, before checking the wall end", () => {
-    expect(retakeMessage("left_of_meter", { ground_visible: false, wall_end_visible: false })).toBe(
+  it("retakes wall photos without ground, before checking how much wall is shown", () => {
+    expect(retakeMessage("left_of_meter", { ground_visible: false, enough_wall_shown: false })).toBe(
       "Tilt your phone down a little so we can see the ground by the wall.",
     );
-    expect(retakeMessage("right_of_meter", { wall_end_visible: false })).toBe(
-      "Step back until you can see where this wall ends.",
+    expect(retakeMessage("right_of_meter", { enough_wall_shown: false })).toBe(
+      "Step back so we can see more of the wall and the ground in front of it.",
     );
   });
 
-  it("does not apply wall_end_visible to the wide meter photo", () => {
-    expect(decidePhoto("meter_area_wide", { ...GOOD, wall_end_visible: false }).accept).toBe(true);
+  it("does not apply enough_wall_shown to the wide meter photo", () => {
+    expect(decidePhoto("meter_area_wide", { ...GOOD, enough_wall_shown: false }).accept).toBe(true);
   });
 
   it("retakes a breaker box photo without surroundings", () => {

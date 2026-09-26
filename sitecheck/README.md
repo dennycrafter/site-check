@@ -116,7 +116,7 @@ Rules are derived from Base Power's public help center: [article 10280705](https
 | Code | Outcome | When |
 |---|---|---|
 | `STEP_MISSING` | REVIEW | A required photo is missing |
-| `STEP_UNCLEAR` | REVIEW | Homeowner could not get a clear photo in 3 tries |
+| `STEP_UNCLEAR` | REVIEW | A photo flagged for a retake was kept, after 3 tries or by the homeowner |
 | `CHECK_FAILED` | REVIEW | The automatic check was unavailable for a photo |
 | `AMP_UNREADABLE` | REVIEW | Main breaker amp rating not legible |
 | `SITE_CHECK_FAILED` | REVIEW | The whole-site check could not run |
@@ -157,8 +157,10 @@ Before a photo is accepted, it must show enough to decide. If the AI did not giv
 |---|---|---|
 | Meter close-up | The whole meter box is not in the frame | Step back a little so the whole meter box fits, with some wall around it. |
 | Meter and wall, left, right, around the corner, behind the fence, extra photos | The ground is not visible | Tilt your phone down a little so we can see the ground by the wall. |
-| Left, right, around the corner, behind the fence | The end of the wall is not visible | Step back until you can see where this wall ends. |
+| Left, right, around the corner, behind the fence | Less than about 6 feet of wall and ground is shown (the wall may run out of the frame) | Step back so we can see more of the wall and the ground in front of it. |
 | Breaker box and surroundings | The room or wall around the box is not visible | Step back so we can see the room or wall around the breaker box. |
+
+Plants, clutter, vehicles or fences in front of a wall are recorded as findings, never a reason to retake. Under every retake request the homeowner can tap "Use this photo anyway" to keep the photo and move on. It is marked "Kept for review" and adds a `STEP_UNCLEAR` REVIEW reason, the same as a photo kept after 3 tries.
 
 ## Reproduce the demo
 

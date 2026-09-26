@@ -20,11 +20,13 @@ Definitions:
 
 A photo is only usable if a reviewer could answer this step's questions from this photo alone, without asking the homeowner for another one. If something the step needs is cut off or out of frame, the photo is not usable.
 
+For photos of walls and ground, plants, clutter, vehicles, fences or other objects in the way are findings, not photo problems. A new photo would show the same things, so never ask for a retake because of them. Record them in the fields and notes instead. Real homes are messy; accept a photo whenever a reviewer can judge the space from it.
+
 More definitions:
 - meter_count: how many electric meters are visible. 0 if none.
 - meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge.
 - ground_visible: the ground along the bottom of the wall is visible in the photo.
-- wall_end_visible: the wall is shown all the way to where it ends on the side this photo is about (a corner, a fence, a garage, or the end of the house).
+- enough_wall_shown: the photo shows the wall and the ground in front of it for at least about 6 feet (2 meters) on the side this photo is about, or up to where the wall ends if that is closer. The wall continuing out of the frame is fine. Plants, fences, vehicles or clutter in the way do not make this false. False only when the photo is so close or so narrow that less than about 6 feet of wall and ground can be seen.
 - panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).
 - panel_brand: the manufacturer printed on the breaker box label or on the breakers. Federal Pacific also appears as FPE, Federal Pacific Electric, or Stab-Lok breakers. Zinsco also appears as GTE-Sylvania, Zinsco-Sylvania, or Magnetrip. Use "other" for any other readable brand. Use "not_visible" if you cannot read a brand. Never guess a brand from how the panel looks.
 - panel_label_legible: you can read the brand or label text with certainty.

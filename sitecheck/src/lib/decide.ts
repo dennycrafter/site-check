@@ -39,8 +39,8 @@ const DECIDABILITY: Array<{ applies: (step: string) => boolean; fails: (a: Photo
   },
   {
     applies: (step) => WALL_STEPS.includes(step),
-    fails: (a) => !a.wall_end_visible,
-    message: "Step back until you can see where this wall ends.",
+    fails: (a) => !a.enough_wall_shown,
+    message: "Step back so we can see more of the wall and the ground in front of it.",
   },
   {
     applies: (step) => step === "panel_wide",
