@@ -87,6 +87,11 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     return () => streamRef.current?.getTracks().forEach((t) => t.stop());
   }, []);
 
+  const allDone = data !== null && (data.nextStep === null || data.home.status === "submitted");
+  useEffect(() => {
+    if (allDone) streamRef.current?.getTracks().forEach((t) => t.stop());
+  }, [allDone]);
+
   const attachVideo = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
     if (el && streamRef.current && el.srcObject !== streamRef.current) {
