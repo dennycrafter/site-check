@@ -132,11 +132,11 @@ Rules are derived from Base Power's public help center: [article 10280705](https
 | `PANEL_WALL_UNSURE` | REVIEW | Homeowner not sure where the indoor breaker box is |
 | `MULTIPLE_METERS` | REVIEW | More than one electric meter visible |
 | `MULTIPLE_PANELS` | REVIEW | More than one breaker box visible |
-| `DAMAGE` | FAIL | Visible damage on meter, breaker box or main switch |
-| `PANEL_RECALLED_BRAND` | FAIL | Open breaker box is Federal Pacific, Zinsco, Challenger or Sylvania |
+| `DAMAGE` | REVIEW | Physical damage (broken, loose, exposed wires, burn marks) on meter, breaker box or main switch. Rust alone does not count |
+| `PANEL_RECALLED_BRAND` | REVIEW | Open breaker box is Federal Pacific, Zinsco, Challenger or Sylvania |
 | `PANEL_BRAND_CHECK` | REVIEW | Open breaker box is Westinghouse |
 | `PANEL_BRAND_UNREADABLE` | REVIEW | Breaker box brand or label could not be read |
-| `HEAVY_RUST` | FAIL | Heavy rust on the breaker box or main switch |
+| `HEAVY_RUST` | REVIEW | Heavy rust on the breaker box or main switch |
 | `OBSTACLE_NEAR_METER` | REVIEW | Gas meter, window or A/C unit near the meter |
 | `NO_SPACE` | FAIL | No clear ground space in any photo |
 | `SPACE_UNCLEAR` | REVIEW | Ground space could not be judged |
@@ -147,7 +147,7 @@ Photos from the whole-site check's extra steps count toward the space rules.
 
 Whether the home is in Austin and whether it has solar come from the prefilled link or the details form (see "How it plugs into an existing flow"). Until they are known, any rule that depends on them goes to REVIEW instead of guessing.
 
-Any FAIL makes the preliminary check FAIL with 0 batteries. Otherwise any REVIEW makes it REVIEW with a provisional count. Otherwise PASS with the smaller of the panel and space limits. Any FAIL that comes from a photo read with confidence below 80 is downgraded to REVIEW. The final decision stays with the review team.
+Any FAIL makes the preliminary check FAIL with 0 batteries. Otherwise any REVIEW makes it REVIEW with a provisional count. Otherwise PASS with the smaller of the panel and space limits. Any FAIL that comes from a photo read with confidence below 80 is downgraded to REVIEW. Problems that can be repaired before install (damage, heavy rust, a recalled breaker box brand) are REVIEW with a "Needs repair before install" message, so FAIL is kept for things that are hard to change. The final decision stays with the review team.
 
 ### Retake triggers
 

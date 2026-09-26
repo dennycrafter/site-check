@@ -30,7 +30,8 @@ More definitions:
 - panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).
 - panel_brand: the manufacturer printed on the breaker box label or on the breakers. Federal Pacific also appears as FPE, Federal Pacific Electric, or Stab-Lok breakers. Zinsco also appears as GTE-Sylvania, Zinsco-Sylvania, or Magnetrip. Use "other" for any other readable brand. Use "not_visible" if you cannot read a brand. Never guess a brand from how the panel looks.
 - panel_label_legible: you can read the brand or label text with certainty.
-- heavy_rust: heavy or widespread rust or corrosion on the box or breakers. A few small spots do not count.`;
+- heavy_rust: heavy or widespread rust or corrosion on the box or breakers. A few small spots do not count.
+- damage_visible: physical damage to the meter, breaker box, breakers or conduit: broken, cracked, bent, dented through, loose or pulled away from the wall, missing covers (a door opened for the photo does not count), exposed wires, or burn marks. Rust or corrosion alone is not damage; record it in heavy_rust instead.`;
 
 export function stepPrompt(s: Pick<Step, "description" | "fields">): string {
   return `This photo is supposed to show: ${s.description}. The fields that matter most for this step are: ${s.fields.join(", ")}. Fill all fields, using neutral values for anything not visible.`;
