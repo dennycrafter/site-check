@@ -27,9 +27,13 @@ async function checkAnthropic(): Promise<string> {
 
 async function checkDatabase(): Promise<string> {
   try {
-    const { error } = await getSupabase()
-      .from("homes")
-      .select("*", { count: "exact", head: true });
+    // A HEAD count request reports no error when the table is missing, so read one row instead.
+    const supabase = getSupabase();
+    const [homes, photos] = await Promise.all([
+      supabase.from("homes").select("id", { count: "exact" }).limit(1),
+      supabase.from("photos").select("id").limit(1),
+    ]);
+    const error = homes.error ?? photos.error;
     return error ? describe(error) : "OK";
   } catch (err) {
     return describe(err);
@@ -38,8 +42,9 @@ async function checkDatabase(): Promise<string> {
 
 async function checkStorage(): Promise<string> {
   try {
-    const { error } = await getSupabase().storage.from(PHOTO_BUCKET).list();
-    return error ? describe(error) : "OK";
+    const { data, error } = await getSupabase().storage.getBucket(PHOTO_BUCKET);
+    if (error) return describe(error);
+    return data.public ? "Bucket 'photos' is public; it must be private" : "OK";
   } catch (err) {
     return describe(err);
   }
