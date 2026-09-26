@@ -1,5 +1,5 @@
 import type { PhotoAnalysis } from "./schema";
-import type { StepId } from "./steps";
+import { isExtraStepId } from "./steps";
 
 export const MESSAGES = {
   accepted: "Looks good",
@@ -33,7 +33,7 @@ const DECIDABILITY: Array<{ applies: (step: string) => boolean; fails: (a: Photo
     message: "Step back a little so the whole meter box fits, with some wall around it.",
   },
   {
-    applies: (step) => GROUND_STEPS.includes(step),
+    applies: (step) => GROUND_STEPS.includes(step) || isExtraStepId(step),
     fails: (a) => !a.ground_visible,
     message: "Tilt your phone down a little so we can see the ground by the wall.",
   },
@@ -52,7 +52,7 @@ const DECIDABILITY: Array<{ applies: (step: string) => boolean; fails: (a: Photo
 export type PhotoDecision = { accept: true } | { accept: false; message: string };
 
 /** Section 8.5: whether a successfully analyzed photo is usable for its step. */
-export function decidePhoto(step: StepId, a: PhotoAnalysis): PhotoDecision {
+export function decidePhoto(step: string, a: PhotoAnalysis): PhotoDecision {
   const failed = DECIDABILITY.find((check) => check.applies(step) && check.fails(a));
   const retake =
     !a.photo_matches_request ||

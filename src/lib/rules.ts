@@ -1,7 +1,15 @@
 import { latestPhotoByStep, planSteps } from "./plan";
 import type { PhotoAnalysis } from "./schema";
-import { SPACE_STEPS, stepTitle } from "./steps";
-import type { FinishedPhotoStatus, Outcome, PanelSameWallAnswer, Reason, SetupType } from "./types";
+import { isExtraStepId, SPACE_STEPS, stepTitle } from "./steps";
+import type {
+  ExtraStep,
+  FinishedPhotoStatus,
+  Outcome,
+  PanelSameWallAnswer,
+  Reason,
+  SetupType,
+  SiteCheckStatus,
+} from "./types";
 
 export const CONFIDENCE_MIN = 80;
 export const AMP_MIN_AUSTIN = 150;
@@ -22,6 +30,8 @@ export type RulesInput = {
   hasSolar: boolean | null;
   panelSameWallAnswer: PanelSameWallAnswer;
   setupType: SetupType;
+  siteCheckStatus: SiteCheckStatus;
+  extraSteps?: Pick<ExtraStep, "id">[];
   photos: RulesPhoto[];
 };
 
@@ -62,7 +72,11 @@ export function evaluate(input: RulesInput): RulesResult {
 
   // Global rules over the steps that apply to this home.
   const required = planSteps(
-    { setup_type: input.setupType, panel_same_wall_answer: input.panelSameWallAnswer },
+    {
+      setup_type: input.setupType,
+      panel_same_wall_answer: input.panelSameWallAnswer,
+      extra_steps: input.extraSteps ?? [],
+    },
     input.photos,
   );
   for (const step of required) {
@@ -75,6 +89,10 @@ export function evaluate(input: RulesInput): RulesResult {
     } else if (photo.status === "check_failed" || !photo.analysis) {
       add("CHECK_FAILED", "REVIEW", `Automatic check failed for ${title}. Needs manual review.`, step);
     }
+  }
+
+  if (input.siteCheckStatus === "failed") {
+    add("SITE_CHECK_FAILED", "REVIEW", "Whole-site check could not run. Check photo coverage manually.", null);
   }
 
   // Amp rules. null means unknown (counts as 1 for a provisional REVIEW count).
@@ -218,7 +236,8 @@ export function evaluate(input: RulesInput): RulesResult {
 
   // Space rules.
   let spaceMaxBatteries: number | null = null;
-  const spacePhotos = SPACE_STEPS.flatMap((step) => {
+  const spaceSteps = [...SPACE_STEPS, ...[...accepted.keys()].filter(isExtraStepId)];
+  const spacePhotos = spaceSteps.flatMap((step) => {
     const a = accepted.get(step);
     return a ? [{ step, analysis: a }] : [];
   });

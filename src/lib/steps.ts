@@ -1,4 +1,5 @@
 import type { AnalysisField } from "./schema";
+import type { ExtraStep } from "./types";
 
 export const STEP_IDS = [
   "meter_area_wide",
@@ -23,7 +24,8 @@ export type OutlineId =
   | "rect_large";
 
 export type Step = {
-  id: StepId;
+  /** A StepId, or extra_<n> for photos the whole-site check asked for. */
+  id: string;
   title: string;
   instruction: string;
   outline: OutlineId;
@@ -182,11 +184,41 @@ export function isStepId(value: string): value is StepId {
   return (STEP_IDS as readonly string[]).includes(value);
 }
 
-export function stepTitle(id: string): string {
-  return isStepId(id) ? STEP_BY_ID[id].title : id;
+export const EXTRA_STEP_TITLE = "One more photo";
+export const EXTRA_BASE_SLOT = "electric_meter_additional";
+export const EXTRA_STEP_FIELDS: AnalysisField[] = [
+  "clear_ground_space",
+  "gas_meter_near",
+  "window_near",
+  "ac_unit_near",
+  "clutter_blocking",
+  "ground_visible",
+];
+
+export function isExtraStepId(value: string): boolean {
+  return /^extra_\d+$/.test(value);
 }
 
-export const EXTRA_BASE_SLOT = "electric_meter_additional";
+/** Regular steps come from the table; extra_<n> steps are built from the home's whole-site check. */
+export function getStep(id: string, extraSteps: Pick<ExtraStep, "id" | "instruction">[] = []): Step | null {
+  if (isStepId(id)) return STEP_BY_ID[id];
+  const extra = isExtraStepId(id) ? extraSteps.find((e) => e.id === id) : undefined;
+  if (!extra) return null;
+  return {
+    id,
+    title: EXTRA_STEP_TITLE,
+    instruction: extra.instruction,
+    outline: "corner_markers",
+    description: `the area described in this request: "${extra.instruction}"`,
+    fields: EXTRA_STEP_FIELDS,
+    baseSlot: EXTRA_BASE_SLOT,
+  };
+}
+
+export function stepTitle(id: string): string {
+  if (isStepId(id)) return STEP_BY_ID[id].title;
+  return isExtraStepId(id) ? EXTRA_STEP_TITLE : id;
+}
 
 export function baseSlotFor(id: string): string {
   return isStepId(id) ? STEP_BY_ID[id].baseSlot : EXTRA_BASE_SLOT;

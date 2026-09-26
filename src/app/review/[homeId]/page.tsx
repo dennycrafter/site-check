@@ -15,9 +15,9 @@ import {
 } from "@/lib/labels";
 import { latestPhotoByStep, planSteps } from "@/lib/plan";
 import { CONFIDENCE_MIN } from "@/lib/rules";
-import { isStepId, STEP_BY_ID, STEP_IDS, stepTitle } from "@/lib/steps";
+import { getStep, isExtraStepId, STEP_IDS, stepTitle } from "@/lib/steps";
 import { signedUrls } from "@/lib/supabase";
-import type { Outcome, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
+import type { HomeRow, Outcome, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
 import { DecisionPanel, RecheckButton } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +44,7 @@ function YesNo({ value }: { value: boolean | null }) {
   return <span className="font-semibold text-gray-900">{value ? "Yes" : "No"}</span>;
 }
 
-function Readout({ photo }: { photo: PhotoRow }) {
+function Readout({ photo, home }: { photo: PhotoRow; home: HomeRow }) {
   if (!photo.analysis) {
     return (
       <p className="text-sm text-gray-600">
@@ -53,7 +53,7 @@ function Readout({ photo }: { photo: PhotoRow }) {
     );
   }
   const a = photo.analysis;
-  const fields = isStepId(photo.step) ? STEP_BY_ID[photo.step].fields : [];
+  const fields = getStep(photo.step, home.extra_steps)?.fields ?? [];
   const lowConfidence = a.confidence < CONFIDENCE_MIN;
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
@@ -83,6 +83,66 @@ function Readout({ photo }: { photo: PhotoRow }) {
         </>
       )}
     </dl>
+  );
+}
+
+function siteCheckStatusLabel(home: HomeRow): string {
+  if (home.site_check_status === "failed") return "Could not run";
+  if (home.site_check_status === "not_run") return "Not run yet";
+  const n = home.extra_steps.length;
+  return n === 0 ? "Covered" : `Asked for ${n} more ${n === 1 ? "photo" : "photos"}`;
+}
+
+function SiteCheckCard({
+  home,
+  latest,
+  urls,
+}: {
+  home: HomeRow;
+  latest: Map<string, PhotoRow>;
+  urls: Record<string, string>;
+}) {
+  const label = siteCheckStatusLabel(home);
+  const tone =
+    home.site_check_status === "done" && home.extra_steps.length === 0
+      ? "text-pass"
+      : home.site_check_status === "not_run"
+        ? "text-gray-500"
+        : "text-review";
+  return (
+    <section className="rounded-2xl border border-gray-200 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-lg font-bold text-gray-900">Whole-site check</h2>
+        <span className={`text-sm font-semibold ${tone}`}>{label}</span>
+      </div>
+      {home.site_check?.summary && <p className="mt-2 text-gray-700">{home.site_check.summary}</p>}
+      {home.extra_steps.length > 0 && (
+        <ul className="mt-4 space-y-3">
+          {home.extra_steps.map((extra) => {
+            const photo = latest.get(extra.id);
+            const url = photo ? urls[photo.storage_path] : undefined;
+            return (
+              <li key={extra.id} className="flex gap-3">
+                {url ? (
+                  <a href={url} target="_blank" rel="noreferrer" className="shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt={extra.instruction} className="h-16 w-16 rounded-md object-cover" />
+                  </a>
+                ) : (
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-gray-100 text-center text-[10px] text-gray-400">
+                    Not taken
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900">{extra.instruction}</p>
+                  {extra.reason && <p className="text-xs text-gray-500">{extra.reason}</p>}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 
@@ -208,7 +268,8 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px]">
           <div className="order-2 lg:order-1">
-            <h2 className="text-lg font-bold text-gray-900">Photos</h2>
+            <SiteCheckCard home={home} latest={latest} urls={urls} />
+            <h2 className="mt-6 text-lg font-bold text-gray-900">Photos</h2>
             {stepOrder.length === 0 && <p className="mt-2 text-gray-600">No steps yet.</p>}
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               {stepOrder.map((stepId) => {
@@ -240,12 +301,15 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                           {PHOTO_STATUS_LABELS[status]}
                         </span>
                       </div>
+                      {isExtraStepId(stepId) && (
+                        <p className="text-sm text-gray-600">{getStep(stepId, home.extra_steps)?.instruction}</p>
+                      )}
                       {!planned.includes(stepId) && (
                         <p className="text-xs text-gray-500">No longer required for this setup.</p>
                       )}
                       {photo && (
                         <>
-                          <Readout photo={photo} />
+                          <Readout photo={photo} home={home} />
                           <PhotoMeta photo={photo} />
                         </>
                       )}

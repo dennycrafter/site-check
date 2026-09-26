@@ -4,9 +4,9 @@ import { analyzePhoto } from "@/lib/analyze";
 import { decidePhoto } from "@/lib/decide";
 import { loadHome, recomputeHome } from "@/lib/homes";
 import { latestFinishedByStep } from "@/lib/plan";
-import { isStepId } from "@/lib/steps";
+import { getStep } from "@/lib/steps";
 import { getSupabase, PHOTO_BUCKET } from "@/lib/supabase";
-import type { PhotoRow } from "@/lib/types";
+import type { HomeRow, PhotoRow } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -15,8 +15,9 @@ const CONCURRENCY = 4;
 
 type StepOutcome = { step: string; ok: boolean; status: PhotoRow["status"]; error?: string };
 
-async function recheckPhoto(photo: PhotoRow): Promise<StepOutcome> {
-  if (!isStepId(photo.step)) throw new Error(`Unknown step ${photo.step}`);
+async function recheckPhoto(home: HomeRow, photo: PhotoRow): Promise<StepOutcome> {
+  const step = getStep(photo.step, home.extra_steps);
+  if (!step) throw new Error(`Unknown step ${photo.step}`);
   const supabase = getSupabase();
   const { data: blob, error: downloadError } = await supabase.storage
     .from(PHOTO_BUCKET)
@@ -24,7 +25,7 @@ async function recheckPhoto(photo: PhotoRow): Promise<StepOutcome> {
   if (downloadError || !blob) throw new Error(`Download failed: ${downloadError?.message}`);
   const base64Jpeg = Buffer.from(await blob.arrayBuffer()).toString("base64");
 
-  const result = await analyzePhoto({ homeId: photo.home_id, step: photo.step, base64Jpeg });
+  const result = await analyzePhoto({ homeId: photo.home_id, step, base64Jpeg });
   if (!result.ok) {
     // Keep the previous analysis and status; the surveyor still has what we had.
     return { step: photo.step, ok: false, status: photo.status, error: result.error };
@@ -68,7 +69,7 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/homes/[id]
     const loaded = await loadHome(id);
     if (!loaded) return jsonError(404, "Home not found");
     const targets = [...latestFinishedByStep(loaded.photos).values()];
-    const settled = await runPool(targets, CONCURRENCY, recheckPhoto);
+    const settled = await runPool(targets, CONCURRENCY, (photo) => recheckPhoto(loaded.home, photo));
     const steps = settled.map((r, i) =>
       r.status === "fulfilled"
         ? r.value

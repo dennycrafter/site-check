@@ -5,7 +5,7 @@ import { analyzePhoto } from "@/lib/analyze";
 import { decidePhoto, MESSAGES } from "@/lib/decide";
 import { loadHome, recomputeHome } from "@/lib/homes";
 import { isFinished, latestPhotoByStep, nextStep, planSteps } from "@/lib/plan";
-import { MAX_ATTEMPTS, STEP_IDS } from "@/lib/steps";
+import { getStep, isExtraStepId, isStepId, MAX_ATTEMPTS } from "@/lib/steps";
 import { getSupabase, PHOTO_BUCKET } from "@/lib/supabase";
 import type { PhotoStatus } from "@/lib/types";
 
@@ -16,7 +16,7 @@ const MAX_BASE64_CHARS = 4_500_000;
 
 const PhotoBodyZod = z.object({
   homeId: HomeIdZod,
-  step: z.enum(STEP_IDS),
+  step: z.string().refine((s) => isStepId(s) || isExtraStepId(s)),
   imageBase64: z.string().min(100).max(MAX_BASE64_CHARS),
 });
 
@@ -36,7 +36,8 @@ export async function POST(request: Request) {
     if (!loaded) return jsonError(404, "Home not found");
     const { home, photos } = loaded;
     if (home.status === "submitted") return jsonError(409, "This home was already submitted.");
-    if (!planSteps(home, photos).includes(step)) {
+    const stepDef = getStep(step, home.extra_steps);
+    if (!stepDef || !planSteps(home, photos).includes(step)) {
       return jsonError(409, "This step is not needed for your home.", { nextStep: nextStep(home, photos) });
     }
     if (isFinished(latestPhotoByStep(photos).get(step)?.status)) {
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       supabase.storage
         .from(PHOTO_BUCKET)
         .upload(storagePath, buffer, { contentType: "image/jpeg", upsert: false }),
-      analyzePhoto({ homeId, step, base64Jpeg: imageBase64 }),
+      analyzePhoto({ homeId, step: stepDef, base64Jpeg: imageBase64 }),
     ]);
     if (upload.error) {
       const duplicate = /exist|duplicate/i.test(upload.error.message);
