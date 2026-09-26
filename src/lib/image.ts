@@ -27,8 +27,31 @@ export function captureVideoFrame(video: HTMLVideoElement) {
   return exportJpeg(drawScaled(video, video.videoWidth, video.videoHeight));
 }
 
+function loadImage(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not decode image"));
+    };
+    img.src = url;
+  });
+}
+
 export async function prepareUpload(file: File) {
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  let bitmap: ImageBitmap | null = null;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    // Older Safari rejects the options bag; <img> applies EXIF orientation by default.
+    const img = await loadImage(file);
+    return exportJpeg(drawScaled(img, img.naturalWidth, img.naturalHeight));
+  }
   try {
     return exportJpeg(drawScaled(bitmap, bitmap.width, bitmap.height));
   } finally {
