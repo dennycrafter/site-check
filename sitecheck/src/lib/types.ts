@@ -34,6 +34,8 @@ export type HomeRow = {
   surveyor_decision: SurveyorDecision | null;
   surveyor_note: string | null;
   submitted_at: string | null;
+  /** Order ID from the system that sent the customer here. */
+  external_ref: string | null;
 };
 
 export type PhotoRow = {
