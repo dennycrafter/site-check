@@ -223,13 +223,13 @@ export function evaluate(input: RulesInput): RulesResult {
     );
   }
 
+  // Damage, rust and recalled brands can be repaired before install, so a person decides.
   for (const step of ["meter_closeup", "panel_wide", "panel_open", "main_disconnect_closeup"]) {
-    const a = accepted.get(step);
-    if (a?.damage_visible) {
-      failUnlessUnsure(
+    if (accepted.get(step)?.damage_visible) {
+      add(
         "DAMAGE",
-        `Visible damage on ${stepTitle(step)}. Meter and conduit must be secure and undamaged.`,
-        a.confidence,
+        "REVIEW",
+        `Needs repair before install: visible damage on ${stepTitle(step)}. Meter and conduit must be secure and undamaged.`,
         step,
       );
     }
@@ -240,10 +240,10 @@ export function evaluate(input: RulesInput): RulesResult {
   if (open) {
     const recalled = RECALLED_BRANDS[open.panel_brand];
     if (recalled) {
-      failUnlessUnsure(
+      add(
         "PANEL_RECALLED_BRAND",
-        `Breaker box brand is ${recalled}. This brand needs replacing before install.`,
-        open.confidence,
+        "REVIEW",
+        `Needs repair before install: breaker box brand is ${recalled}, which needs replacing.`,
         "panel_open",
       );
     } else if (open.panel_brand === "westinghouse") {
@@ -255,14 +255,8 @@ export function evaluate(input: RulesInput): RulesResult {
   }
 
   for (const step of ["panel_open", "panel_wide", "main_disconnect_closeup"]) {
-    const a = accepted.get(step);
-    if (a?.heavy_rust === true) {
-      failUnlessUnsure(
-        "HEAVY_RUST",
-        `Heavy rust on ${stepTitle(step)}. Needs replacing before install.`,
-        a.confidence,
-        step,
-      );
+    if (accepted.get(step)?.heavy_rust === true) {
+      add("HEAVY_RUST", "REVIEW", `Needs repair before install: heavy rust on ${stepTitle(step)}.`, step);
     }
   }
 
