@@ -64,6 +64,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [continuing, setContinuing] = useState(false);
+  const [keeping, setKeeping] = useState(false);
+  const [keepError, setKeepError] = useState<string | null>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -125,6 +127,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
 
   async function sendPhoto(step: string, base64: string, preview: string) {
     setPhase({ kind: "checking", preview });
+    setKeepError(null);
     let res: Response;
     let body: Partial<PhotoResult> & { error?: string };
     try {
@@ -170,6 +173,28 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       await sendPhoto(step, base64, dataUrl);
     } catch {
       setPhase({ kind: "error", message: "We couldn't read that file. Try a JPG or PNG photo." });
+    }
+  }
+
+  async function keepPhoto(step: string) {
+    setKeeping(true);
+    setKeepError(null);
+    try {
+      const res = await fetch("/api/photos/keep", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ homeId, step }),
+      });
+      if (!res.ok && res.status !== 409) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? NETWORK_ERROR);
+      }
+      await load();
+      setPhase({ kind: "ready" });
+    } catch (err) {
+      setKeepError(err instanceof Error ? err.message : NETWORK_ERROR);
+    } finally {
+      setKeeping(false);
     }
   }
 
@@ -395,13 +420,28 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
               <p className="font-semibold">{phase.result.message}</p>
             </Banner>
             <div className="flex items-center justify-between gap-3">
-              <Button onClick={() => setPhase({ kind: "ready" })} className="flex-1">
+              <Button onClick={() => setPhase({ kind: "ready" })} disabled={keeping} className="flex-1">
                 Retake
               </Button>
               <span className="text-sm text-gray-500">
                 Attempt {phase.result.attempt + 1} of {MAX_ATTEMPTS}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => keepPhoto(stepId)}
+              disabled={keeping}
+              className="flex min-h-12 w-full items-center justify-center gap-2 text-base font-semibold text-gray-600 underline underline-offset-4 hover:text-gray-900 disabled:opacity-60"
+            >
+              {keeping ? (
+                <>
+                  <Spinner /> Saving...
+                </>
+              ) : (
+                "Use this photo anyway"
+              )}
+            </button>
+            {keepError && <p className="text-center text-sm text-fail">{keepError}</p>}
           </div>
         )}
         {phase.kind === "result" &&
