@@ -37,10 +37,17 @@ async function attemptOnce(step: StepId, base64Jpeg: string, model: string): Pro
     throw new Error("Simulated AI failure");
   }
 
+  let client: Anthropic;
+  try {
+    client = getAnthropic();
+  } catch (err) {
+    throw new NonRetryableError(errorMessage(err));
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ATTEMPT_TIMEOUT_MS);
   try {
-    const response = await getAnthropic().messages.create(
+    const response = await client.messages.create(
       {
         model,
         max_tokens: 1024,
