@@ -23,6 +23,11 @@ const GOOD: PhotoAnalysis = {
   clutter_blocking: false,
   clear_ground_space: "room_for_two",
   multiple_panels_visible: false,
+  meter_count: 1,
+  meter_can_edges_visible: true,
+  ground_visible: true,
+  wall_end_visible: true,
+  panel_context_visible: true,
   notes: "",
 };
 

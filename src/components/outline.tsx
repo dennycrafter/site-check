@@ -9,7 +9,10 @@ type Shape =
 /** All numbers are percentages of the video box (circle diameter is % of width). */
 const OUTLINES: Record<OutlineId, { shape: Shape; label: string }> = {
   small_center: { shape: { kind: "rect", cx: 50, cy: 50, w: 18, h: 24, mask: false }, label: "Meter here" },
-  circle_large: { shape: { kind: "circle", cx: 50, cy: 50, d: 70, mask: true }, label: "Fill with your meter" },
+  circle_large: {
+    shape: { kind: "circle", cx: 50, cy: 45, d: 42, mask: true },
+    label: "Meter here, whole box in view",
+  },
   small_right_edge: {
     shape: { kind: "rect", cx: 84, cy: 50, w: 16, h: 22, mask: false },
     label: "Meter here",
