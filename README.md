@@ -4,7 +4,11 @@ Base Power installs home batteries next to a home's electric meter. Before every
 
 ## Live demo
 
-Deployed URL: to be added after the Vercel deploy.
+https://sitecheck-sigma.vercel.app
+
+- Homeowner flow: https://sitecheck-sigma.vercel.app/start (open on a phone for the live camera)
+- Surveyor queue: https://sitecheck-sigma.vercel.app/review
+- Health check: https://sitecheck-sigma.vercel.app/api/health
 
 ## Quick start
 
