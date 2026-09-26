@@ -1,4 +1,4 @@
-import { STEP_BY_ID, type StepId } from "./steps";
+import type { Step } from "./steps";
 
 export const SYSTEM_PROMPT = `You check photos a homeowner takes for a home battery installation survey. The battery is installed outdoors next to the electric meter. You will receive one photo and a description of what that photo is supposed to show.
 
@@ -27,7 +27,6 @@ More definitions:
 - wall_end_visible: the wall is shown all the way to where it ends on the side this photo is about (a corner, a fence, a garage, or the end of the house).
 - panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).`;
 
-export function stepPrompt(step: StepId): string {
-  const s = STEP_BY_ID[step];
+export function stepPrompt(s: Pick<Step, "description" | "fields">): string {
   return `This photo is supposed to show: ${s.description}. The fields that matter most for this step are: ${s.fields.join(", ")}. Fill all fields, using neutral values for anything not visible.`;
 }

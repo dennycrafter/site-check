@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planSteps } from "./plan";
+import { nextStep, planSteps } from "./plan";
 import { evaluate, type RulesInput, type RulesPhoto } from "./rules";
 import type { PhotoAnalysis } from "./schema";
 import type { FinishedPhotoStatus, Outcome } from "./types";
@@ -39,6 +39,8 @@ type Case = {
   /** Per-step analysis overrides. */
   steps?: Record<string, Partial<PhotoAnalysis>>;
   statuses?: Record<string, FinishedPhotoStatus>;
+  /** Accepted photos for extra_<n> steps from the whole-site check. */
+  extras?: Record<string, Partial<PhotoAnalysis>>;
   verdict: Outcome;
   batteryCount?: number;
   code?: string;
@@ -51,6 +53,7 @@ function build(c: Case): RulesInput {
     hasSolar: false,
     panelSameWallAnswer: "not_asked" as const,
     setupType: "combo_meter_main_unit" as const,
+    siteCheckStatus: "done" as const,
     ...c.input,
   };
   const steps = planSteps(
@@ -66,7 +69,11 @@ function build(c: Case): RulesInput {
         status === "check_failed" ? null : { ...GOOD, ...c.all, ...c.steps?.[step] },
     };
   });
-  return { ...base, photos };
+  const extras = Object.entries(c.extras ?? {});
+  for (const [step, analysis] of extras) {
+    photos.push({ step, status: "accepted", analysis: { ...GOOD, ...c.all, ...analysis } });
+  }
+  return { ...base, extraSteps: extras.map(([id]) => ({ id })), photos };
 }
 
 const SPACE_NONE = { clear_ground_space: "none" as const };
@@ -174,7 +181,21 @@ const cases: Case[] = [
     code: "SPACE_UNCLEAR",
   },
   {
-    name: "18. location not asked, 125A",
+    name: "18. whole-site check failed",
+    input: { siteCheckStatus: "failed" },
+    verdict: "REVIEW",
+    code: "SITE_CHECK_FAILED",
+  },
+  {
+    name: "19. extra photo has room_for_two, regular space photos none",
+    all: SPACE_NONE,
+    extras: { extra_1: { clear_ground_space: "room_for_two" } },
+    verdict: "PASS",
+    batteryCount: 2,
+    code: "SPACE_OK",
+  },
+  {
+    name: "U1. location not asked, 125A",
     input: { inAustin: null },
     steps: { main_disconnect_closeup: { amp_rating: 125 } },
     verdict: "REVIEW",
@@ -182,21 +203,21 @@ const cases: Case[] = [
     code: "AMP_LOCATION_UNKNOWN",
   },
   {
-    name: "19. location not asked, 90A",
+    name: "U2. location not asked, 90A",
     input: { inAustin: null },
     steps: { main_disconnect_closeup: { amp_rating: 90 } },
     verdict: "FAIL",
     code: "AMP_TOO_LOW",
   },
   {
-    name: "20. solar not asked, 150A",
+    name: "U3. solar not asked, 150A",
     input: { hasSolar: null },
     steps: { main_disconnect_closeup: { amp_rating: 150 } },
     verdict: "REVIEW",
     code: "SOLAR_UNKNOWN",
   },
   {
-    name: "21. location and solar not asked, 200A",
+    name: "U4. location and solar not asked, 200A",
     input: { inAustin: null, hasSolar: null },
     verdict: "PASS",
     batteryCount: 2,
@@ -285,5 +306,20 @@ describe("planSteps", () => {
 
   it("includes panel_wide when setup is unknown", () => {
     expect(planSteps({ ...combo, setup_type: "unknown" }, [])).toContain("panel_wide");
+  });
+
+  it("runs the whole-site check after the regular steps, then the extra steps", () => {
+    const done = planSteps(combo, []).map((step) => ({ step, status: "accepted" as const, analysis: GOOD }));
+    expect(nextStep({ ...combo, site_check_status: "not_run" }, done)).toBe("site_check");
+    const withExtras = { ...combo, site_check_status: "done" as const, extra_steps: [{ id: "extra_1" }, { id: "extra_2" }] };
+    expect(planSteps(withExtras, done).slice(-2)).toEqual(["extra_1", "extra_2"]);
+    expect(nextStep(withExtras, done)).toBe("extra_1");
+    const oneExtra = [...done, { step: "extra_1", status: "accepted" as const, analysis: GOOD }];
+    expect(nextStep(withExtras, oneExtra)).toBe("extra_2");
+    expect(nextStep({ ...combo, site_check_status: "failed" }, done)).toBeNull();
+  });
+
+  it("asks regular steps before the whole-site check", () => {
+    expect(nextStep({ ...combo, site_check_status: "not_run" }, [])).toBe("meter_area_wide");
   });
 });

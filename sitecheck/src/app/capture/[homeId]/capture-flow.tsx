@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { Outline } from "@/components/outline";
 import { Banner, Button, buttonClass, Spinner } from "@/components/ui";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
-import { MAX_ATTEMPTS, STEP_BY_ID, type StepId } from "@/lib/steps";
+import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
 import type { PhotoStatus } from "@/lib/types";
 
 type StepView = {
-  id: StepId;
+  id: string;
   title: string;
   status: PhotoStatus | "pending";
   attempts: number;
@@ -17,9 +17,15 @@ type StepView = {
 };
 
 type HomeData = {
-  home: { id: string; address: string | null; status: "in_progress" | "submitted" };
+  home: {
+    id: string;
+    address: string | null;
+    status: "in_progress" | "submitted";
+    extra_steps: { id: string; instruction: string }[];
+  };
   steps: StepView[];
-  nextStep: StepId | "question_5" | null;
+  /** A step id, "question_5", "site_check" or null when everything is done. */
+  nextStep: string | null;
 };
 
 type PhotoResult = {
@@ -117,7 +123,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     }
   }
 
-  async function sendPhoto(step: StepId, base64: string, preview: string) {
+  async function sendPhoto(step: string, base64: string, preview: string) {
     setPhase({ kind: "checking", preview });
     let res: Response;
     let body: Partial<PhotoResult> & { error?: string };
@@ -151,14 +157,14 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     }
   }
 
-  function onShutter(step: StepId) {
+  function onShutter(step: string) {
     const video = videoRef.current;
     if (!video || !video.videoWidth || phase.kind !== "ready") return;
     const { base64, dataUrl } = captureVideoFrame(video);
     sendPhoto(step, base64, dataUrl);
   }
 
-  async function onFile(step: StepId, file: File) {
+  async function onFile(step: string, file: File) {
     try {
       const { base64, dataUrl } = await prepareUpload(file);
       await sendPhoto(step, base64, dataUrl);
@@ -238,6 +244,10 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     return <Question5 homeId={homeId} onDone={load} />;
   }
 
+  if (data.nextStep === "site_check") {
+    return <SiteCheckScreen homeId={homeId} onDone={load} />;
+  }
+
   if (data.nextStep === null) {
     return (
       <Shell>
@@ -280,7 +290,17 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   }
 
   const stepId = data.nextStep;
-  const step = STEP_BY_ID[stepId];
+  const step = getStep(stepId, data.home.extra_steps);
+  if (!step) {
+    return (
+      <Shell>
+        <div className="mt-10 space-y-4">
+          <Banner tone="error">Something went wrong loading this step.</Banner>
+          <Button onClick={load}>Try again</Button>
+        </div>
+      </Shell>
+    );
+  }
   const index = Math.max(0, data.steps.findIndex((s) => s.id === stepId));
   const total = data.steps.length;
   const preview = phase.kind === "checking" || phase.kind === "result" ? phase.preview : null;
@@ -434,6 +454,95 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
           if (file) onFile(stepId, file);
         }}
       />
+    </Shell>
+  );
+}
+
+type SiteCheckState = { kind: "running" } | { kind: "covered" } | { kind: "extra"; count: number } | { kind: "error" };
+
+function SiteCheckScreen({ homeId, onDone }: { homeId: string; onDone: () => Promise<void> }) {
+  const [state, setState] = useState<SiteCheckState>({ kind: "running" });
+  const [run, setRun] = useState(0);
+  const [continuing, setContinuing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let res: Response;
+      let body: { status?: string; covered?: boolean; extraSteps?: unknown[] };
+      try {
+        res = await fetch(`/api/homes/${homeId}/site-check`, { method: "POST" });
+        body = await res.json().catch(() => ({}));
+      } catch {
+        if (!cancelled) setState({ kind: "error" });
+        return;
+      }
+      if (cancelled) return;
+      if (res.status === 409 || (res.ok && body.status === "failed")) return onDone();
+      if (!res.ok) return setState({ kind: "error" });
+      if (body.covered) {
+        setState({ kind: "covered" });
+        await sleep(1000);
+        if (!cancelled) await onDone();
+        return;
+      }
+      setState({ kind: "extra", count: body.extraSteps?.length ?? 1 });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [homeId, onDone, run]);
+
+  return (
+    <Shell>
+      <div aria-live="polite" className="mt-16 flex flex-col items-center gap-4 text-center">
+        {state.kind === "running" && (
+          <>
+            <Spinner className="h-10 w-10 text-accent" />
+            <p className="text-lg font-semibold text-gray-900">Checking your whole site...</p>
+            <p className="text-sm text-gray-500">This takes a few seconds. Please stay by your meter.</p>
+          </>
+        )}
+        {state.kind === "covered" && (
+          <>
+            <CheckIcon className="h-16 w-16 rounded-full bg-pass p-3 text-white" />
+            <p className="text-lg font-semibold text-gray-900">All set. Your photos cover everything.</p>
+          </>
+        )}
+        {state.kind === "extra" && (
+          <div className="w-full space-y-4 text-left">
+            <Banner tone="warning">
+              <p className="font-semibold">
+                Almost done. We need {state.count === 1 ? "1 more photo" : `${state.count} more photos`}.
+              </p>
+            </Banner>
+            <Button
+              onClick={async () => {
+                setContinuing(true);
+                await onDone();
+              }}
+              disabled={continuing}
+              className="w-full text-lg"
+            >
+              {continuing ? <Spinner /> : "Continue"}
+            </Button>
+          </div>
+        )}
+        {state.kind === "error" && (
+          <div className="w-full space-y-4 text-left">
+            <Banner tone="error">We couldn&apos;t check your site. Check your connection and try again.</Banner>
+            <Button
+              onClick={() => {
+                setState({ kind: "running" });
+                setRun((n) => n + 1);
+              }}
+              className="w-full"
+            >
+              Try again
+            </Button>
+          </div>
+        )}
+      </div>
     </Shell>
   );
 }

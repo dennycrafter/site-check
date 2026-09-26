@@ -6,7 +6,7 @@ import {
   planSteps,
 } from "./plan";
 import { evaluate, type RulesPhoto } from "./rules";
-import { STEP_BY_ID, type StepId } from "./steps";
+import { getStep, stepTitle } from "./steps";
 import { getSupabase, signedUrls } from "./supabase";
 import type { HomeRow, PhotoRow, PhotoStatus } from "./types";
 
@@ -49,6 +49,8 @@ export async function recomputeHome(
     hasSolar: home.has_solar,
     panelSameWallAnswer: home.panel_same_wall_answer,
     setupType,
+    siteCheckStatus: home.site_check_status,
+    extraSteps: home.extra_steps,
     photos: rulesPhotos(photos),
   });
   const update = {
@@ -69,7 +71,7 @@ export async function recomputeHome(
 }
 
 export type StepView = {
-  id: StepId;
+  id: string;
   title: string;
   status: PhotoStatus | "pending";
   attempts: number;
@@ -84,7 +86,7 @@ export async function buildStepViews(home: HomeRow, photos: PhotoRow[]): Promise
     const photo = latest.get(id);
     return {
       id,
-      title: STEP_BY_ID[id].title,
+      title: getStep(id, home.extra_steps)?.title ?? stepTitle(id),
       status: photo?.status ?? "pending",
       attempts: photos.filter((p) => p.step === id).length,
       thumbnailUrl: photo ? (urls[photo.storage_path] ?? null) : null,
@@ -105,5 +107,7 @@ export function publicHome(home: HomeRow) {
     panel_same_wall_answer: home.panel_same_wall_answer,
     status: home.status,
     submitted_at: home.submitted_at,
+    site_check_status: home.site_check_status,
+    extra_steps: home.extra_steps.map((e) => ({ id: e.id, instruction: e.instruction })),
   };
 }

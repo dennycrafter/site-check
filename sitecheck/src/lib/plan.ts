@@ -1,10 +1,13 @@
 import type { PhotoAnalysis } from "./schema";
 import { STEP_IDS, type StepId } from "./steps";
-import type { PanelSameWallAnswer, PhotoStatus, SetupType } from "./types";
+import type { ExtraStep, PanelSameWallAnswer, PhotoStatus, SetupType, SiteCheckStatus } from "./types";
 
 export type PlanHome = {
   setup_type: SetupType;
   panel_same_wall_answer: PanelSameWallAnswer;
+  /** Missing on inputs built before the whole-site check; treated as not run with no extras. */
+  site_check_status?: SiteCheckStatus;
+  extra_steps?: Pick<ExtraStep, "id">[];
 };
 
 export type PlanPhoto = {
@@ -14,7 +17,8 @@ export type PlanPhoto = {
   attempt?: number;
 };
 
-export type NextStep = StepId | "question_5" | null;
+/** A regular StepId or an extra_<n> id from the whole-site check. */
+export type NextStep = string | "question_5" | "site_check" | null;
 
 const FINISHED: PhotoStatus[] = ["accepted", "check_failed", "accepted_after_max_attempts"];
 const FENCE_SOURCE_STEPS: string[] = ["meter_area_wide", "left_of_meter", "right_of_meter"];
@@ -59,7 +63,7 @@ export function deriveSetupType(photos: PlanPhoto[]): SetupType {
   }
 }
 
-export function planSteps(home: PlanHome, photos: PlanPhoto[]): StepId[] {
+export function regularSteps(home: PlanHome, photos: PlanPhoto[]): StepId[] {
   const fenceSeen = photos.some(
     (p) => p.status === "accepted" && FENCE_SOURCE_STEPS.includes(p.step) && p.analysis?.fence_present,
   );
@@ -70,9 +74,14 @@ export function planSteps(home: PlanHome, photos: PlanPhoto[]): StepId[] {
   });
 }
 
+/** Regular steps, then any extra steps the whole-site check asked for. */
+export function planSteps(home: PlanHome, photos: PlanPhoto[]): string[] {
+  return [...regularSteps(home, photos), ...(home.extra_steps ?? []).map((e) => e.id)];
+}
+
 export function nextStep(home: PlanHome, photos: PlanPhoto[]): NextStep {
   const latest = latestPhotoByStep(photos);
-  for (const id of planSteps(home, photos)) {
+  for (const id of regularSteps(home, photos)) {
     if (
       id === "panel_wide" &&
       home.setup_type === "panel_indoors" &&
@@ -81,6 +90,10 @@ export function nextStep(home: PlanHome, photos: PlanPhoto[]): NextStep {
       return "question_5";
     }
     if (!isFinished(latest.get(id)?.status)) return id;
+  }
+  if ((home.site_check_status ?? "not_run") === "not_run") return "site_check";
+  for (const extra of home.extra_steps ?? []) {
+    if (!isFinished(latest.get(extra.id)?.status)) return extra.id;
   }
   return null;
 }
