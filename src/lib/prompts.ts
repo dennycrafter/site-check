@@ -25,7 +25,10 @@ More definitions:
 - meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge.
 - ground_visible: the ground along the bottom of the wall is visible in the photo.
 - wall_end_visible: the wall is shown all the way to where it ends on the side this photo is about (a corner, a fence, a garage, or the end of the house).
-- panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).`;
+- panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).
+- panel_brand: the manufacturer printed on the breaker box label or on the breakers. Federal Pacific also appears as FPE, Federal Pacific Electric, or Stab-Lok breakers. Zinsco also appears as GTE-Sylvania, Zinsco-Sylvania, or Magnetrip. Use "other" for any other readable brand. Use "not_visible" if you cannot read a brand. Never guess a brand from how the panel looks.
+- panel_label_legible: you can read the brand or label text with certainty.
+- heavy_rust: heavy or widespread rust or corrosion on the box or breakers. A few small spots do not count.`;
 
 export function stepPrompt(s: Pick<Step, "description" | "fields">): string {
   return `This photo is supposed to show: ${s.description}. The fields that matter most for this step are: ${s.fields.join(", ")}. Fill all fields, using neutral values for anything not visible.`;

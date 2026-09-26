@@ -1,33 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { decidePhoto } from "./decide";
 import type { PhotoAnalysis } from "./schema";
+import { GOOD_ANALYSIS } from "./testing";
 
-const GOOD: PhotoAnalysis = {
-  photo_matches_request: true,
-  usable: true,
-  retake_reason: "none",
-  retake_instruction: "",
-  confidence: 95,
-  setup_type: "combo_meter_main_unit",
-  amp_rating: 200,
-  amp_rating_legible: true,
-  meter_number_legible: true,
-  location: "outdoor",
-  damage_visible: false,
-  gas_meter_near: false,
-  window_near: false,
-  ac_unit_near: false,
-  fence_present: false,
-  clutter_blocking: false,
-  clear_ground_space: "room_for_two",
-  multiple_panels_visible: false,
-  meter_count: 1,
-  meter_can_edges_visible: true,
-  ground_visible: true,
-  wall_end_visible: true,
-  panel_context_visible: true,
-  notes: "",
-};
+const GOOD = GOOD_ANALYSIS;
 
 const retakeMessage = (step: Parameters<typeof decidePhoto>[0], a: Partial<PhotoAnalysis>) => {
   const d = decidePhoto(step, { ...GOOD, ...a });

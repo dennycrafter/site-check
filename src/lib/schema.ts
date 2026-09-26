@@ -23,6 +23,16 @@ export const LOCATIONS = ["outdoor", "garage", "closet", "indoor_other", "unknow
 
 export const GROUND_SPACE = ["none", "room_for_one", "room_for_two", "unclear"] as const;
 
+export const PANEL_BRANDS = [
+  "federal_pacific",
+  "zinsco",
+  "challenger",
+  "sylvania",
+  "westinghouse",
+  "other",
+  "not_visible",
+] as const;
+
 export const PHOTO_ANALYSIS_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -50,6 +60,9 @@ export const PHOTO_ANALYSIS_SCHEMA = {
     "ground_visible",
     "wall_end_visible",
     "panel_context_visible",
+    "panel_brand",
+    "panel_label_legible",
+    "heavy_rust",
     "notes",
   ],
   properties: {
@@ -76,6 +89,9 @@ export const PHOTO_ANALYSIS_SCHEMA = {
     ground_visible: { type: "boolean" },
     wall_end_visible: { type: "boolean" },
     panel_context_visible: { type: "boolean" },
+    panel_brand: { type: "string", enum: [...PANEL_BRANDS] },
+    panel_label_legible: { type: "boolean" },
+    heavy_rust: { type: "boolean" },
     notes: { type: "string" },
   },
 } as const;
@@ -104,13 +120,16 @@ export const PhotoAnalysisZod = z.object({
   ground_visible: z.boolean(),
   wall_end_visible: z.boolean(),
   panel_context_visible: z.boolean(),
+  panel_brand: z.enum(PANEL_BRANDS),
+  panel_label_legible: z.boolean(),
+  heavy_rust: z.boolean(),
   notes: z.string(),
 });
 
 export type PhotoAnalysis = z.infer<typeof PhotoAnalysisZod>;
 export type AnalysisField = keyof PhotoAnalysis;
 
-const ENUM_FIELDS = ["retake_reason", "setup_type", "location", "clear_ground_space"] as const;
+const ENUM_FIELDS = ["retake_reason", "setup_type", "location", "clear_ground_space", "panel_brand"] as const;
 
 /**
  * JSON.parse, then lowercase enum fields (model casing is not guaranteed),

@@ -39,6 +39,12 @@ export type RulesResult = { verdict: Outcome; batteryCount: 0 | 1 | 2; reasons: 
 
 const OUTCOME_ORDER: Record<Outcome, number> = { FAIL: 0, REVIEW: 1, PASS: 2 };
 const SPACE_RANK = { none: 0, room_for_one: 1, room_for_two: 2 } as const;
+const RECALLED_BRANDS: Partial<Record<string, string>> = {
+  federal_pacific: "Federal Pacific",
+  zinsco: "Zinsco",
+  challenger: "Challenger",
+  sylvania: "Sylvania",
+};
 
 function batteries(n: number): string {
   return n === 1 ? "1 battery" : `${n} batteries`;
@@ -217,12 +223,43 @@ export function evaluate(input: RulesInput): RulesResult {
     );
   }
 
-  for (const step of ["meter_closeup", "panel_wide", "main_disconnect_closeup"]) {
+  for (const step of ["meter_closeup", "panel_wide", "panel_open", "main_disconnect_closeup"]) {
     const a = accepted.get(step);
     if (a?.damage_visible) {
       failUnlessUnsure(
         "DAMAGE",
         `Visible damage on ${stepTitle(step)}. Meter and conduit must be secure and undamaged.`,
+        a.confidence,
+        step,
+      );
+    }
+  }
+
+  // Older analyses have no brand or rust fields, so only explicit values count.
+  const open = accepted.get("panel_open");
+  if (open) {
+    const recalled = RECALLED_BRANDS[open.panel_brand];
+    if (recalled) {
+      failUnlessUnsure(
+        "PANEL_RECALLED_BRAND",
+        `Breaker box brand is ${recalled}. This brand needs replacing before install.`,
+        open.confidence,
+        "panel_open",
+      );
+    } else if (open.panel_brand === "westinghouse") {
+      add("PANEL_BRAND_CHECK", "REVIEW", "Westinghouse panel. Needs a person to verify.", "panel_open");
+    }
+    if (open.panel_label_legible === false || open.panel_brand === "not_visible") {
+      add("PANEL_BRAND_UNREADABLE", "REVIEW", "Could not read the breaker box brand.", "panel_open");
+    }
+  }
+
+  for (const step of ["panel_open", "panel_wide", "main_disconnect_closeup"]) {
+    const a = accepted.get(step);
+    if (a?.heavy_rust === true) {
+      failUnlessUnsure(
+        "HEAVY_RUST",
+        `Heavy rust on ${stepTitle(step)}. Needs replacing before install.`,
         a.confidence,
         step,
       );
