@@ -47,6 +47,14 @@ alter table public.homes alter column customer_email drop not null;
 alter table public.homes alter column in_austin drop not null;
 alter table public.homes alter column has_solar drop not null;
 
+-- v2 columns (same as migration-v2.sql).
+alter table public.homes
+  add column if not exists external_ref text,
+  add column if not exists site_check_status text not null default 'not_run'
+    check (site_check_status in ('not_run','done','failed')),
+  add column if not exists site_check jsonb,
+  add column if not exists extra_steps jsonb not null default '[]'::jsonb;
+
 create index if not exists photos_home_idx on public.photos(home_id, step, attempt);
 create index if not exists homes_created_idx on public.homes(created_at desc);
 
