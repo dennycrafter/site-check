@@ -82,9 +82,15 @@ function setupTypeByVote(finished: Map<string, PlanPhoto>): SetupType {
   return "unknown";
 }
 
+/**
+ * A photo the homeowner kept after a retake request still has a real reading, so a fence
+ * it shows counts too. Only retake photos (replaced by a later attempt) are ignored.
+ */
+const FENCE_TRUSTED: PhotoStatus[] = ["accepted", "accepted_after_max_attempts"];
+
 export function regularSteps(home: PlanHome, photos: PlanPhoto[]): StepId[] {
   const fenceSeen = photos.some(
-    (p) => p.status === "accepted" && FENCE_SOURCE_STEPS.includes(p.step) && p.analysis?.fence_present,
+    (p) => FENCE_TRUSTED.includes(p.status) && FENCE_SOURCE_STEPS.includes(p.step) && p.analysis?.fence_present,
   );
   return STEP_IDS.filter((id) => {
     if (id === "behind_fence") return fenceSeen;

@@ -15,6 +15,7 @@ Definitions:
 - Main disconnect switch: the largest breaker, labeled with its amp rating, typically 100, 125, 150, 175 or 200. Read the number printed on the handle or label. amp_rating_legible is true only if you can read that number with certainty.
 - clear_ground_space: is there a clear patch of ground next to the wall near the meter, free of obstacles, roughly 3 ft by 3 ft for one battery ("room_for_one") or about 6 ft wide for two ("room_for_two")?
 - gas_meter_near / window_near / ac_unit_near: that item is within a few feet of the meter or of the clear ground space.
+- fence_present: a fence or gate that joins the house wall on the meter side, or crosses the ground next to that wall, so part of the wall or ground near the meter is hidden behind it. False for a fence far away in the background, a fence along the property line that hides nothing next to the house, or a low garden edging.
 - clutter_blocking: loose objects (wood piles, bins, bikes, plants) block the view of the meter, the wall or the ground.
 - location: where the breaker box is: outdoor, garage, closet, indoor_other, unknown.
 

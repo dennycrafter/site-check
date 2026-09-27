@@ -6,6 +6,7 @@ import { Outline } from "@/components/outline";
 import PropertyLocator, { type PropertyContext } from "@/components/property-locator";
 import { Spinner } from "@/components/ui";
 import { useDialog } from "@/components/use-dialog";
+import { guideFor, type Guide } from "@/lib/guides";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
 import type { HomeProperty, PhotoStatus, SetupType } from "@/lib/types";
@@ -52,9 +53,6 @@ type Local =
 
 type Intro = "welcome" | "meter" | "breaker";
 
-/** photo replaces the atlas tile when the atlas has no matching example. */
-type Guide = { image: number; guide: number; angle: string; photo?: string };
-
 const NETWORK_ERROR = "We couldn't send your photo. Check your connection and try again.";
 const FILE_ERROR = "We couldn't read that file. Try a JPG or PNG photo.";
 
@@ -65,26 +63,6 @@ const SHOWN: Record<string, string> = {
   panel_open: "Open the breaker box door. Show all the switches.",
   main_disconnect_closeup:
     "Open the lid. Get close enough that the number, like 150 or 200, is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
-};
-
-const GUIDE: Record<string, Guide> = {
-  meter_closeup: { image: 1, guide: 0, angle: "Stand straight in front of the meter." },
-  meter_area_wide: { image: 2, guide: 1, angle: "Walk back only as far as it is safe." },
-  left_of_meter: { image: 4, guide: 2, angle: "Keep the meter at the right edge." },
-  right_of_meter: { image: 3, guide: 3, angle: "Keep the meter at the left edge." },
-  adjacent_wall: { image: 5, guide: 4, angle: "Stand back to fit the whole wall." },
-  panel_wide: { image: 6, guide: 5, angle: "Stand straight in front of the panel." },
-  panel_open: {
-    image: 6,
-    guide: 5,
-    photo: "/find-breaker.webp",
-    angle: "Open only the hinged door. Never remove screws or covers.",
-  },
-  main_disconnect_closeup: {
-    image: 7,
-    guide: 6,
-    angle: "Open only the hinged door. Never remove screws or covers.",
-  },
 };
 
 const FIND_COPY = {
@@ -541,7 +519,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
 
   const stepId = data?.nextStep && data.nextStep !== "question_5" && data.nextStep !== "site_check" ? data.nextStep : null;
   const step = data && stepId ? getStep(stepId, data.home.extra_steps) : null;
-  const guide = step ? GUIDE[step.id] : undefined;
+  const guide = step ? guideFor(step.id) : undefined;
 
   let back: (() => void) | null = null;
   if (data && step && intro === null) {
