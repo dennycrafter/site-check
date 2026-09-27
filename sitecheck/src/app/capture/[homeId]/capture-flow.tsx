@@ -189,7 +189,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraGeneration, setCameraGeneration] = useState(0);
-  const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
+  const [stageAspect, setStageAspect] = useState<number | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [keepError, setKeepError] = useState<string | null>(null);
   const [reviewIndex, setReviewIndex] = useState(0);
@@ -204,6 +204,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const cameraPanel = useRef<HTMLDivElement>(null);
   const cameraHeading = useRef<HTMLHeadingElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const cameraSession = useRef(0);
   const suppressPhotoFocusRestore = useRef(false);
@@ -218,7 +219,6 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
-    setVideoSize(null);
     setCameraReady(false);
     setCameraError("");
     setCameraOpen(false);
@@ -273,24 +273,26 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     const markReady = () => {
       if (!cancelled) setCameraReady(true);
     };
-    const readSize = () => {
-      if (!cancelled && video.videoWidth && video.videoHeight) {
-        setVideoSize({ width: video.videoWidth, height: video.videoHeight });
-      }
-    };
     video.addEventListener("playing", markReady);
-    video.addEventListener("loadedmetadata", readSize);
-    video.addEventListener("resize", readSize);
     video.play().catch(() => {
       if (!cancelled && video.paused) setCameraError("The camera preview couldn't start. Try again.");
     });
     return () => {
       cancelled = true;
       video.removeEventListener("playing", markReady);
-      video.removeEventListener("loadedmetadata", readSize);
-      video.removeEventListener("resize", readSize);
     };
   }, [cameraOpen, cameraGeneration]);
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!cameraOpen || !stage) return;
+    const measure = () => {
+      if (stage.clientWidth && stage.clientHeight) setStageAspect(stage.clientWidth / stage.clientHeight);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [cameraOpen]);
 
   const intro = !data ? null : introLocked ? introChoice : shouldWelcome(data) ? "welcome" : shouldBreaker(data) ? "breaker" : null;
   const onReview = data?.home.status !== "submitted" && data?.nextStep === null && intro === null;
@@ -405,7 +407,9 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       return;
     }
     try {
-      const shot = captureVideoFrame(video);
+      const stage = stageRef.current;
+      const crop = stage?.clientWidth && stage.clientHeight ? stage.clientWidth / stage.clientHeight : undefined;
+      const shot = captureVideoFrame(video, { crop });
       closeCamera();
       setLocal({ kind: "confirm", preview: shot.dataUrl, base64: shot.base64 });
     } catch {
@@ -794,22 +798,9 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                   </h2>
                 </div>
                 <p className="sc-camera-hint">{shown}</p>
-                <div className="sc-camera-stage">
-                  <div
-                    className="sc-camera-frame"
-                    style={
-                      videoSize
-                        ? {
-                            aspectRatio: `${videoSize.width} / ${videoSize.height}`,
-                            width: `min(100cqw, calc(100cqh * ${videoSize.width / videoSize.height}))`,
-                            height: "auto",
-                          }
-                        : undefined
-                    }
-                  >
-                    <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
-                    {videoSize && <Outline id={step.outline} aspect={videoSize.width / videoSize.height} />}
-                  </div>
+                <div className="sc-camera-stage" ref={stageRef}>
+                  <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
+                  {stageAspect && <Outline id={step.outline} aspect={stageAspect} />}
                   {!cameraReady && !cameraError && <p className="sc-camera-status">Opening camera…</p>}
                 </div>
                 {cameraError && (
