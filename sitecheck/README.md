@@ -6,7 +6,7 @@ Home batteries are installed next to the electric meter, so before an install a 
 
 https://sitecheck-sigma.vercel.app
 
-- Homeowner flow: https://sitecheck-sigma.vercel.app/start (open on a phone for the live camera)
+- Demo home page: https://sitecheck-sigma.vercel.app (create a customer photo link, then open it on a phone for the live camera)
 - Surveyor queue: https://sitecheck-sigma.vercel.app/review
 - Health check: https://sitecheck-sigma.vercel.app/api/health
 
@@ -22,7 +22,7 @@ cp .env.example .env.local   # on Windows: copy .env.example .env.local
 ```
 
 1. Fill in `.env.local` (see the table under "Reproduce the demo").
-2. In the Supabase dashboard, open SQL Editor, New query, paste the contents of `supabase/schema.sql`, and click Run.
+2. In the Supabase dashboard, open SQL Editor, New query, paste the contents of `supabase/schema.sql`, and click Run. A project set up before the review UI upgrade only needs `supabase/migration-v3.sql`.
 3. Start the app:
 
 ```bash
@@ -39,8 +39,8 @@ Note: phone cameras only work over HTTPS, so test on phones using the deployed U
 - `@anthropic-ai/sdk` calling `claude-sonnet-5` with structured JSON output (server only)
 - `@supabase/supabase-js` with the secret key for Postgres and private Storage (server only)
 - `zod` to validate request bodies and the AI's JSON
-- `qrcode` for the landing page QR code
-- `vitest` for rules engine unit tests
+- `qrcode` for the customer link QR code on the demo home page
+- `vitest` for unit tests of the rules engine and the review page helpers
 - Vercel Hobby for hosting and HTTPS
 
 ## Architecture
@@ -58,7 +58,7 @@ flowchart TD
     SiteCheck["/api/homes/id/site-check<br/>lib/siteCheck.ts"] --> Plan
     Export["/api/homes/id/export<br/>photos by slot, 24h links"]
   end
-  Other["Existing booking flow"] -->|"prefilled /start link"| Phone
+  Other["Base signup system"] -->|"creates the home, sends the /capture link"| Phone
   Export -->|JSON| Other
   Analyze -->|image + step prompt + JSON schema| Claude["Anthropic Messages API<br/>claude-sonnet-5"]
   SiteCheck -->|all wall photos| Claude
@@ -80,19 +80,9 @@ flowchart TD
 
 SiteCheck does not own the customer. It starts from a link sent by the system that already knows the customer, and it hands the finished photo set back.
 
-1. **Start from a prefilled link.** Send the customer to:
+1. **Create the home and send the link.** Base already knows the customer at signup, so the homeowner is never asked for their details. The only question left is whether an indoor breaker box is on the meter wall. Base's signup system creates the home with `POST /api/homes` (`address`, `customerName`, optional `customerEmail`, `inAustin`, `hasSolar`, `externalRef`) and sends the customer the returned link, `/capture/{id}`. The link opens straight on the first photo step.
 
-   ```
-   /start?name=Jane%20Doe&email=jane@example.com&austin=yes&solar=no&ref=ORDER-123
-   ```
-
-   - With `name`, a valid `email`, `austin` and `solar` all present, the customer goes straight to the camera. No form.
-   - With only some of them, the customer sees a short "Check your details" form with those fields filled in.
-   - With none, the customer sees the address form.
-   - `ref` is stored as the external order reference and shown on the review pages. An optional `address` parameter is also accepted.
-   - The QR code on the landing page opens a demo customer link, so you can try the no-form path on a phone.
-
-   A system can also create the home directly with `POST /api/homes` (`customerName`, `customerEmail`, `inAustin`, `hasSolar`, `externalRef`, optional `address`) and send the customer to `/capture/{id}`.
+   In production the customer link is created by Base's signup system. In this demo, the "Customer photo link" panel on the home page stands in for it: it creates the home from an address, a name, Austin yes or no and solar yes or no, then shows the link, a copy button and a QR code. The old `/start` page now redirects to the home page.
 
 2. **Pull the result.** `GET /api/homes/{id}/export` returns JSON with the external reference, customer details, answers, the whole-site check result, the preliminary check with its reasons, and every final photo grouped by slot name. Each photo has a signed link valid for 24 hours plus the AI's reading. The review page has an "Export for Base (JSON)" button that opens the same data.
 
@@ -145,7 +135,7 @@ Rules are derived from Base Power's public help center: [article 10280705](https
 
 Photos from the whole-site check's extra steps count toward the space rules.
 
-Whether the home is in Austin and whether it has solar come from the prefilled link or the details form (see "How it plugs into an existing flow"). Until they are known, any rule that depends on them goes to REVIEW instead of guessing.
+Whether the home is in Austin and whether it has solar come from Base's signup system when it creates the home (see "How it plugs into an existing flow"). Until they are known, any rule that depends on them goes to REVIEW instead of guessing.
 
 Any FAIL makes the preliminary check FAIL with 0 batteries. Otherwise any REVIEW makes it REVIEW with a provisional count. Otherwise PASS with the smaller of the panel and space limits. Any FAIL that comes from a photo read with confidence below 80 is downgraded to REVIEW. Problems that can be repaired before install (damage, heavy rust, a recalled breaker box brand) are REVIEW with a "Needs repair before install" message, so FAIL is kept for things that are hard to change. The final decision stays with the review team.
 
@@ -185,7 +175,7 @@ The flow still completes; any step that fails all 3 attempts is saved as `check_
 
 Check connectivity at `/api/health`, which returns `{ "anthropic": "OK", "database": "OK", "storage": "OK" }` when everything is set up.
 
-Run the rules engine tests:
+Run the unit tests (rules engine and review page helpers):
 
 ```bash
 npx vitest run
@@ -202,7 +192,7 @@ npx vitest run
 
 - Distances are not measured (Level 3). Clearances like "3 ft from the gas meter" are judged visually.
 - "Same wall" for indoor breaker boxes relies on the homeowner's answer and single-photo judgment.
-- No authentication on the surveyor page (prototype).
+- No login on the surveyor pages, so anyone with the link can decide on or delete a home (prototype).
 - The AI can misread faded labels, which is why low confidence goes to REVIEW instead of FAIL.
 - The breaker box brand is read from the label only. A missing or painted-over label goes to REVIEW.
 - The whole-site check judges coverage from the photos alone. It can ask for a photo that was not needed, and at most 2 extra photos are asked for.
@@ -214,7 +204,7 @@ npx vitest run
 - A/C nameplate photo to flag LRA above 160 (soft start needed).
 - Drawing a suggested battery spot on the photo.
 - Learning from surveyor overrides.
-- Send the prefilled link from the booking flow by email or text, and push the export automatically when a home is submitted instead of waiting for a pull.
+- Send the customer link from Base's signup flow by email or text, and push the export automatically when a home is submitted instead of waiting for a pull.
 
 ## Team
 
