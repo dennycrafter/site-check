@@ -699,6 +699,27 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             ? "Let's try that photo again"
             : step.title;
 
+  const stepNumber = data.steps.findIndex((item) => item.id === step.id) + 1;
+  const stepCount = data.steps.length;
+  const progress =
+    stepNumber > 0 ? (
+      <div className="sc-progress">
+        <p className="sc-progress-label">
+          Step {stepNumber} of {stepCount}
+        </p>
+        <div
+          className="sc-progress-track"
+          role="progressbar"
+          aria-label={`Step ${stepNumber} of ${stepCount}`}
+          aria-valuemin={1}
+          aria-valuemax={stepCount}
+          aria-valuenow={stepNumber}
+        >
+          <div className="sc-progress-fill" style={{ width: `${(stepNumber / stepCount) * 100}%` }} />
+        </div>
+      </div>
+    ) : null;
+
   return (
     <Frame
       stage={photoStage}
@@ -706,6 +727,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       headingRef={headingRef}
       title={title}
       back={back}
+      progress={progress}
       overlay={
         <>
           {fileInput}
@@ -912,6 +934,7 @@ function Frame({
   headingRef,
   back,
   inert = false,
+  progress,
   actions,
   overlay,
   children,
@@ -921,6 +944,7 @@ function Frame({
   headingRef?: RefObject<HTMLHeadingElement | null>;
   back?: (() => void) | null;
   inert?: boolean;
+  progress?: ReactNode;
   actions?: ReactNode;
   overlay?: ReactNode;
   children: ReactNode;
@@ -933,6 +957,7 @@ function Frame({
           children
         ) : (
           <section className="sc-content">
+            {progress}
             {back && (
               <div className="sc-topbar">
                 <TopBack onClick={back} />
