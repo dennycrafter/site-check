@@ -109,5 +109,6 @@ export function publicHome(home: HomeRow) {
     submitted_at: home.submitted_at,
     site_check_status: home.site_check_status,
     extra_steps: home.extra_steps.map((e) => ({ id: e.id, instruction: e.instruction })),
+    property: home.property ?? null,
   };
 }

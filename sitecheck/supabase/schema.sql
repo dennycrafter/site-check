@@ -58,6 +58,9 @@ alter table public.homes
 -- v3 column (same as migration-v3.sql).
 alter table public.homes add column if not exists decided_at timestamptz;
 
+-- v4 column (same as migration-v4.sql): where the home, front entrance and meter are on the map.
+alter table public.homes add column if not exists property jsonb;
+
 create index if not exists photos_home_idx on public.photos(home_id, step, attempt);
 create index if not exists homes_created_idx on public.homes(created_at desc);
 

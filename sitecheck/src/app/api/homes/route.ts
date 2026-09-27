@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { jsonError, readJson, serverError } from "@/lib/api";
 import { recomputeHome } from "@/lib/homes";
+import { isMissingPropertyColumn } from "@/lib/property";
 import { getSupabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -19,6 +20,10 @@ const CreateHomeZod = z
     inAustin: z.boolean().optional(),
     hasSolar: z.boolean().optional(),
     externalRef: z.string().trim().min(1).max(100).optional(),
+    /** From the address suggestion the demo form picked. */
+    placeId: z.string().trim().min(1).max(300).optional(),
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
   })
   .refine((b) => b.address || b.customerName, { message: "address or customerName is required" });
 
@@ -27,20 +32,36 @@ export async function POST(request: Request) {
   if (!body.success) {
     return jsonError(400, "Please enter the full address of the home.");
   }
+  const { lat, lng, placeId } = body.data;
+  const row = {
+    address: body.data.address ?? null,
+    customer_name: body.data.customerName ?? null,
+    customer_email: body.data.customerEmail ?? null,
+    in_austin: body.data.inAustin ?? null,
+    has_solar: body.data.hasSolar ?? null,
+    external_ref: body.data.externalRef ?? null,
+  };
+  const property =
+    lat !== undefined && lng !== undefined
+      ? {
+          address: body.data.address ?? "",
+          source: "google" as const,
+          placeId,
+          house: { lat, lng },
+          frontUncertain: false,
+          meterUncertain: false,
+          propertyConfirmed: false,
+        }
+      : null;
   try {
-    const { data, error } = await getSupabase()
-      .from("homes")
-      .insert({
-        address: body.data.address ?? null,
-        customer_name: body.data.customerName ?? null,
-        customer_email: body.data.customerEmail ?? null,
-        in_austin: body.data.inAustin ?? null,
-        has_solar: body.data.hasSolar ?? null,
-        external_ref: body.data.externalRef ?? null,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
+    const insert = (values: Record<string, unknown>) =>
+      getSupabase().from("homes").insert(values).select("id").single();
+    let { data, error } = property ? await insert({ ...row, property }) : await insert(row);
+    if (property && isMissingPropertyColumn(error)) {
+      console.error("[homes.create] property column missing, run supabase/migration-v4.sql", error);
+      ({ data, error } = await insert(row));
+    }
+    if (error || !data) throw error ?? new Error("Insert returned no row");
     await recomputeHome(data.id);
     return NextResponse.json({ id: data.id }, { status: 201 });
   } catch (err) {

@@ -41,6 +41,28 @@ export type HomeRow = {
   site_check_status: SiteCheckStatus;
   site_check: SiteCheckResult | null;
   extra_steps: ExtraStep[];
+  /** Map answers from the customer, or from the address picked on the demo form. Null before the map. */
+  property: HomeProperty | null;
+};
+
+export type Coordinate = { lat: number; lng: number };
+/** 0 to 1 across and down the example map image. */
+export type MapPoint = { x: number; y: number };
+
+export type HomeProperty = {
+  address: string;
+  source: "google" | "example";
+  placeId?: string;
+  house?: Coordinate;
+  front?: Coordinate;
+  meter?: Coordinate;
+  exampleFront?: MapPoint;
+  exampleMeter?: MapPoint;
+  frontUncertain: boolean;
+  meterUncertain: boolean;
+  propertyConfirmed: boolean;
+  /** True once the customer finished the map step. */
+  mapDone?: boolean;
 };
 
 export type SiteCheckStatus = "not_run" | "done" | "failed";

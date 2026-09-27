@@ -52,6 +52,7 @@ export async function GET(
       homeId: home.id,
       customer: { name: home.customer_name, email: home.customer_email },
       address: home.address,
+      property: home.property ?? null,
       answers: {
         inAustin: home.in_austin,
         hasSolar: home.has_solar,

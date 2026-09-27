@@ -22,7 +22,7 @@ cp .env.example .env.local   # on Windows: copy .env.example .env.local
 ```
 
 1. Fill in `.env.local` (see the table under "Reproduce the demo").
-2. In the Supabase dashboard, open SQL Editor, New query, paste the contents of `supabase/schema.sql`, and click Run. A project set up before the review UI upgrade only needs `supabase/migration-v3.sql`.
+2. In the Supabase dashboard, open SQL Editor, New query, paste the contents of `supabase/schema.sql`, and click Run. A project set up before the review UI upgrade only needs `supabase/migration-v3.sql`, then `supabase/migration-v4.sql` (the map answers column).
 3. Start the app:
 
 ```bash
@@ -169,6 +169,8 @@ Environment variables (server only, never prefixed with `NEXT_PUBLIC_`):
 | `SUPABASE_SECRET_KEY` | Supabase secret (or service_role) key |
 | `ANALYSIS_MODEL` | `claude-sonnet-5` |
 | `SIMULATE_AI_FAILURE_RATE` | `0` normally, `0.3` for the resilience demo |
+
+Optional, public in the browser: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` turns on live address suggestions on the demo form and the live map step (Maps JavaScript API, Places API (New), and Geocoding API). Without it the form works as a plain text field and the map step uses an example map.
 
 To show resilience, set `SIMULATE_AI_FAILURE_RATE=0.3` (in `.env.local`, or in Vercel then redeploy) and complete a home. The server log shows one line per AI attempt, for example:
 

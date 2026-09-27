@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HomeIdZod, jsonError, readJson, serverError } from "@/lib/api";
 import { buildStepViews, loadHome, publicHome, recomputeHome } from "@/lib/homes";
 import { nextStep } from "@/lib/plan";
+import { PropertyZod } from "@/lib/property";
 import { getSupabase, listHomeFiles, removeFiles } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -50,13 +51,23 @@ export async function DELETE(_request: Request, ctx: RouteContext<"/api/homes/[i
   }
 }
 
-const PatchZod = z.object({ panelSameWallAnswer: z.enum(["yes", "no", "not_sure"]) });
+const AnswerZod = z.object({ panelSameWallAnswer: z.enum(["yes", "no", "not_sure"]) });
+const PropertyPatchZod = z.object({ property: PropertyZod });
 
+/** Accepts either the question 5 answer or the map answers. */
 export async function PATCH(request: Request, ctx: RouteContext<"/api/homes/[id]">) {
   const { id } = await ctx.params;
   if (!HomeIdZod.safeParse(id).success) return jsonError(404, "Home not found");
-  const body = PatchZod.safeParse(await readJson(request));
-  if (!body.success) return jsonError(400, "Answer must be yes, no or not_sure.");
+  const json = await readJson(request);
+  const property = PropertyPatchZod.safeParse(json);
+  if (property.success && !(json && typeof json === "object" && "panelSameWallAnswer" in json)) {
+    return patchProperty(id, property.data.property);
+  }
+  const body = AnswerZod.safeParse(json);
+  if (!body.success) {
+    const isMap = json && typeof json === "object" && "property" in json;
+    return jsonError(400, isMap ? "Map answers are not valid." : "Answer must be yes, no or not_sure.");
+  }
   try {
     const { data, error } = await getSupabase()
       .from("homes")
@@ -70,5 +81,21 @@ export async function PATCH(request: Request, ctx: RouteContext<"/api/homes/[id]
     return NextResponse.json({ nextStep: nextStep(home, photos) });
   } catch (err) {
     return serverError("homes.patch", err);
+  }
+}
+
+async function patchProperty(id: string, property: z.infer<typeof PropertyZod>) {
+  try {
+    const { data, error } = await getSupabase()
+      .from("homes")
+      .update({ property })
+      .eq("id", id)
+      .eq("status", "in_progress")
+      .select("id");
+    if (error) throw error;
+    if (!data || data.length === 0) return jsonError(404, "Home not found or already submitted");
+    return NextResponse.json({ saved: true });
+  } catch (err) {
+    return serverError("homes.patch.property", err);
   }
 }

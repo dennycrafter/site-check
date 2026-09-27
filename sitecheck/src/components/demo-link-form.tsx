@@ -1,14 +1,17 @@
 "use client";
 
 import QRCode from "qrcode";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
+import { AddressSuggestions } from "@/components/address-suggestions";
 import { Spinner } from "@/components/ui";
 import { BRAND } from "@/lib/brand";
+import { MAPS_API_KEY, useAddressSuggestions, type AddressSuggestion } from "@/lib/maps-client";
 import "@/styles/customer-flow.css";
 
 const CREATE_ERROR = "Could not create the link. Please try again.";
 
 type Created = { url: string; qrSvg: string | null };
+type Picked = { address: string; placeId: string; lat: number; lng: number };
 
 function YesNo({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   const option = (next: boolean, text: string) => (
@@ -42,6 +45,21 @@ export function DemoLinkForm() {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
   const [copied, setCopied] = useState(false);
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const addressInput = useRef<HTMLInputElement>(null);
+  const suggest = useAddressSuggestions(addressInput);
+
+  async function chooseSuggestion(item: AddressSuggestion) {
+    setAddress(item.label);
+    try {
+      const found = await suggest.choose(item);
+      setAddress(found.address);
+      setPicked(found.point ? { address: found.address, placeId: found.placeId, ...found.point } : null);
+    } catch (err) {
+      console.error("[demo] could not load the chosen address", err);
+      setPicked(null);
+    }
+  }
 
   const ready = address.trim().length >= 5 && name.trim().length > 0;
 
@@ -54,7 +72,13 @@ export function DemoLinkForm() {
       const res = await fetch("/api/homes", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ address: address.trim(), customerName: name.trim(), inAustin, hasSolar }),
+        body: JSON.stringify({
+          address: address.trim(),
+          customerName: name.trim(),
+          inAustin,
+          hasSolar,
+          ...(picked && picked.address === address.trim() ? { placeId: picked.placeId, lat: picked.lat, lng: picked.lng } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.id) throw new Error(data.error ?? CREATE_ERROR);
@@ -87,6 +111,7 @@ export function DemoLinkForm() {
   function reset() {
     setCreated(null);
     setAddress("");
+    setPicked(null);
     setName("");
     setInAustin(true);
     setHasSolar(false);
@@ -138,17 +163,49 @@ export function DemoLinkForm() {
           <h2 className="sc-section-title">Customer photo link</h2>
           <p className="sc-muted">Sent by Base after signup</p>
           <div className="sc-fields">
-            <label>
-              Address
-              <input
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="1234 Oak St, Austin, TX 78704"
-                autoComplete="street-address"
-                maxLength={300}
-                required
-              />
-            </label>
+            <div className="pl-address-field">
+              <label>
+                Address
+                <input
+                  ref={addressInput}
+                  value={address}
+                  onChange={(e) => {
+                    setAddress(e.target.value);
+                    setPicked(null);
+                    suggest.onQueryChange(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    const pick = suggest.onKeyDown(e);
+                    if (pick) void chooseSuggestion(pick);
+                  }}
+                  onBlur={suggest.close}
+                  placeholder="1234 Oak St, Austin, TX 78704"
+                  autoComplete={MAPS_API_KEY ? "off" : "street-address"}
+                  maxLength={300}
+                  required
+                  {...(MAPS_API_KEY
+                    ? {
+                        role: "combobox",
+                        "aria-autocomplete": "list" as const,
+                        "aria-expanded": suggest.open,
+                        "aria-controls": "demo-address-list",
+                        "aria-activedescendant":
+                          suggest.open && suggest.active >= 0 ? `demo-address-list-option-${suggest.active}` : undefined,
+                      }
+                    : {})}
+                />
+              </label>
+              {suggest.open && suggest.box && (
+                <AddressSuggestions
+                  id="demo-address-list"
+                  suggestions={suggest.suggestions}
+                  active={suggest.active}
+                  box={suggest.box}
+                  onChoose={(item) => void chooseSuggestion(item)}
+                  onHover={suggest.setActive}
+                />
+              )}
+            </div>
             <label>
               Customer name
               <input

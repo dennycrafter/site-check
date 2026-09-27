@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
 import { HelpButton, HelpSheet } from "@/components/help-sheet";
 import { Outline } from "@/components/outline";
+import PropertyLocator, { type PropertyContext } from "@/components/property-locator";
 import { Spinner } from "@/components/ui";
 import { useDialog } from "@/components/use-dialog";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
-import type { PhotoStatus, SetupType } from "@/lib/types";
+import type { HomeProperty, PhotoStatus, SetupType } from "@/lib/types";
 import "@/styles/customer-flow.css";
 
 type StepView = {
@@ -25,6 +26,7 @@ type HomeData = {
     status: "in_progress" | "submitted";
     extra_steps: { id: string; instruction: string }[];
     setup_type: SetupType;
+    property?: HomeProperty | null;
   };
   steps: StepView[];
   /** A step id, "question_5", "site_check" or null when everything is done. */
@@ -183,6 +185,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [local, setLocal] = useState<Local>({ kind: "ready" });
   const [introChoice, setIntroChoice] = useState<Intro | null>(null);
   const [introLocked, setIntroLocked] = useState(false);
+  const [mapClosed, setMapClosed] = useState(false);
   const [safetyOpen, setSafetyOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
@@ -319,6 +322,23 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     headingRef.current?.closest(".sc-content")?.scrollTo(0, 0);
     headingRef.current?.focus({ preventScroll: true });
   }, [viewKey, modalOpen]);
+
+  /** Saves the map answers in the background. The customer moves on to the welcome screen either way. */
+  function finishMap(value: PropertyContext | null) {
+    setMapClosed(true);
+    if (!value) return;
+    const property: HomeProperty = { ...value, mapDone: true };
+    setData((current) => (current ? { ...current, home: { ...current.home, property } } : current));
+    fetch(`/api/homes/${homeId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ property }),
+    })
+      .then(async (res) => {
+        if (!res.ok) console.error("[map] could not save the map answers", res.status, await res.text().catch(() => ""));
+      })
+      .catch((err) => console.error("[map] could not save the map answers", err));
+  }
 
   function goIntro(next: Intro | null) {
     setIntroChoice(next);
@@ -583,6 +603,21 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         </div>
         <p>We have everything we need from you for now. The survey team will be in touch.</p>
       </Frame>
+    );
+  }
+
+  if (intro === "welcome" && !mapClosed && !data.home.property?.mapDone) {
+    return (
+      <main className="sc-root">
+        <div className="sc-shell sc-stage-map">
+          <PropertyLocator
+            initial={data.home.property ?? null}
+            startAddress={data.home.address}
+            onDone={finishMap}
+            onFail={() => finishMap(null)}
+          />
+        </div>
+      </main>
     );
   }
 
