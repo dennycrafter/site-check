@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decidePhoto } from "./decide";
+import { canKeep, decidePhoto } from "./decide";
 import type { PhotoAnalysis } from "./schema";
 import { GOOD_ANALYSIS } from "./testing";
 
@@ -52,5 +52,27 @@ describe("decidePhoto decidability triggers", () => {
     expect(retakeMessage("meter_area_wide", { usable: false, retake_reason: "too_dark" })).toBe(
       "It's too dark. Turn on your flash or retake in daylight.",
     );
+  });
+});
+
+describe("canKeep", () => {
+  it("never allows keeping on the first attempt", () => {
+    expect(canKeep(1, GOOD)).toBe(false);
+  });
+
+  it("allows keeping a photo of the right thing from attempt 2", () => {
+    expect(canKeep(2, GOOD)).toBe(true);
+  });
+
+  it("never allows keeping a photo of the wrong subject", () => {
+    expect(canKeep(2, { ...GOOD, retake_reason: "wrong_subject" })).toBe(false);
+  });
+
+  it("never allows keeping a photo that does not match the request", () => {
+    expect(canKeep(2, { ...GOOD, photo_matches_request: false })).toBe(false);
+  });
+
+  it("never allows keeping a photo without an analysis", () => {
+    expect(canKeep(2, null)).toBe(false);
   });
 });

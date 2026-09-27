@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { HomeIdZod, jsonError, readJson, serverError } from "@/lib/api";
-import { MESSAGES } from "@/lib/decide";
+import { canKeep, MESSAGES } from "@/lib/decide";
 import { loadHome, recomputeHome } from "@/lib/homes";
 import { latestPhotoByStep, nextStep, planSteps } from "@/lib/plan";
 import { getSupabase } from "@/lib/supabase";
@@ -24,6 +24,9 @@ export async function POST(request: Request) {
     const latest = latestPhotoByStep(photos).get(step);
     if (!planSteps(home, photos).includes(step) || latest?.status !== "retake") {
       return jsonError(409, "There is no photo to keep for this step.", { nextStep: nextStep(home, photos) });
+    }
+    if (!canKeep(latest.attempt, latest.analysis)) {
+      return jsonError(409, "This photo can't be kept. Please retake it.");
     }
 
     const { error } = await getSupabase()

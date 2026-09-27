@@ -33,6 +33,7 @@ type PhotoResult = {
   message: string;
   attempt: number;
   nextStep: string | null;
+  canKeep?: boolean;
 };
 
 type Local =
@@ -876,9 +877,11 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             <p className="sc-muted">
               Attempt {local.result.attempt} of {MAX_ATTEMPTS}
             </p>
-            <button type="button" className="sc-text-button" onClick={() => void keepPhoto(step.id)} disabled={keeping}>
-              {keeping ? "Saving..." : "Use this photo anyway"}
-            </button>
+            {local.result.canKeep === true && (
+              <button type="button" className="sc-text-button" onClick={() => void keepPhoto(step.id)} disabled={keeping}>
+                {keeping ? "Saving..." : "Use this photo anyway"}
+              </button>
+            )}
             {keepError && (
               <p className="sc-error" role="alert">
                 {keepError}

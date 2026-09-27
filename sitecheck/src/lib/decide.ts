@@ -49,6 +49,16 @@ const DECIDABILITY: Array<{ applies: (step: string) => boolean; fails: (a: Photo
   },
 ];
 
+/** Whether the homeowner may keep a photo the check asked them to retake. */
+export function canKeep(attempt: number, analysis: PhotoAnalysis | null): boolean {
+  return (
+    attempt >= 2 &&
+    analysis !== null &&
+    analysis.photo_matches_request === true &&
+    analysis.retake_reason !== "wrong_subject"
+  );
+}
+
 export type PhotoDecision = { accept: true } | { accept: false; message: string };
 
 /** Section 8.5: whether a successfully analyzed photo is usable for its step. */

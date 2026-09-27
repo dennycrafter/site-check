@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { HomeIdZod, jsonError, readJson, serverError } from "@/lib/api";
 import { analyzePhoto } from "@/lib/analyze";
-import { decidePhoto, MESSAGES } from "@/lib/decide";
+import { canKeep, decidePhoto, MESSAGES } from "@/lib/decide";
 import { loadHome, recomputeHome } from "@/lib/homes";
 import { isFinished, latestPhotoByStep, nextStep, planSteps } from "@/lib/plan";
 import { getStep, isExtraStepId, isStepId, MAX_ATTEMPTS } from "@/lib/steps";
@@ -101,6 +101,10 @@ export async function POST(request: Request) {
       next = nextStep(fresh.home, fresh.photos);
     }
 
+    if (status === "retake") {
+      const keepable = canKeep(attempt, result.ok ? result.analysis : null);
+      return NextResponse.json({ status, message, attempt, nextStep: next, canKeep: keepable });
+    }
     return NextResponse.json({ status, message, attempt, nextStep: next });
   } catch (err) {
     return serverError("photos", err);
