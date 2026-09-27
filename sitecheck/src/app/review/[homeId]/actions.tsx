@@ -50,7 +50,7 @@ export function DecisionPanel({
   return (
     <section
       aria-label="Surveyor decision"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] lg:sticky lg:inset-auto lg:top-6 lg:rounded-2xl lg:border lg:p-5 lg:shadow-none"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-surface px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] lg:sticky lg:inset-auto lg:top-6 lg:rounded-2xl lg:border lg:p-5 lg:shadow-none"
     >
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="text-sm font-bold text-gray-900 lg:text-lg">Surveyor decision</h2>
@@ -76,7 +76,7 @@ export function DecisionPanel({
             disabled={saving !== null}
             aria-pressed={decision === d.id}
             className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border-2 px-2 text-sm font-semibold leading-tight transition-colors disabled:opacity-60 lg:min-h-12 lg:px-4 lg:text-base ${
-              decision === d.id ? d.active : "border-gray-300 bg-white text-gray-800 hover:bg-gray-50"
+              decision === d.id ? d.active : "border-gray-300 bg-surface text-gray-800 hover:bg-gray-50"
             }`}
           >
             {saving === d.id && <Spinner className="h-4 w-4" />}
@@ -237,7 +237,7 @@ export function HomeMenu({ homeId }: { homeId: string }) {
         </svg>
       </button>
       {menuOpen && (
-        <div role="menu" className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+        <div role="menu" className="absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-xl border border-gray-200 bg-surface py-1 shadow-lg">
           <button
             type="button"
             role="menuitem"
@@ -261,7 +261,7 @@ export function HomeMenu({ homeId }: { homeId: string }) {
             aria-modal="true"
             aria-labelledby="delete-home-title"
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+            className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl"
           >
             <p id="delete-home-title" className="text-base font-semibold text-gray-900">
               Delete this home and all its photos? This can&apos;t be undone.

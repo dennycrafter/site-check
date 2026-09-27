@@ -3,6 +3,7 @@
 import QRCode from "qrcode";
 import { useState, type FormEvent } from "react";
 import { Spinner } from "@/components/ui";
+import { BRAND } from "@/lib/brand";
 import "@/styles/customer-flow.css";
 
 const CREATE_ERROR = "Could not create the link. Please try again.";
@@ -62,7 +63,7 @@ export function DemoLinkForm() {
         type: "svg",
         margin: 1,
         width: 200,
-        color: { dark: "#17241c", light: "#ffffff" },
+        color: { dark: BRAND.ink, light: "#ffffff" },
       }).catch(() => null);
       setCreated({ url, qrSvg });
       setCopied(false);

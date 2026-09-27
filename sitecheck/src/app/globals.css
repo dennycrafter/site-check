@@ -1,14 +1,47 @@
+@import "../styles/brand.css";
 @import "tailwindcss";
 
-@theme {
-  --color-accent: #0f766e;
-  --color-accent-dark: #115e59;
-  --color-accent-soft: #f0fdfa;
-  --color-pass: #15803d;
-  --color-review: #b45309;
-  --color-fail: #b91c1c;
-  --font-sans:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+/* Every token points at src/styles/brand.css. Do not put raw colors here. */
+@theme inline {
+  --color-accent: var(--brand-green);
+  --color-accent-dark: var(--brand-green-dark);
+  --color-accent-soft: var(--brand-lime-soft);
+  --color-lime: var(--brand-lime);
+  --color-lime-soft: var(--brand-lime-soft);
+  --color-page: var(--brand-bg);
+  --color-surface: var(--brand-surface);
+  --color-ink: var(--brand-ink);
+  --color-muted: var(--brand-muted);
+  --color-line: var(--brand-border);
+  --color-pass: var(--status-pass);
+  --color-review: var(--status-review);
+  --color-fail: var(--status-fail);
+
+  --color-gray-50: var(--brand-surface);
+  --color-gray-100: var(--brand-bg);
+  --color-gray-200: var(--brand-border);
+  --color-gray-300: var(--brand-border);
+  --color-gray-400: var(--brand-muted);
+  --color-gray-500: var(--brand-muted);
+  --color-gray-600: var(--brand-muted);
+  --color-gray-700: var(--brand-ink);
+  --color-gray-800: var(--brand-ink);
+  --color-gray-900: var(--brand-ink);
+  --color-gray-950: var(--brand-ink);
+  --color-green-50: color-mix(in srgb, var(--status-pass) 8%, white);
+  --color-amber-50: color-mix(in srgb, var(--status-review) 8%, white);
+  --color-red-50: color-mix(in srgb, var(--status-fail) 8%, white);
+  --color-red-800: color-mix(in srgb, var(--status-fail) 80%, black);
+
+  --radius-brand: var(--brand-radius);
+  --radius-sm: var(--brand-radius);
+  --radius-md: var(--brand-radius);
+  --radius-lg: var(--brand-radius);
+  --radius-xl: var(--brand-radius);
+  --radius-2xl: var(--brand-radius);
+  --radius-3xl: var(--brand-radius);
+
+  --font-sans: var(--brand-font);
 }
 
 html {
@@ -16,6 +49,7 @@ html {
 }
 
 body {
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--brand-bg);
+  color: var(--brand-ink);
+  font-family: var(--brand-font);
 }

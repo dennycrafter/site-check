@@ -43,6 +43,10 @@ Note: phone cameras only work over HTTPS, so test on phones using the deployed U
 - `vitest` for unit tests of the rules engine and the review page helpers
 - Vercel Hobby for hosting and HTTPS
 
+## Branding
+
+To change the look, edit `src/styles/brand.css`. Colors used from JavaScript live in `src/lib/brand.ts`.
+
 ## Architecture
 
 ```mermaid

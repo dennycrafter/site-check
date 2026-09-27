@@ -130,7 +130,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
               className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
                 filter === f.id
                   ? "border-accent bg-accent text-white"
-                  : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
+                  : "border-gray-300 bg-surface text-gray-700 hover:border-gray-400"
               }`}
             >
               {f.label}

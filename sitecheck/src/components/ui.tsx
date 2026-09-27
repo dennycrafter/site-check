@@ -7,12 +7,12 @@ type Variant = "primary" | "secondary" | "ghost";
 const VARIANTS: Record<Variant, string> = {
   primary: "bg-accent text-white hover:bg-accent-dark disabled:bg-gray-300 disabled:text-gray-500",
   secondary:
-    "border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 disabled:text-gray-400",
+    "border border-gray-300 bg-surface text-gray-800 hover:bg-gray-50 disabled:text-gray-400",
   ghost: "text-accent underline-offset-4 hover:underline disabled:text-gray-400",
 };
 
 export function buttonClass(variant: Variant = "primary", extra = "") {
-  return `inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed ${VARIANTS[variant]} ${extra}`;
+  return `inline-flex min-h-12 items-center justify-center gap-2 rounded-brand px-5 text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed ${VARIANTS[variant]} ${extra}`;
 }
 
 export function Button({

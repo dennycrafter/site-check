@@ -108,7 +108,7 @@ export function Outline({ id, aspect }: { id: OutlineId; aspect: number }) {
           fill="white"
           fontSize={fontSize}
           fontWeight={600}
-          style={{ fontFamily: "system-ui, sans-serif" }}
+          style={{ fontFamily: "var(--brand-font)" }}
         >
           {label}
         </text>
