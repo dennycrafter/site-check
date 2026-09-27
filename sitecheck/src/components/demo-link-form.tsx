@@ -2,32 +2,28 @@
 
 import QRCode from "qrcode";
 import { useState, type FormEvent } from "react";
-import { Banner, Button, Spinner } from "@/components/ui";
-
-const inputClass =
-  "mt-1 block min-h-11 w-full rounded-xl border border-gray-300 px-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
+import { Spinner } from "@/components/ui";
+import "@/styles/customer-flow.css";
 
 const CREATE_ERROR = "Could not create the link. Please try again.";
 
 type Created = { url: string; qrSvg: string | null };
 
 function YesNo({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
-  const option = (v: boolean, text: string) => (
+  const option = (next: boolean, text: string) => (
     <button
       type="button"
-      aria-pressed={value === v}
-      onClick={() => onChange(v)}
-      className={`min-h-10 flex-1 rounded-lg border text-sm font-semibold transition-colors ${
-        value === v ? "border-accent bg-accent-soft text-accent" : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-      }`}
+      aria-pressed={value === next}
+      onClick={() => onChange(next)}
+      className={value === next ? "sc-option selected" : "sc-option"}
     >
       {text}
     </button>
   );
   return (
-    <fieldset>
-      <legend className="text-sm font-medium text-gray-700">{label}</legend>
-      <div className="mt-1 flex gap-2">
+    <fieldset className="sc-choice">
+      <legend>{label}</legend>
+      <div className="sc-yesno">
         {option(true, "Yes")}
         {option(false, "No")}
       </div>
@@ -66,7 +62,7 @@ export function DemoLinkForm() {
         type: "svg",
         margin: 1,
         width: 200,
-        color: { dark: "#111827", light: "#ffffff" },
+        color: { dark: "#17241c", light: "#ffffff" },
       }).catch(() => null);
       setCreated({ url, qrSvg });
       setCopied(false);
@@ -97,84 +93,95 @@ export function DemoLinkForm() {
 
   if (created) {
     return (
-      <div className="space-y-4">
-        <p className="text-sm font-semibold text-pass">Customer link ready</p>
-        <div className="flex items-stretch gap-2">
-          <input
-            readOnly
-            value={created.url}
-            onFocus={(e) => e.currentTarget.select()}
-            aria-label="Customer photo link"
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-gray-300 bg-gray-50 px-3 font-mono text-sm text-gray-800"
-          />
-          <Button variant="secondary" onClick={copy} className="min-h-11 shrink-0 px-4 text-sm">
-            {copied ? "Copied" : "Copy"}
-          </Button>
-        </div>
-        {created.qrSvg && (
-          <div className="flex flex-col items-center gap-2">
-            <div
-              role="img"
-              aria-label="QR code of the customer link"
-              className="h-[200px] w-[200px] overflow-hidden rounded-xl border border-gray-200 bg-white p-2 [&>svg]:h-full [&>svg]:w-full"
-              dangerouslySetInnerHTML={{ __html: created.qrSvg }}
-            />
-            <p className="text-xs text-gray-500">Scan with a phone to take the photos as the customer.</p>
-          </div>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <a href={created.url} className="text-sm font-semibold text-accent hover:underline">
-            Open link here
-          </a>
-          <button type="button" onClick={reset} className="text-sm font-semibold text-gray-600 hover:text-gray-900">
-            Create another
-          </button>
+      <div className="sc-root sc-embed">
+        <div className="sc-shell">
+          <p className="sc-demo-note">Demo only: stands in for Base&apos;s system</p>
+          <section className="sc-content">
+            <h2 className="sc-section-title">Customer link ready</h2>
+            <div className="sc-link-row">
+              <input readOnly value={created.url} onFocus={(e) => e.currentTarget.select()} aria-label="Customer photo link" />
+              <button type="button" className="sc-option" onClick={() => void copy()}>
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            {created.qrSvg && (
+              <div className="sc-qr">
+                <div
+                  role="img"
+                  aria-label="QR code of the customer link"
+                  className="sc-qr-frame"
+                  dangerouslySetInnerHTML={{ __html: created.qrSvg }}
+                />
+                <p className="sc-muted">Scan with a phone to take the photos as the customer.</p>
+              </div>
+            )}
+            <div className="sc-text-row">
+              <a href={created.url} className="sc-text-button">
+                Open link here
+              </a>
+              <button type="button" className="sc-text-button" onClick={reset}>
+                Create another
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500">
-        Demo only: stands in for Base&apos;s system
-      </p>
-      <label className="block">
-        <span className="text-sm font-medium text-gray-700">Address</span>
-        <input
-          className={inputClass}
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="1234 Oak St, Austin, TX 78704"
-          maxLength={300}
-          required
-        />
-      </label>
-      <label className="block">
-        <span className="text-sm font-medium text-gray-700">Customer name</span>
-        <input
-          className={inputClass}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Jane Doe"
-          maxLength={200}
-          required
-        />
-      </label>
-      <div className="grid grid-cols-2 gap-3">
-        <YesNo label="In Austin" value={inAustin} onChange={setInAustin} />
-        <YesNo label="Has solar" value={hasSolar} onChange={setHasSolar} />
-      </div>
-      {error && <Banner tone="error">{error}</Banner>}
-      <Button type="submit" disabled={!ready || submitting} className="w-full">
-        {submitting ? (
-          <>
-            <Spinner /> Creating...
-          </>
-        ) : (
-          "Create customer link"
-        )}
-      </Button>
-    </form>
+    <div className="sc-root sc-embed">
+      <form className="sc-shell" onSubmit={onSubmit}>
+        <p className="sc-demo-note">Demo only: stands in for Base&apos;s system</p>
+        <section className="sc-content">
+          <h2 className="sc-section-title">Customer photo link</h2>
+          <p className="sc-muted">Sent by Base after signup</p>
+          <div className="sc-fields">
+            <label>
+              Address
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="1234 Oak St, Austin, TX 78704"
+                autoComplete="street-address"
+                maxLength={300}
+                required
+              />
+            </label>
+            <label>
+              Customer name
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Jane Doe"
+                autoComplete="name"
+                maxLength={200}
+                required
+              />
+            </label>
+            <div className="sc-split">
+              <YesNo label="In Austin" value={inAustin} onChange={setInAustin} />
+              <YesNo label="Has solar" value={hasSolar} onChange={setHasSolar} />
+            </div>
+          </div>
+          {error && (
+            <p className="sc-error" role="alert">
+              {error}
+            </p>
+          )}
+        </section>
+        <footer className="sc-actions">
+          <button type="submit" className="sc-primary" disabled={!ready || submitting}>
+            {submitting ? (
+              <>
+                <Spinner /> Creating...
+              </>
+            ) : (
+              "Create customer link"
+            )}
+          </button>
+        </footer>
+      </form>
+    </div>
   );
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Outline } from "@/components/outline";
-import { Banner, Button, Spinner } from "@/components/ui";
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
+import { Spinner } from "@/components/ui";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
 import type { PhotoStatus } from "@/lib/types";
+import "@/styles/customer-flow.css";
 
 type StepView = {
   id: string;
@@ -35,15 +34,82 @@ type PhotoResult = {
   nextStep: string | null;
 };
 
-type Phase =
+type Local =
   | { kind: "ready" }
+  | { kind: "confirm"; preview: string; base64: string }
   | { kind: "checking"; preview: string }
-  | { kind: "result"; result: PhotoResult; preview: string }
+  | { kind: "accepted"; preview: string }
+  | { kind: "retake"; preview: string; result: PhotoResult }
+  | { kind: "held"; preview: string; result: PhotoResult }
   | { kind: "error"; message: string };
 
-type CameraState = "off" | "starting" | "on" | "unavailable";
+type Intro = "welcome" | "meter" | "breaker";
+
+type Guide = { image: number; guide: number; angle: string };
 
 const NETWORK_ERROR = "We couldn't send your photo. Check your connection and try again.";
+const FILE_ERROR = "We couldn't read that file. Try a JPG or PNG photo.";
+
+const SHOWN: Record<string, string> = {
+  meter_area_wide: "Stand about 10 steps back. Show your meter and the whole wall around it.",
+  left_of_meter: "Step back and turn left. Keep the meter at the right edge of the photo.",
+  right_of_meter: "Step back and turn right. Keep the meter at the left edge of the photo.",
+  panel_open: "Open the breaker box door. Show all the switches.",
+  main_disconnect_closeup: "Open the lid. Get close enough that the number, like 150 or 200, is readable.",
+};
+
+const GUIDE: Record<string, Guide> = {
+  meter_closeup: { image: 1, guide: 0, angle: "Stand straight in front of the meter." },
+  meter_area_wide: { image: 2, guide: 1, angle: "Walk back only as far as it is safe." },
+  left_of_meter: { image: 4, guide: 2, angle: "Keep the meter at the right edge." },
+  right_of_meter: { image: 3, guide: 3, angle: "Keep the meter at the left edge." },
+  adjacent_wall: { image: 5, guide: 4, angle: "Stand back to fit the whole wall." },
+  panel_wide: { image: 6, guide: 5, angle: "Stand straight in front of the panel." },
+  panel_open: { image: 6, guide: 5, angle: "Open only the hinged door. Never remove screws or covers." },
+  main_disconnect_closeup: {
+    image: 7,
+    guide: 6,
+    angle: "Open only the hinged door. Never remove screws or covers.",
+  },
+};
+
+const FIND_COPY = {
+  meter: {
+    title: "Find your meter",
+    lead: "Look on the outside wall of your home.",
+    tip: "Keep the meter cover closed.",
+    image: "/find-meter.webp",
+    alt: "Person photographing an electric meter on the outside wall of a house",
+    action: "Continue",
+  },
+  breaker: {
+    title: "Find your breaker panel",
+    lead: "Look in your garage or utility room.",
+    tip: "Leave the inner cover in place.",
+    image: "/find-breaker.webp",
+    alt: "Person photographing an open breaker panel in a garage",
+    action: "I found it",
+  },
+} as const;
+
+const PANEL_STEPS = new Set(["panel_wide", "panel_open", "main_disconnect_closeup"]);
+
+function isPanelStep(id: string) {
+  return PANEL_STEPS.has(id);
+}
+
+function shouldWelcome(data: HomeData) {
+  if (data.home.status === "submitted" || !data.nextStep) return false;
+  if (data.nextStep === "question_5" || data.nextStep === "site_check") return false;
+  return data.steps.every((step) => step.status === "pending");
+}
+
+function shouldBreaker(data: HomeData) {
+  if (!data.nextStep || !isPanelStep(data.nextStep)) return false;
+  return !data.steps.some((step) => isPanelStep(step.id) && step.status !== "pending");
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function fetchHome(homeId: string): Promise<HomeData> {
   const res = await fetch(`/api/homes/${homeId}`, { cache: "no-store" });
@@ -53,38 +119,116 @@ async function fetchHome(homeId: string): Promise<HomeData> {
   return body as HomeData;
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function useDialog(
+  open: boolean,
+  panel: RefObject<HTMLElement | null>,
+  initialFocus: RefObject<HTMLElement | null>,
+  close: () => void,
+  suppressRestore?: RefObject<boolean>,
+) {
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    initialFocus.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        close();
+        return;
+      }
+      if (event.key !== "Tab" || !panel.current) return;
+      const items = [...panel.current.querySelectorAll<HTMLElement>("h2, button, a[href], input, label")];
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      const skip = suppressRestore?.current;
+      if (suppressRestore) suppressRestore.current = false;
+      if (!skip && previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [open, panel, initialFocus, close, suppressRestore]);
+}
 
 export function CaptureFlow({ homeId }: { homeId: string }) {
   const [data, setData] = useState<HomeData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>({ kind: "ready" });
-  const [camera, setCamera] = useState<CameraState>("off");
-  const [aspect, setAspect] = useState(3 / 4);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [continuing, setContinuing] = useState(false);
+  const [local, setLocal] = useState<Local>({ kind: "ready" });
+  const [introChoice, setIntroChoice] = useState<Intro | null>(null);
+  const [introLocked, setIntroLocked] = useState(false);
+  const [safetyOpen, setSafetyOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState("");
+  const [cameraGeneration, setCameraGeneration] = useState(0);
   const [keeping, setKeeping] = useState(false);
   const [keepError, setKeepError] = useState<string | null>(null);
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const safetyPanel = useRef<HTMLDivElement>(null);
+  const safetyHeading = useRef<HTMLHeadingElement>(null);
+  const photoPanel = useRef<HTMLDivElement>(null);
+  const photoHeading = useRef<HTMLHeadingElement>(null);
+  const cameraPanel = useRef<HTMLDivElement>(null);
+  const cameraHeading = useRef<HTMLHeadingElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cameraSession = useRef(0);
+  const suppressPhotoFocusRestore = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const alive = useRef(true);
+  const sendToken = useRef(0);
+
+  const closeSafety = useCallback(() => setSafetyOpen(false), []);
+  const closePicker = useCallback(() => setPickerOpen(false), []);
+  const closeCamera = useCallback(() => {
+    cameraSession.current += 1;
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
+    setCameraError("");
+    setCameraOpen(false);
+  }, []);
+
+  useDialog(safetyOpen, safetyPanel, safetyHeading, closeSafety);
+  useDialog(pickerOpen, photoPanel, photoHeading, closePicker, suppressPhotoFocusRestore);
+  useDialog(cameraOpen, cameraPanel, cameraHeading, closeCamera);
 
   const load = useCallback(async () => {
     try {
-      setData(await fetchHome(homeId));
+      const fresh = await fetchHome(homeId);
+      setData(fresh);
       setLoadError(null);
+      return fresh;
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Could not load your photo check.");
+      const message = err instanceof Error ? err.message : "Could not load your photo check.";
+      setLoadError(message);
+      return null;
     }
   }, [homeId]);
 
   useEffect(() => {
     let cancelled = false;
     fetchHome(homeId).then(
-      (fresh) => !cancelled && setData(fresh),
-      (err) => !cancelled && setLoadError(err instanceof Error ? err.message : "Could not load your photo check."),
+      (fresh) => {
+        if (!cancelled) setData(fresh);
+      },
+      (err) => {
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Could not load your photo check.");
+      },
     );
     return () => {
       cancelled = true;
@@ -92,41 +236,155 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   }, [homeId]);
 
   useEffect(() => {
-    return () => streamRef.current?.getTracks().forEach((t) => t.stop());
+    alive.current = true;
+    return () => {
+      alive.current = false;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+    };
   }, []);
 
-  const allDone = data !== null && (data.nextStep === null || data.home.status === "submitted");
   useEffect(() => {
-    if (allDone) streamRef.current?.getTracks().forEach((t) => t.stop());
-  }, [allDone]);
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!cameraOpen || !video || !stream) return;
+    if (video.srcObject !== stream) video.srcObject = stream;
+    let cancelled = false;
+    const markReady = () => {
+      if (!cancelled) setCameraReady(true);
+    };
+    video.addEventListener("playing", markReady);
+    video.play().catch(() => {
+      if (!cancelled && video.paused) setCameraError("The camera preview couldn't start. Try again.");
+    });
+    return () => {
+      cancelled = true;
+      video.removeEventListener("playing", markReady);
+    };
+  }, [cameraOpen, cameraGeneration]);
 
-  const attachVideo = useCallback((el: HTMLVideoElement | null) => {
-    videoRef.current = el;
-    if (el && streamRef.current && el.srcObject !== streamRef.current) {
-      el.srcObject = streamRef.current;
-      el.play().catch(() => {});
-    }
-  }, []);
+  const intro = !data ? null : introLocked ? introChoice : shouldWelcome(data) ? "welcome" : shouldBreaker(data) ? "breaker" : null;
+  const onReview = data?.home.status !== "submitted" && data?.nextStep === null && intro === null;
 
-  async function startCamera() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setCamera("unavailable");
-      return;
-    }
-    setCamera("starting");
-    try {
-      streamRef.current = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
+  useEffect(() => {
+    if (!onReview) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      event.preventDefault();
+      setReviewIndex((current) => {
+        const total = data?.steps.length ?? 1;
+        return event.key === "ArrowLeft" ? (current + total - 1) % total : (current + 1) % total;
       });
-      setCamera("on");
-    } catch {
-      setCamera("unavailable");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onReview, data?.steps.length]);
+
+  const modalOpen = safetyOpen || pickerOpen || cameraOpen;
+  const viewKey = `${intro ?? "flow"}:${data?.nextStep ?? ""}:${local.kind}:${data?.home.status ?? ""}`;
+  useEffect(() => {
+    if (modalOpen) return;
+    headingRef.current?.focus();
+  }, [viewKey, modalOpen]);
+
+  function goIntro(next: Intro | null) {
+    setIntroChoice(next);
+    setIntroLocked(true);
+    setLocal({ kind: "ready" });
+    setSafetyOpen(false);
+    setPickerOpen(false);
+    setKeepError(null);
+    closeCamera();
+  }
+
+  function handoff(fromStep: string, fresh: HomeData) {
+    setData(fresh);
+    setLocal({ kind: "ready" });
+    setKeepError(null);
+    if (!isPanelStep(fromStep) && fresh.nextStep && isPanelStep(fresh.nextStep)) {
+      setIntroChoice("breaker");
+      setIntroLocked(true);
     }
   }
 
-  async function sendPhoto(step: string, base64: string, preview: string) {
-    setPhase({ kind: "checking", preview });
+  function openCamera() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    const session = ++cameraSession.current;
+    suppressPhotoFocusRestore.current = true;
+    setCameraError("");
+    setCameraReady(false);
+    setPickerOpen(false);
+    setCameraOpen(true);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("The camera couldn't open in this browser. You can choose a photo from your library instead.");
+      return;
+    }
+    navigator.mediaDevices
+      .getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      })
+      .then((stream) => {
+        if (cameraSession.current !== session) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
+        setCameraGeneration((current) => current + 1);
+      })
+      .catch((error: unknown) => {
+        if (cameraSession.current !== session) return;
+        const name = error instanceof DOMException ? error.name : "";
+        setCameraError(
+          name === "NotAllowedError" || name === "PermissionDeniedError"
+            ? "Camera access was blocked. Allow the camera in your browser, then try again."
+            : name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError"
+              ? "No camera was found on this device."
+              : "The camera couldn't open. You can choose a photo from your library instead.",
+        );
+      });
+  }
+
+  async function onPickedFile(file: File) {
+    setPickerOpen(false);
+    closeCamera();
+    if (file.type && !file.type.startsWith("image/")) {
+      setLocal({ kind: "error", message: "Choose a photo, then try again." });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setLocal({ kind: "error", message: "This photo is too large. Choose one under 20 MB." });
+      return;
+    }
+    try {
+      const { base64, dataUrl } = await prepareUpload(file);
+      if (!alive.current) return;
+      setLocal({ kind: "confirm", preview: dataUrl, base64 });
+    } catch {
+      if (!alive.current) return;
+      setLocal({ kind: "error", message: FILE_ERROR });
+    }
+  }
+
+  function capture() {
+    const video = videoRef.current;
+    if (!video?.videoWidth || !video.videoHeight) {
+      setCameraError("The camera isn't ready yet. Try again.");
+      return;
+    }
+    try {
+      const shot = captureVideoFrame(video);
+      closeCamera();
+      setLocal({ kind: "confirm", preview: shot.dataUrl, base64: shot.base64 });
+    } catch {
+      setCameraError("We couldn't save that picture. Try again.");
+    }
+  }
+
+  async function usePhoto(step: string, base64: string, preview: string) {
+    const token = ++sendToken.current;
+    setLocal({ kind: "checking", preview });
     setKeepError(null);
     let res: Response;
     let body: Partial<PhotoResult> & { error?: string };
@@ -138,42 +396,41 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       });
       body = await res.json().catch(() => ({}));
     } catch {
-      setPhase({ kind: "error", message: NETWORK_ERROR });
+      if (token === sendToken.current) setLocal({ kind: "error", message: NETWORK_ERROR });
       return;
     }
+    if (!alive.current || token !== sendToken.current) return;
     if (res.status === 409) {
-      await load();
-      setPhase({ kind: "ready" });
+      const fresh = await fetchHome(homeId).catch(() => null);
+      if (!alive.current || !fresh) return;
+      setData(fresh);
+      setIntroLocked(false);
+      setLocal({ kind: "ready" });
       return;
     }
-    if (!res.ok) {
-      setPhase({ kind: "error", message: body.error ?? NETWORK_ERROR });
+    if (!res.ok || !body.status || !body.message || body.attempt == null) {
+      setLocal({ kind: "error", message: body.error ?? NETWORK_ERROR });
       return;
     }
     const result = body as PhotoResult;
-    setPhase({ kind: "result", result, preview });
+    if (result.status === "retake") {
+      setLocal({ kind: "retake", preview, result });
+      const fresh = await fetchHome(homeId).catch(() => null);
+      if (alive.current && fresh) setData(fresh);
+      return;
+    }
     if (result.status === "accepted") {
-      const [fresh] = await Promise.allSettled([fetchHome(homeId), sleep(1000)]);
-      if (fresh.status === "fulfilled") setData(fresh.value);
-      else await load();
-      setPhase({ kind: "ready" });
+      setLocal({ kind: "accepted", preview });
+      await sleep(900);
+      if (!alive.current || token !== sendToken.current) return;
+      try {
+        handoff(step, await fetchHome(homeId));
+      } catch {
+        setLocal({ kind: "error", message: "Your photo was saved, but the next step didn't load. Try again." });
+      }
+      return;
     }
-  }
-
-  function onShutter(step: string) {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth || phase.kind !== "ready") return;
-    const { base64, dataUrl } = captureVideoFrame(video);
-    sendPhoto(step, base64, dataUrl);
-  }
-
-  async function onFile(step: string, file: File) {
-    try {
-      const { base64, dataUrl } = await prepareUpload(file);
-      await sendPhoto(step, base64, dataUrl);
-    } catch {
-      setPhase({ kind: "error", message: "We couldn't read that file. Try a JPG or PNG photo." });
-    }
+    setLocal({ kind: "held", preview, result });
   }
 
   async function keepPhoto(step: string) {
@@ -185,24 +442,27 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ homeId, step }),
       });
-      if (!res.ok && res.status !== 409) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? NETWORK_ERROR);
-      }
-      await load();
-      setPhase({ kind: "ready" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok && res.status !== 409) throw new Error(body.error ?? NETWORK_ERROR);
+      const fresh = await fetchHome(homeId);
+      if (!alive.current) return;
+      handoff(step, fresh);
     } catch (err) {
-      setKeepError(err instanceof Error ? err.message : NETWORK_ERROR);
+      if (alive.current) setKeepError(err instanceof Error ? err.message : NETWORK_ERROR);
     } finally {
-      setKeeping(false);
+      if (alive.current) setKeeping(false);
     }
   }
 
-  async function continueAfterResult() {
-    setContinuing(true);
-    await load();
-    setContinuing(false);
-    setPhase({ kind: "ready" });
+  async function continueHeld(step: string) {
+    try {
+      const fresh = await fetchHome(homeId);
+      if (!alive.current) return;
+      handoff(step, fresh);
+    } catch {
+      if (!alive.current) return;
+      setLocal({ kind: "error", message: "Your photo was saved, but the next step didn't load. Try again." });
+    }
   }
 
   async function submitHome() {
@@ -224,281 +484,553 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     }
   }
 
+  const stepId = data?.nextStep && data.nextStep !== "question_5" && data.nextStep !== "site_check" ? data.nextStep : null;
+  const step = data && stepId ? getStep(stepId, data.home.extra_steps) : null;
+  const guide = step ? GUIDE[step.id] : undefined;
+
+  let back: (() => void) | null = null;
+  if (data && step && intro === null) {
+    if (local.kind === "confirm" || local.kind === "retake" || local.kind === "held" || local.kind === "error") {
+      back = () => {
+        setKeepError(null);
+        setLocal({ kind: "ready" });
+      };
+    } else if (local.kind === "ready") {
+      const firstPanel = data.steps.find((item) => isPanelStep(item.id));
+      if (firstPanel && step.id === firstPanel.id) back = () => goIntro("breaker");
+      else if (data.steps[0]?.id === step.id) back = () => goIntro("meter");
+    }
+  }
+
+  const photoStage =
+    local.kind === "confirm" || local.kind === "checking" || local.kind === "accepted" || local.kind === "retake" || local.kind === "held"
+      ? "confirm"
+      : "photo";
+
+  const fileInput = (
+    <input
+      ref={fileRef}
+      type="file"
+      accept="image/*"
+      className="sc-file-offscreen"
+      aria-hidden="true"
+      onChange={(event) => {
+        const file = event.target.files?.[0];
+        event.target.value = "";
+        if (file) void onPickedFile(file);
+      }}
+    />
+  );
+
   if (loadError && !data) {
     return (
-      <Shell>
-        <div className="mt-10 space-y-4">
-          <Banner tone="error">{loadError}</Banner>
-          <Button onClick={load}>Try again</Button>
-        </div>
-      </Shell>
+      <Frame stage="flow" headingRef={headingRef} title="Photo check" actions={<Primary onClick={() => void load()}>Try again</Primary>}>
+        <p className="sc-error" role="alert">
+          {loadError}
+        </p>
+      </Frame>
     );
   }
 
   if (!data) {
     return (
-      <Shell>
-        <div className="mt-16 flex flex-col items-center gap-3 text-gray-600">
-          <Spinner className="h-8 w-8 text-accent" />
-          <p>Loading your photo check...</p>
-        </div>
-      </Shell>
+      <Frame stage="flow">
+        <p>Loading your photo check...</p>
+      </Frame>
     );
   }
 
   if (data.home.status === "submitted") {
     return (
-      <Shell>
-        <div className="mt-16 text-center">
-          <CheckIcon className="mx-auto h-16 w-16 text-pass" />
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">Thanks! A Base surveyor will review your home.</h1>
-          <p className="mt-3 text-gray-600">
-            We have everything we need from you for now. The survey team will be in touch.
-          </p>
+      <Frame stage="result" headingRef={headingRef} title="Thanks! A Base surveyor will review your home.">
+        <div className="sc-result-icon" aria-hidden="true">
+          ✓
         </div>
-      </Shell>
+        <p>We have everything we need from you for now. The survey team will be in touch.</p>
+      </Frame>
     );
   }
 
-  if (data.nextStep === "question_5") {
-    return <Question5 homeId={homeId} onDone={load} />;
+  if (intro === "welcome") {
+    return (
+      <Frame
+        stage="welcome"
+        inert={safetyOpen}
+        headingRef={headingRef}
+        title="Let's check your home"
+        actions={<Primary onClick={() => setSafetyOpen(true)}>Start</Primary>}
+        overlay={
+          safetyOpen ? (
+            <SafetyDialog
+              panelRef={safetyPanel}
+              headingRef={safetyHeading}
+              count={data.steps.length}
+              onClose={closeSafety}
+              onAccept={() => goIntro("meter")}
+            />
+          ) : null
+        }
+      >
+        {data.home.address ? <p>{data.home.address}</p> : null}
+        <div className="sc-welcome-pair">
+          <img src="/find-meter.webp" alt="Person photographing an electric meter on the outside wall of a house" />
+          <img src="/find-breaker.webp" alt="Person photographing an open breaker panel in a garage" />
+        </div>
+        <div className="sc-facts">
+          <span>About 5 minutes</span>
+          <span>{data.steps.length} photos</span>
+        </div>
+      </Frame>
+    );
   }
 
-  if (data.nextStep === "site_check") {
-    return <SiteCheckScreen homeId={homeId} onDone={load} />;
+  if (intro === "meter" || intro === "breaker") {
+    const copy = FIND_COPY[intro];
+    return (
+      <Frame
+        stage="find"
+        headingRef={headingRef}
+        actions={<Primary onClick={() => goIntro(null)}>{copy.action}</Primary>}
+      >
+        <FindEquipment
+          subject={intro}
+          headingRef={headingRef}
+          onBack={intro === "meter" ? () => goIntro("welcome") : undefined}
+        />
+      </Frame>
+    );
   }
+
+  if (data.nextStep === "question_5") return <Question5 homeId={homeId} onDone={load} />;
+  if (data.nextStep === "site_check") return <SiteCheckScreen homeId={homeId} onDone={load} />;
 
   if (data.nextStep === null) {
+    const total = data.steps.length;
+    const index = total === 0 ? 0 : reviewIndex % total;
+    const current = data.steps[index];
     return (
-      <Shell>
-        <h1 className="mt-4 text-2xl font-bold text-gray-900">All photos done</h1>
-        <p className="mt-2 text-gray-600">Check your photos below, then submit them to the survey team.</p>
-        <ul className="mt-6 divide-y divide-gray-100 rounded-2xl border border-gray-200">
-          {data.steps.map((s) => (
-            <li key={s.id} className="flex items-center gap-4 p-3">
-              {s.thumbnailUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={s.thumbnailUrl} alt={s.title} className="h-16 w-16 rounded-lg object-cover" />
-              ) : (
-                <div className="h-16 w-16 rounded-lg bg-gray-100" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold text-gray-900">{s.title}</p>
-                <p className={`text-sm ${s.status === "accepted" ? "text-pass" : "text-gray-500"}`}>
-                  {s.status === "accepted" ? "Looks good" : "A surveyor will check this one"}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ul>
-        {submitError && (
-          <div className="mt-4">
-            <Banner tone="error">{submitError}</Banner>
-          </div>
-        )}
-        <Button onClick={submitHome} disabled={submitting} className="mt-6 w-full text-lg">
-          {submitting ? (
-            <>
-              <Spinner /> Submitting...
-            </>
-          ) : (
-            "Submit"
-          )}
-        </Button>
-      </Shell>
-    );
-  }
-
-  const stepId = data.nextStep;
-  const step = getStep(stepId, data.home.extra_steps);
-  if (!step) {
-    return (
-      <Shell>
-        <div className="mt-10 space-y-4">
-          <Banner tone="error">Something went wrong loading this step.</Banner>
-          <Button onClick={load}>Try again</Button>
-        </div>
-      </Shell>
-    );
-  }
-  const index = Math.max(0, data.steps.findIndex((s) => s.id === stepId));
-  const total = data.steps.length;
-  const preview = phase.kind === "checking" || phase.kind === "result" ? phase.preview : null;
-  const canCapture = phase.kind === "ready";
-
-  return (
-    <Shell>
-      <div className="mt-2">
-        <div className="flex items-center justify-between text-sm font-medium text-gray-600">
-          <span>
-            Step {index + 1} of {total}
-          </span>
-          <span className="truncate pl-4">{data.home.address}</span>
-        </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200">
-          <div
-            className="h-full rounded-full bg-accent transition-all duration-500"
-            style={{ width: `${((index + (phase.kind === "result" && phase.result.status !== "retake" ? 1 : 0)) / total) * 100}%` }}
-          />
-        </div>
-      </div>
-
-      <h1 className="mt-4 text-xl font-bold text-gray-900 sm:text-2xl">{step.title}</h1>
-      <p className="mt-1 text-base text-gray-700">{step.instruction}</p>
-
-      <div
-        className="relative mx-auto mt-4 overflow-hidden rounded-2xl bg-gray-900"
-        style={{ aspectRatio: `${aspect}`, width: `min(100%, calc(55vh * ${aspect}))` }}
-      >
-        {camera === "on" && (
-          <video
-            ref={attachVideo}
-            autoPlay
-            playsInline
-            muted
-            onLoadedMetadata={(e) => {
-              const v = e.currentTarget;
-              if (v.videoWidth && v.videoHeight) setAspect(v.videoWidth / v.videoHeight);
-            }}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        )}
-        <Outline id={step.outline} aspect={aspect} />
-
-        {camera !== "on" && !preview && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-900/60 p-6 text-center">
-            {camera === "unavailable" ? (
+      <Frame
+        stage="review"
+        headingRef={headingRef}
+        title="Review"
+        actions={
+          <Primary onClick={() => void submitHome()} disabled={submitting}>
+            {submitting ? (
               <>
-                <p className="text-base font-medium text-white">Camera not available. You can upload photos instead.</p>
-                <Button onClick={() => fileRef.current?.click()} disabled={!canCapture}>
-                  Upload a photo
-                </Button>
+                <Spinner /> Submitting...
               </>
             ) : (
-              <Button onClick={startCamera} disabled={camera === "starting"}>
-                {camera === "starting" ? (
-                  <>
-                    <Spinner /> Starting camera...
-                  </>
-                ) : (
-                  "Start camera"
-                )}
-              </Button>
+              "Submit"
             )}
-          </div>
-        )}
-
-        {preview && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={preview} alt="Your photo" className="absolute inset-0 h-full w-full bg-gray-900 object-contain" />
-        )}
-
-        {phase.kind === "checking" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/50 text-white">
-            <Spinner className="h-10 w-10" />
-            <p className="text-lg font-semibold">Checking your photo...</p>
-          </div>
-        )}
-
-        {phase.kind === "result" && phase.result.status === "accepted" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 text-white">
-            <CheckIcon className="h-16 w-16 rounded-full bg-pass p-3" />
-            <p className="text-xl font-bold">Looks good</p>
-          </div>
-        )}
-      </div>
-
-      <div aria-live="polite" className="mt-4 min-h-0">
-        {phase.kind === "result" && phase.result.status === "retake" && (
-          <div className="space-y-3">
-            <Banner tone="warning">
-              <p className="font-semibold">{phase.result.message}</p>
-            </Banner>
-            <div className="flex items-center justify-between gap-3">
-              <Button onClick={() => setPhase({ kind: "ready" })} disabled={keeping} className="flex-1">
-                Retake
-              </Button>
-              <span className="text-sm text-gray-500">
-                Attempt {phase.result.attempt + 1} of {MAX_ATTEMPTS}
+          </Primary>
+        }
+      >
+        <p>Check your photos, then submit them to the survey team.</p>
+        {current && (
+          <div className="sc-review">
+            <div className="sc-review-viewer">
+              <IconButton label="Previous photo" direction="left" onClick={() => setReviewIndex((currentIndex) => (currentIndex + total - 1) % total)} />
+              <div className="sc-review-photo">
+                {current.thumbnailUrl ? (
+                  <img src={current.thumbnailUrl} alt={current.title} />
+                ) : (
+                  <div className="sc-review-empty" role="img" aria-label={`${current.title} is missing`} />
+                )}
+              </div>
+              <IconButton label="Next photo" direction="right" onClick={() => setReviewIndex((currentIndex) => (currentIndex + 1) % total)} />
+            </div>
+            <p className="sc-review-caption" aria-live="polite">
+              <strong>{current.title}</strong>
+              <span>
+                {index + 1} of {total}
               </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => keepPhoto(stepId)}
-              disabled={keeping}
-              className="flex min-h-12 w-full items-center justify-center gap-2 text-base font-semibold text-gray-600 underline underline-offset-4 hover:text-gray-900 disabled:opacity-60"
+              <span>{current.status === "accepted" ? "Looks good" : "A surveyor will check this one"}</span>
+            </p>
+          </div>
+        )}
+        {submitError && (
+          <p className="sc-error" role="alert">
+            {submitError}
+          </p>
+        )}
+      </Frame>
+    );
+  }
+
+  if (!step) {
+    return (
+      <Frame stage="flow" headingRef={headingRef} title="Photo check" actions={<Primary onClick={() => void load()}>Try again</Primary>}>
+        <p className="sc-error" role="alert">
+          Something went wrong loading this step.
+        </p>
+      </Frame>
+    );
+  }
+
+  const shown = SHOWN[step.id] ?? step.instruction;
+  const preview = "preview" in local ? local.preview : null;
+  const title =
+    local.kind === "confirm"
+      ? "Use this photo?"
+      : local.kind === "checking"
+        ? "Checking your photo"
+        : local.kind === "accepted"
+          ? "Looks good"
+          : local.kind === "retake"
+            ? "Let's try that photo again"
+            : step.title;
+
+  return (
+    <Frame
+      stage={photoStage}
+      inert={modalOpen}
+      headingRef={headingRef}
+      title={title}
+      back={back}
+      overlay={
+        <>
+          {fileInput}
+          {pickerOpen && (
+            <div
+              className="sc-modal-backdrop"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) closePicker();
+              }}
             >
-              {keeping ? (
-                <>
-                  <Spinner /> Saving...
-                </>
-              ) : (
-                "Use this photo anyway"
-              )}
-            </button>
-            {keepError && <p className="text-center text-sm text-fail">{keepError}</p>}
-          </div>
-        )}
-        {phase.kind === "result" &&
-          (phase.result.status === "check_failed" || phase.result.status === "accepted_after_max_attempts") && (
-            <div className="space-y-3">
-              <Banner tone="neutral">{phase.result.message}</Banner>
-              <Button onClick={continueAfterResult} disabled={continuing} className="w-full">
-                {continuing ? <Spinner /> : "Continue"}
-              </Button>
+              <div className="sc-photo-modal" role="dialog" aria-modal="true" aria-labelledby="photo-source-title" ref={photoPanel}>
+                <TopBack onClick={closePicker} />
+                <h2 id="photo-source-title" ref={photoHeading} tabIndex={-1}>
+                  Add a photo
+                </h2>
+                <p>Take a new picture, or choose one from your library.</p>
+                <button type="button" className="sc-primary" onClick={openCamera}>
+                  Take picture
+                </button>
+                <button type="button" className="sc-option" onClick={() => fileRef.current?.click()}>
+                  Select from library
+                </button>
+              </div>
             </div>
           )}
-        {phase.kind === "error" && (
-          <div className="space-y-3">
-            <Banner tone="error">{phase.message}</Banner>
-            <Button onClick={() => setPhase({ kind: "ready" })} className="w-full">
-              Try again
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {canCapture && (
-        <div className="mt-2 flex flex-col items-center gap-3">
-          {camera === "on" && (
-            <button
-              type="button"
-              onClick={() => onShutter(stepId)}
-              aria-label="Take photo"
-              className="h-20 w-20 rounded-full border-4 border-accent bg-white shadow-lg ring-4 ring-white transition-transform active:scale-95"
-            />
+          {cameraOpen && (
+            <div className="sc-camera-backdrop">
+              <div className="sc-camera" role="dialog" aria-modal="true" aria-labelledby="camera-title" ref={cameraPanel}>
+                <div className="sc-camera-bar">
+                  <TopBack onClick={closeCamera} />
+                  <h2 id="camera-title" ref={cameraHeading} tabIndex={-1}>
+                    {step.title}
+                  </h2>
+                </div>
+                <p className="sc-camera-hint">{shown}</p>
+                <div className="sc-camera-stage">
+                  <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
+                  {!cameraReady && !cameraError && <p className="sc-camera-status">Opening camera…</p>}
+                </div>
+                {cameraError && (
+                  <p className="sc-error" role="alert">
+                    {cameraError}
+                  </p>
+                )}
+                <footer className="sc-actions">
+                  {cameraError ? (
+                    <>
+                      <button type="button" className="sc-primary" onClick={openCamera}>
+                        Try again
+                      </button>
+                      <button type="button" className="sc-option" onClick={() => fileRef.current?.click()}>
+                        Select from library
+                      </button>
+                    </>
+                  ) : (
+                    <button type="button" className="sc-primary" onClick={capture} disabled={!cameraReady}>
+                      Take picture
+                    </button>
+                  )}
+                </footer>
+              </div>
+            </div>
           )}
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className="min-h-12 px-4 text-base font-semibold text-accent underline-offset-4 hover:underline"
-          >
-            Upload a photo instead
-          </button>
-        </div>
-      )}
+        </>
+      }
+      actions={
+          local.kind === "ready" ? (
+            <Primary onClick={() => setPickerOpen(true)}>Take photo</Primary>
+          ) : local.kind === "confirm" ? (
+            <Primary onClick={() => void usePhoto(step.id, local.base64, local.preview)}>Use this photo</Primary>
+          ) : local.kind === "checking" ? (
+            <Primary disabled>
+              <Spinner /> Checking your photo...
+            </Primary>
+          ) : local.kind === "retake" ? (
+            <Primary
+              disabled={keeping}
+              onClick={() => {
+                setKeepError(null);
+                setLocal({ kind: "ready" });
+              }}
+            >
+              Retake photo
+            </Primary>
+          ) : local.kind === "held" ? (
+            <Primary onClick={() => void continueHeld(step.id)}>Continue</Primary>
+          ) : local.kind === "error" ? (
+            <Primary
+              onClick={() => {
+                const saved = local.message.startsWith("Your photo was saved");
+                if (!saved) {
+                  setLocal({ kind: "ready" });
+                  return;
+                }
+                void fetchHome(homeId)
+                  .then((fresh) => {
+                    if (!alive.current) return;
+                    setData(fresh);
+                    setIntroLocked(false);
+                    setLocal({ kind: "ready" });
+                  })
+                  .catch(() => {});
+              }}
+            >
+              Try again
+            </Primary>
+          ) : null
+        }
+      >
+        {local.kind === "ready" && (
+          <>
+            <p>{shown}</p>
+            {guide && <Example guide={guide} title={step.title} />}
+            {guide && <div className="sc-angle">{guide.angle}</div>}
+          </>
+        )}
+        {local.kind === "confirm" && (
+          <>
+            <p>{step.id === "main_disconnect_closeup" ? "Can you see the main switch number clearly?" : "Can you see the equipment and area clearly?"}</p>
+            <img className="sc-upload" src={local.preview} alt={`Your photo: ${step.title}`} />
+            <p className="sc-muted">We'll check it when you continue.</p>
+            <button type="button" className="sc-option" onClick={() => setLocal({ kind: "ready" })}>
+              Retake photo
+            </button>
+          </>
+        )}
+        {local.kind === "checking" && preview && (
+          <>
+            <img className="sc-upload" src={preview} alt="Your photo" />
+            <p className="sc-muted">Looking at the equipment and the framing.</p>
+          </>
+        )}
+        {local.kind === "accepted" && preview && (
+          <>
+            <img className="sc-upload" src={preview} alt="Your photo" />
+            <p>That photo is in.</p>
+          </>
+        )}
+        {local.kind === "retake" && (
+          <>
+            <p className="sc-warning" role="alert">
+              {local.result.message}
+            </p>
+            <img className="sc-upload" src={local.preview} alt="Your photo" />
+            <p className="sc-muted">
+              Attempt {local.result.attempt} of {MAX_ATTEMPTS}
+            </p>
+            <button type="button" className="sc-text-button" onClick={() => void keepPhoto(step.id)} disabled={keeping}>
+              {keeping ? "Saving..." : "Use this photo anyway"}
+            </button>
+            {keepError && (
+              <p className="sc-error" role="alert">
+                {keepError}
+              </p>
+            )}
+          </>
+        )}
+        {local.kind === "held" && (
+          <>
+            <img className="sc-upload" src={local.preview} alt="Your photo" />
+            <div className="sc-result-message">
+              <p>{local.result.message}</p>
+            </div>
+          </>
+        )}
+        {local.kind === "error" && (
+          <p className="sc-error" role="alert">
+            {local.message}
+          </p>
+        )}
+      </Frame>
+  );
+}
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          e.target.value = "";
-          if (file) onFile(stepId, file);
-        }}
-      />
-    </Shell>
+function Frame({
+  stage,
+  title,
+  headingRef,
+  back,
+  inert = false,
+  actions,
+  overlay,
+  children,
+}: {
+  stage: string;
+  title?: string;
+  headingRef?: RefObject<HTMLHeadingElement | null>;
+  back?: (() => void) | null;
+  inert?: boolean;
+  actions?: ReactNode;
+  overlay?: ReactNode;
+  children: ReactNode;
+}) {
+  const find = stage === "find";
+  return (
+    <main className="sc-root">
+      <div className={`sc-shell sc-stage-${stage}`} inert={inert || undefined}>
+        {find ? (
+          children
+        ) : (
+          <section className="sc-content">
+            {back && (
+              <div className="sc-topbar">
+                <TopBack onClick={back} />
+              </div>
+            )}
+            {title && (
+              <h1 ref={headingRef} tabIndex={-1}>
+                {title}
+              </h1>
+            )}
+            {children}
+          </section>
+        )}
+        {actions ? <footer className="sc-actions">{actions}</footer> : null}
+      </div>
+      {overlay}
+    </main>
+  );
+}
+
+function FindEquipment({
+  subject,
+  headingRef,
+  onBack,
+}: {
+  subject: "meter" | "breaker";
+  headingRef: RefObject<HTMLHeadingElement | null>;
+  onBack?: () => void;
+}) {
+  const text = FIND_COPY[subject];
+  return (
+    <section className="sc-content sc-find">
+      {onBack ? <TopBack onClick={onBack} /> : null}
+      <h1 ref={headingRef} tabIndex={-1}>
+        {text.title}
+      </h1>
+      <div className="sc-find-art">
+        <img src={text.image} alt={text.alt} />
+      </div>
+      <p className="sc-find-lead">{text.lead}</p>
+      <p className="sc-find-tip">
+        <InfoIcon />
+        {text.tip}
+      </p>
+    </section>
+  );
+}
+
+function Example({ guide, title }: { guide: Guide; title: string }) {
+  return (
+    <div role="img" aria-label={`Example: ${title}. ${guide.angle}`} className={`sc-example sc-example-${guide.image}`}>
+      <span className="sc-example-label">Example photo</span>
+      <div className={`sc-guide sc-guide-${guide.guide}`} />
+    </div>
+  );
+}
+
+function Primary({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button type="button" className="sc-primary" {...props}>
+      {children}
+    </button>
+  );
+}
+
+function TopBack({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="pl-top-back" aria-label="Back" onClick={onClick}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M19 12H6M11 6.5 5.5 12 11 17.5" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
+function IconButton({ label, direction, onClick }: { label: string; direction: "left" | "right"; onClick: () => void }) {
+  const path = direction === "left" ? "M14.5 6.5 9 12l5.5 5.5" : "M9.5 6.5 15 12l-5.5 5.5";
+  return (
+    <button type="button" className="sc-review-nav" aria-label={label} onClick={onClick}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d={path} stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg className="sc-find-info" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+      <circle cx="11" cy="11" r="9" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="11" cy="7.2" r="1.05" fill="currentColor" />
+      <path d="M11 10.2v5.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function SafetyDialog({
+  panelRef,
+  headingRef,
+  count,
+  onClose,
+  onAccept,
+}: {
+  panelRef: RefObject<HTMLDivElement | null>;
+  headingRef: RefObject<HTMLHeadingElement | null>;
+  count: number;
+  onClose: () => void;
+  onAccept: () => void;
+}) {
+  return (
+    <div
+      className="sc-modal-backdrop"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="sc-safety-modal" role="dialog" aria-modal="true" aria-labelledby="safety-title" ref={panelRef}>
+        <TopBack onClick={onClose} />
+        <h2 id="safety-title" ref={headingRef} tabIndex={-1}>
+          A quick safety check
+        </h2>
+        <p>Only photograph what you can reach safely.</p>
+        <div className="sc-safety">
+          <p>Open hinged doors only.</p>
+          <p>Never remove screws or covers.</p>
+          <p>Do not touch wires or switches.</p>
+        </div>
+        <p>All {count} photos are needed. Stop if a location is unsafe.</p>
+        <button type="button" className="sc-primary" onClick={onAccept}>
+          I understand
+        </button>
+      </div>
+    </div>
   );
 }
 
 type SiteCheckState = { kind: "running" } | { kind: "covered" } | { kind: "extra"; count: number } | { kind: "error" };
 
-function SiteCheckScreen({ homeId, onDone }: { homeId: string; onDone: () => Promise<void> }) {
+function SiteCheckScreen({ homeId, onDone }: { homeId: string; onDone: () => Promise<HomeData | null> }) {
   const [state, setState] = useState<SiteCheckState>({ kind: "running" });
   const [run, setRun] = useState(0);
   const [continuing, setContinuing] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -528,63 +1060,82 @@ function SiteCheckScreen({ homeId, onDone }: { homeId: string; onDone: () => Pro
     };
   }, [homeId, onDone, run]);
 
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [state.kind]);
+
   return (
-    <Shell>
-      <div aria-live="polite" className="mt-16 flex flex-col items-center gap-4 text-center">
-        {state.kind === "running" && (
-          <>
-            <Spinner className="h-10 w-10 text-accent" />
-            <p className="text-lg font-semibold text-gray-900">Checking your whole site...</p>
-            <p className="text-sm text-gray-500">This takes a few seconds. Please stay by your meter.</p>
-          </>
-        )}
-        {state.kind === "covered" && (
-          <>
-            <CheckIcon className="h-16 w-16 rounded-full bg-pass p-3 text-white" />
-            <p className="text-lg font-semibold text-gray-900">All set. Your photos cover everything.</p>
-          </>
-        )}
-        {state.kind === "extra" && (
-          <div className="w-full space-y-4 text-left">
-            <Banner tone="warning">
-              <p className="font-semibold">
-                Almost done. We need {state.count === 1 ? "1 more photo" : `${state.count} more photos`}.
-              </p>
-            </Banner>
-            <Button
-              onClick={async () => {
-                setContinuing(true);
-                await onDone();
-              }}
-              disabled={continuing}
-              className="w-full text-lg"
-            >
-              {continuing ? <Spinner /> : "Continue"}
-            </Button>
+    <Frame
+      stage="result"
+      headingRef={headingRef}
+      title={
+        state.kind === "running"
+          ? "Checking your whole site"
+          : state.kind === "covered"
+            ? "All set"
+            : state.kind === "extra"
+              ? "Almost done"
+              : "Photo check"
+      }
+      actions={
+        state.kind === "extra" ? (
+          <Primary
+            disabled={continuing}
+            onClick={() => {
+              setContinuing(true);
+              void onDone();
+            }}
+          >
+            {continuing ? <Spinner /> : "Continue"}
+          </Primary>
+        ) : state.kind === "error" ? (
+          <Primary
+            onClick={() => {
+              setState({ kind: "running" });
+              setRun((n) => n + 1);
+            }}
+          >
+            Try again
+          </Primary>
+        ) : null
+      }
+    >
+      {state.kind === "running" && (
+        <>
+          <Spinner className="h-10 w-10" />
+          <p>This takes a few seconds. Please stay by your meter.</p>
+        </>
+      )}
+      {state.kind === "covered" && (
+        <>
+          <div className="sc-result-icon" aria-hidden="true">
+            ✓
           </div>
-        )}
-        {state.kind === "error" && (
-          <div className="w-full space-y-4 text-left">
-            <Banner tone="error">We couldn&apos;t check your site. Check your connection and try again.</Banner>
-            <Button
-              onClick={() => {
-                setState({ kind: "running" });
-                setRun((n) => n + 1);
-              }}
-              className="w-full"
-            >
-              Try again
-            </Button>
-          </div>
-        )}
-      </div>
-    </Shell>
+          <p>Your photos cover everything.</p>
+        </>
+      )}
+      {state.kind === "extra" && (
+        <p className="sc-warning">
+          We need {state.count === 1 ? "1 more photo" : `${state.count} more photos`}.
+        </p>
+      )}
+      {state.kind === "error" && (
+        <p className="sc-error" role="alert">
+          We couldn't check your site. Check your connection and try again.
+        </p>
+      )}
+    </Frame>
   );
 }
 
-function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<void> }) {
+function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<HomeData | null> }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   async function answer(value: "yes" | "no" | "not_sure") {
     setBusy(value);
@@ -596,7 +1147,8 @@ function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<v
         body: JSON.stringify({ panelSameWallAnswer: value }),
       });
       if (!res.ok) throw new Error();
-      await onDone();
+      const fresh = await onDone();
+      if (!fresh) throw new Error();
     } catch {
       setError("Could not save your answer. Please try again.");
       setBusy(null);
@@ -610,49 +1162,19 @@ function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<v
   ];
 
   return (
-    <Shell>
-      <h1 className="mt-6 text-2xl font-bold text-gray-900">One quick question</h1>
-      <p className="mt-2 text-gray-600">Your breaker box looks like it is inside the house.</p>
-      <p className="mt-6 text-lg font-medium text-gray-900">
-        Is your breaker box on the other side of the same wall as your meter?
-      </p>
-      <div className="mt-4 grid gap-3">
-        {options.map(([value, label]) => (
-          <Button
-            key={value}
-            variant="secondary"
-            onClick={() => answer(value)}
-            disabled={busy !== null}
-            className="min-h-14 text-lg"
-          >
-            {busy === value ? <Spinner /> : label}
-          </Button>
-        ))}
-      </div>
+    <Frame stage="flow" headingRef={headingRef} title="One quick question">
+      <p>Your breaker box looks like it is inside the house.</p>
+      <p>Is your breaker box on the other side of the same wall as your meter?</p>
+      {options.map(([value, label]) => (
+        <button key={value} type="button" className="sc-option" onClick={() => void answer(value)} disabled={busy !== null}>
+          {busy === value ? "Saving..." : label}
+        </button>
+      ))}
       {error && (
-        <div className="mt-4">
-          <Banner tone="error">{error}</Banner>
-        </div>
+        <p className="sc-error" role="alert">
+          {error}
+        </p>
       )}
-    </Shell>
-  );
-}
-
-function Shell({ children }: { children: ReactNode }) {
-  return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 pb-10 pt-4 sm:px-5">
-      <Link href="/" className="text-sm font-semibold text-accent">
-        SiteCheck
-      </Link>
-      {children}
-    </main>
-  );
-}
-
-function CheckIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} className={className} aria-hidden="true">
-      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    </Frame>
   );
 }

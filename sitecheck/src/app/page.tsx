@@ -21,14 +21,8 @@ export default function Home() {
           </p>
         </section>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <section className="rounded-2xl border border-gray-200 p-6">
-            <h2 className="text-xl font-bold text-gray-900">Customer photo link</h2>
-            <p className="mt-1 text-sm text-gray-500">Sent by Base after signup</p>
-            <div className="mt-5">
-              <DemoLinkForm />
-            </div>
-          </section>
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <DemoLinkForm />
 
           <section className="flex flex-col rounded-2xl border border-gray-200 bg-gray-50 p-6">
             <h2 className="text-xl font-bold text-gray-900">Surveyor queue</h2>
