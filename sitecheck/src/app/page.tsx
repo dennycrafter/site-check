@@ -1,16 +1,13 @@
 import Link from "next/link";
 import { DemoLinkForm } from "@/components/demo-link-form";
 import { Footer } from "@/components/footer";
+import { SiteHeader } from "@/components/site-header";
 import { buttonClass } from "@/components/ui";
 
 export default function Home() {
   return (
     <>
-      <header className="mx-auto w-full max-w-5xl px-5 py-5">
-        <span className="text-lg font-bold tracking-tight text-gray-900">
-          Site<span className="text-accent">Check</span>
-        </span>
-      </header>
+      <SiteHeader narrow />
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-5 pb-16">
         <section className="max-w-2xl py-4 md:py-8">

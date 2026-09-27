@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
+import { SiteHeader } from "@/components/site-header";
 import { buttonClass, StatusBadges } from "@/components/ui";
 import { homeLabel, loadHome } from "@/lib/homes";
 import { FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
@@ -337,6 +338,7 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
 
   return (
     <>
+      <SiteHeader tag="Surveyor" />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         <Link href="/review" className="text-sm font-semibold text-accent hover:underline">
           Back to queue

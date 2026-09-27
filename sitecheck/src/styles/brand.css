@@ -28,4 +28,34 @@
   --status-review: #b45309;
   /* FAIL results, errors and rejected decisions */
   --status-fail: #b91c1c;
+  /* Input fields, QR frames and text on green buttons */
+  --brand-white: #ffffff;
+
+  /* Soft card shadow */
+  --brand-shadow: 0 12px 40px color-mix(in srgb, var(--brand-ink) 5%, transparent);
+  /* Border width of inputs, option buttons and tabs */
+  --brand-border-strong: 1.5px;
+  /* Heights of primary buttons and inputs, and of option buttons */
+  --control-height: 60px;
+  --control-height-sm: 48px;
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Text sizes */
+  --text-note: 14px;
+  --text-small: 15px;
+  --text-muted: 16px;
+  --text-label: 18px;
+  --text-body: 20px;
+  --text-button: 22px;
+  --text-title: 32px;
+  --text-hero: 36px;
 }

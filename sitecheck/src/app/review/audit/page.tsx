@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
+import { SiteHeader } from "@/components/site-header";
 import {
   AUDIT_TABS,
   aiSaid,
@@ -119,6 +120,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/review/aud
 
   return (
     <>
+      <SiteHeader tag="Surveyor" />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>

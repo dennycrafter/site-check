@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
+import { SiteHeader } from "@/components/site-header";
 import { StatusBadges } from "@/components/ui";
 import { homeLabel } from "@/lib/homes";
 import { formatTime } from "@/lib/labels";
@@ -101,12 +102,10 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   return (
     <>
+      <SiteHeader tag="Surveyor" />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <div>
-            <Link href="/" className="text-sm font-semibold text-accent">
-              SiteCheck
-            </Link>
             <h1 className="mt-1 text-2xl font-bold text-gray-900">Surveyor queue</h1>
           </div>
           <p className="text-sm text-gray-500">{homes.length} homes total</p>

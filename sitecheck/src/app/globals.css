@@ -1,5 +1,6 @@
 @import "../styles/brand.css";
 @import "tailwindcss";
+@import "../styles/ui.css";
 
 /* Every token points at src/styles/brand.css. Do not put raw colors here. */
 @theme inline {
