@@ -590,7 +590,6 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             <SafetyDialog
               panelRef={safetyPanel}
               headingRef={safetyHeading}
-              count={data.steps.length}
               onClose={closeSafety}
               onAccept={() => goIntro("meter")}
             />
@@ -604,7 +603,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         </div>
         <div className="sc-facts">
           <span>About 5 minutes</span>
-          <span>{data.steps.length} photos</span>
+          <span>About {data.steps.length} photos</span>
         </div>
       </Frame>
     );
@@ -1075,13 +1074,11 @@ function InfoIcon() {
 function SafetyDialog({
   panelRef,
   headingRef,
-  count,
   onClose,
   onAccept,
 }: {
   panelRef: RefObject<HTMLDivElement | null>;
   headingRef: RefObject<HTMLHeadingElement | null>;
-  count: number;
   onClose: () => void;
   onAccept: () => void;
 }) {
@@ -1103,7 +1100,7 @@ function SafetyDialog({
           <p>Never remove screws or covers.</p>
           <p>Do not touch wires or switches.</p>
         </div>
-        <p>All {count} photos are needed. Stop if a location is unsafe.</p>
+        <p>Every photo helps. Stop if a location is unsafe.</p>
         <button type="button" className="sc-primary" onClick={onAccept}>
           I understand
         </button>
