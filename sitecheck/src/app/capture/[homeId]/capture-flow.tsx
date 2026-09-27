@@ -847,7 +847,17 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         )}
         {local.kind === "accepted" && preview && (
           <>
-            <img className="sc-upload" src={preview} alt="Your photo" />
+            <div className="sc-accepted">
+              <img className="sc-upload" src={preview} alt="Your photo" />
+              <div className="sc-accepted-badge" aria-hidden="true">
+                <span className="sc-accepted-check">
+                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <p className="sc-accepted-text">Looks good</p>
+              </div>
+            </div>
             <p>That photo is in.</p>
           </>
         )}

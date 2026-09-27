@@ -195,3 +195,9 @@
   .sc-embed.sc-root{height:auto;max-height:none;min-height:0;overflow:visible;padding:0;background:transparent}
   .sc-embed .sc-shell{height:auto;max-height:none;min-height:0;display:block;overflow:visible;border:1px solid var(--brand-border);border-radius:var(--brand-radius);box-shadow:0 12px 40px color-mix(in srgb,var(--brand-ink) 5%,transparent)}
 }
+.sc-accepted{position:relative;display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+.sc-accepted-badge{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none;animation:sc-accepted-in 300ms ease-out both}
+.sc-accepted-check{display:grid;place-items:center;width:88px;height:88px;border-radius:50%;background:var(--brand-lime);color:var(--brand-green);box-shadow:0 4px 16px color-mix(in srgb,var(--brand-ink) 30%,transparent)}
+.sc-root .sc-accepted-text{margin:0;color:white;font-size:22px;font-weight:600;text-shadow:0 1px 4px color-mix(in srgb,var(--brand-ink) 80%,transparent)}
+@keyframes sc-accepted-in{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.sc-accepted-badge{animation:none}}
