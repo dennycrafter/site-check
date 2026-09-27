@@ -61,7 +61,7 @@ export function StatusBadges({ verdict, decision }: { verdict: Outcome | null; d
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
       <DecisionBadge decision={decision} />
-      <span className="ui-muted whitespace-nowrap">AI: {verdictLabel(verdict)}</span>
+      <span className="whitespace-nowrap text-xs text-muted">AI: {verdictLabel(verdict)}</span>
     </span>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
+import { Banner, BADGE_CLASS, type BadgeTone } from "@/components/ui";
 import { SiteHeader } from "@/components/site-header";
 import {
   AUDIT_TABS,
@@ -27,11 +28,11 @@ const ROWS_SHOWN = 300;
 
 type AuditHome = Pick<HomeRow, "id" | "address" | "customer_name" | "created_at" | "site_check_status">;
 
-const STATUS_STYLES: Record<PhotoStatus, string> = {
-  accepted: "bg-green-50 text-pass",
-  retake: "bg-amber-50 text-review",
-  check_failed: "bg-red-50 text-fail",
-  accepted_after_max_attempts: "bg-amber-50 text-review",
+const STATUS_TONES: Record<PhotoStatus, BadgeTone> = {
+  accepted: "pass",
+  retake: "review",
+  check_failed: "fail",
+  accepted_after_max_attempts: "review",
 };
 
 const EMPTY_TEXT: Record<AuditTab, string> = {
@@ -83,18 +84,14 @@ async function loadAudit(): Promise<{
 
 function HomeLink({ homeId, home }: { homeId: string; home: AuditHome | undefined }) {
   return (
-    <Link href={`/review/${homeId}`} className="font-semibold text-gray-900 hover:text-accent hover:underline">
+    <Link href={`/review/${homeId}`} className="font-semibold text-ink hover:text-accent hover:underline">
       {home ? homeLabel(home) : "Open home"}
     </Link>
   );
 }
 
 function StatusBadge({ status }: { status: PhotoStatus }) {
-  return (
-    <span className={`inline-flex whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[status]}`}>
-      {PHOTO_STATUS_LABELS[status]}
-    </span>
-  );
+  return <span className={BADGE_CLASS[STATUS_TONES[status]]}>{PHOTO_STATUS_LABELS[status]}</span>;
 }
 
 export default async function AuditPage({ searchParams }: PageProps<"/review/audit">) {
@@ -121,90 +118,82 @@ export default async function AuditPage({ searchParams }: PageProps<"/review/aud
   return (
     <>
       <SiteHeader tag="Surveyor" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <div>
-            <Link href="/review" className="text-sm font-semibold text-accent hover:underline">
-              Back to queue
-            </Link>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900">AI check audit</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Every failed or rejected check and how the system recovered. Based on the latest {PHOTO_LIMIT} photos.
-            </p>
-          </div>
-        </div>
+      <main className="ui-container flex-1 pt-4 pb-12">
+        <Link href="/review" className="ui-button-ghost">
+          Back to queue
+        </Link>
+        <h1 className="ui-title mt-1">AI check audit</h1>
+        <p className="ui-muted mt-2">
+          Every failed or rejected check and how the system recovered. Based on the latest {PHOTO_LIMIT} photos.
+        </p>
 
-        <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <section className="ui-card mt-6 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4 lg:grid-cols-7">
           {statCards.map((s) => (
-            <div key={s.label} className="rounded-xl border border-gray-200 px-4 py-3">
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs font-semibold text-gray-500">{s.label}</p>
+            <div key={s.label} className="ui-stat">
+              <span className="ui-stat-value">{s.value}</span>
+              <span className="ui-stat-label">{s.label}</span>
             </div>
           ))}
         </section>
 
-        <nav aria-label="Audit tabs" className="mt-5 flex flex-wrap gap-2">
+        <nav aria-label="Audit tabs" className="mt-6 flex flex-wrap gap-2">
           {AUDIT_TABS.map((t) => (
             <Link
               key={t.id}
               href={t.id === "all" ? "/review/audit" : `/review/audit?tab=${t.id}`}
               aria-current={tab === t.id ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
-                tab === t.id
-                  ? "border-accent bg-accent text-white"
-                  : "border-gray-300 bg-surface text-gray-700 hover:border-gray-400"
-              }`}
+              className="ui-tab"
             >
               {t.label}
-              <span className={tab === t.id ? "text-white/80" : "text-gray-400"}>{counts[t.id]}</span>
+              <span className="ui-tab-count">{counts[t.id]}</span>
             </Link>
           ))}
         </nav>
 
         {error && (
-          <div className="mt-6 rounded-xl border border-fail/30 bg-red-50 px-4 py-3 text-fail">
-            Could not load the audit. {error}
+          <div className="mt-6">
+            <Banner tone="error">Could not load the audit. {error}</Banner>
           </div>
         )}
 
         {!error && rows.length === 0 && (
-          <div className="mt-8 rounded-2xl border border-dashed border-gray-300 px-6 py-12 text-center">
-            <p className="text-lg font-semibold text-gray-900">Nothing here</p>
-            <p className="mt-1 text-gray-600">{EMPTY_TEXT[tab]}</p>
+          <div className="ui-card mt-6 py-12 text-center">
+            <p className="ui-subtitle">Nothing here</p>
+            <p className="ui-muted mt-1">{EMPTY_TEXT[tab]}</p>
           </div>
         )}
 
         {rows.length > 0 && (
           <>
-            <div className="mt-6 hidden overflow-hidden rounded-2xl border border-gray-200 md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-xs font-semibold text-gray-500">
+            <div className="ui-card ui-card-flush mt-6 hidden overflow-x-auto md:block">
+              <table className="ui-table">
+                <thead>
                   <tr>
-                    <th className="px-4 py-3">Time</th>
-                    <th className="px-4 py-3">Home</th>
-                    <th className="px-4 py-3">Step</th>
-                    <th className="px-4 py-3">Attempt</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">What the AI said</th>
-                    <th className="px-4 py-3">AI tries</th>
-                    <th className="px-4 py-3">Latency</th>
+                    <th>Time</th>
+                    <th>Home</th>
+                    <th>Step</th>
+                    <th>Attempt</th>
+                    <th>Status</th>
+                    <th>What the AI said</th>
+                    <th>AI tries</th>
+                    <th>Latency</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {rows.map((p) => (
-                    <tr key={p.id} className="align-top hover:bg-gray-50">
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-700">{formatTime(p.created_at)}</td>
-                      <td className="px-4 py-3">
+                    <tr key={p.id} className="align-top">
+                      <td className="whitespace-nowrap">{formatTime(p.created_at)}</td>
+                      <td>
                         <HomeLink homeId={p.home_id} home={homes.get(p.home_id)} />
                       </td>
-                      <td className="px-4 py-3 text-gray-700">{stepTitle(p.step)}</td>
-                      <td className="px-4 py-3 text-gray-700">{p.attempt}</td>
-                      <td className="px-4 py-3">
+                      <td>{stepTitle(p.step)}</td>
+                      <td>{p.attempt}</td>
+                      <td>
                         <StatusBadge status={p.status} />
                       </td>
-                      <td className="max-w-sm px-4 py-3 text-gray-700">{aiSaid(p)}</td>
-                      <td className="px-4 py-3 text-gray-700">{p.ai_attempts}</td>
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-700">{formatLatency(p.latency_ms)}</td>
+                      <td className="max-w-sm">{aiSaid(p)}</td>
+                      <td>{p.ai_attempts}</td>
+                      <td className="whitespace-nowrap">{formatLatency(p.latency_ms)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -213,18 +202,18 @@ export default async function AuditPage({ searchParams }: PageProps<"/review/aud
 
             <ul className="mt-6 space-y-3 md:hidden">
               {rows.map((p) => (
-                <li key={p.id} className="rounded-2xl border border-gray-200 p-4">
+                <li key={p.id} className="ui-card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <span className="min-w-0">
                       <HomeLink homeId={p.home_id} home={homes.get(p.home_id)} />
-                      <span className="block text-sm text-gray-500">{stepTitle(p.step)}</span>
+                      <span className="block text-sm text-muted">{stepTitle(p.step)}</span>
                     </span>
                     <span className="shrink-0">
                       <StatusBadge status={p.status} />
                     </span>
                   </div>
-                  <p className="mt-2 text-sm text-gray-700">{aiSaid(p)}</p>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-2 text-sm text-ink">{aiSaid(p)}</p>
+                  <p className="mt-1 text-xs text-muted">
                     {formatTime(p.created_at)} · Attempt {p.attempt} · {p.ai_attempts} AI{" "}
                     {p.ai_attempts === 1 ? "try" : "tries"} · {formatLatency(p.latency_ms)}
                   </p>
@@ -232,7 +221,7 @@ export default async function AuditPage({ searchParams }: PageProps<"/review/aud
               ))}
             </ul>
             {shown.length > rows.length && (
-              <p className="mt-3 text-sm text-gray-500">
+              <p className="ui-muted mt-3">
                 Showing the newest {rows.length} of {shown.length}.
               </p>
             )}
@@ -240,15 +229,15 @@ export default async function AuditPage({ searchParams }: PageProps<"/review/aud
         )}
 
         <section className="mt-10">
-          <h2 className="text-lg font-bold text-gray-900">Whole-site check failed</h2>
+          <h2 className="ui-subtitle">Whole-site check failed</h2>
           {failedHomes.length === 0 ? (
-            <p className="mt-2 text-sm text-gray-500">No whole-site check has failed.</p>
+            <p className="ui-muted mt-2">No whole-site check has failed.</p>
           ) : (
-            <ul className="mt-3 divide-y divide-gray-100 rounded-2xl border border-gray-200">
+            <ul className="ui-card ui-card-flush mt-3 divide-y divide-line">
               {failedHomes.map((h) => (
-                <li key={h.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3 text-sm">
+                <li key={h.id} className="flex flex-wrap items-baseline justify-between gap-2 px-4 py-3">
                   <HomeLink homeId={h.id} home={h} />
-                  <span className="text-gray-500">Created {formatTime(h.created_at)}</span>
+                  <span className="text-sm text-muted">Created {formatTime(h.created_at)}</span>
                 </li>
               ))}
             </ul>

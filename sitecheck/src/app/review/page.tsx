@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
-import { StatusBadges } from "@/components/ui";
+import { Banner, StatusBadges } from "@/components/ui";
 import { homeLabel } from "@/lib/homes";
 import { formatTime } from "@/lib/labels";
 import {
@@ -44,22 +44,22 @@ async function loadHomes(): Promise<{ homes: HomeRow[]; error: string | null; no
 }
 
 function BatteryCell({ home }: { home: HomeRow }) {
-  if (home.battery_count === null) return <span className="text-gray-400">-</span>;
+  if (home.battery_count === null) return <span className="text-muted">-</span>;
   return (
     <span>
-      <span className="font-semibold text-gray-900">{home.battery_count}</span>
-      {home.verdict === "REVIEW" && <span className="ml-1 text-xs text-gray-500">provisional</span>}
+      <span className="font-semibold text-ink">{home.battery_count}</span>
+      {home.verdict === "REVIEW" && <span className="ml-1 text-xs text-muted">provisional</span>}
     </span>
   );
 }
 
 function TopReason({ home }: { home: HomeRow }) {
   const { reason, others } = topReason(home.reasons);
-  if (!reason) return <span className="text-gray-400">-</span>;
+  if (!reason) return <span className="text-muted">-</span>;
   return (
     <span>
       {reason.message}
-      {others > 0 && <span className="ml-1 whitespace-nowrap text-xs font-semibold text-gray-500">+{others} more</span>}
+      {others > 0 && <span className="ml-1 whitespace-nowrap text-xs font-semibold text-muted">+{others} more</span>}
     </span>
   );
 }
@@ -67,9 +67,9 @@ function TopReason({ home }: { home: HomeRow }) {
 function HomeName({ home }: { home: HomeRow }) {
   return (
     <>
-      <span className="font-semibold text-gray-900">{homeLabel(home)}</span>
-      {home.address && home.customer_name && <span className="block text-sm text-gray-500">{home.customer_name}</span>}
-      {home.external_ref && <span className="block text-xs text-gray-500">Order {home.external_ref}</span>}
+      <span className="font-semibold text-ink">{homeLabel(home)}</span>
+      {home.address && home.customer_name && <span className="block text-sm text-muted">{home.customer_name}</span>}
+      {home.external_ref && <span className="block text-xs text-muted">Order {home.external_ref}</span>}
     </>
   );
 }
@@ -77,7 +77,7 @@ function HomeName({ home }: { home: HomeRow }) {
 function WhenText({ home, now }: { home: HomeRow; now: number }) {
   const tab = queueTab(home);
   if (tab === "to_decide") return <>Waiting {waitingTime(home.submitted_at, now)}</>;
-  if (tab === "in_progress") return <span className="text-gray-500">Taking photos</span>;
+  if (tab === "in_progress") return <span className="text-muted">Taking photos</span>;
   return <>{home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "Not submitted"}</>;
 }
 
@@ -103,91 +103,82 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
   return (
     <>
       <SiteHeader tag="Surveyor" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+      <main className="ui-container flex-1 pt-4 pb-12">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <div>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900">Surveyor queue</h1>
-          </div>
-          <p className="text-sm text-gray-500">{homes.length} homes total</p>
+          <h1 className="ui-title">Surveyor queue</h1>
+          <p className="ui-muted">{homes.length} homes total</p>
         </div>
 
-        <section className="mt-5 grid grid-cols-3 gap-3 sm:max-w-lg">
+        <section className="ui-card mt-6 grid grid-cols-3 gap-3 p-4 sm:max-w-xl">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-xl border border-gray-200 px-4 py-3">
-              <p className="text-2xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-xs font-semibold text-gray-500">{s.label}</p>
+            <div key={s.label} className="ui-stat">
+              <span className="ui-stat-value">{s.value}</span>
+              <span className="ui-stat-label">{s.label}</span>
             </div>
           ))}
         </section>
 
-        <nav aria-label="Queue tabs" className="mt-5 flex flex-wrap gap-2">
+        <nav aria-label="Queue tabs" className="mt-6 flex flex-wrap items-center gap-2">
           {QUEUE_FILTERS.map((f) => (
             <Link
               key={f.id}
               href={f.id === "to_decide" ? "/review" : `/review?tab=${f.id}`}
               aria-current={filter === f.id ? "page" : undefined}
-              className={`inline-flex min-h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors ${
-                filter === f.id
-                  ? "border-accent bg-accent text-white"
-                  : "border-gray-300 bg-surface text-gray-700 hover:border-gray-400"
-              }`}
+              className="ui-tab"
             >
               {f.label}
-              <span className={filter === f.id ? "text-white/80" : "text-gray-400"}>{counts[f.id]}</span>
+              <span className="ui-tab-count">{counts[f.id]}</span>
             </Link>
           ))}
-          <Link
-            href="/review/audit"
-            className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-accent underline-offset-4 hover:underline"
-          >
+          <Link href="/review/audit" className="ui-button-ghost ml-2">
             Audit
           </Link>
         </nav>
 
         {error && (
-          <div className="mt-6 rounded-xl border border-fail/30 bg-red-50 px-4 py-3 text-fail">
-            Could not load homes. {error}
+          <div className="mt-6">
+            <Banner tone="error">Could not load homes. {error}</Banner>
           </div>
         )}
 
         {!error && shown.length === 0 && (
-          <div className="mt-8 rounded-2xl border border-dashed border-gray-300 px-6 py-12 text-center">
-            <p className="text-lg font-semibold text-gray-900">No homes here</p>
-            <p className="mt-1 text-gray-600">{EMPTY_TEXT[filter]}</p>
+          <div className="ui-card mt-6 py-12 text-center">
+            <p className="ui-subtitle">No homes here</p>
+            <p className="ui-muted mt-1">{EMPTY_TEXT[filter]}</p>
           </div>
         )}
 
         {shown.length > 0 && (
           <>
-            <div className="mt-6 hidden overflow-hidden rounded-2xl border border-gray-200 md:block">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 text-xs font-semibold text-gray-500">
+            <div className="ui-card ui-card-flush mt-6 hidden overflow-x-auto md:block">
+              <table className="ui-table">
+                <thead>
                   <tr>
-                    <th className="px-4 py-3">Home</th>
-                    <th className="px-4 py-3">{filter === "to_decide" ? "Waiting" : "Status"}</th>
-                    <th className="px-4 py-3">Result</th>
-                    <th className="px-4 py-3">Batteries</th>
-                    <th className="px-4 py-3">Top reason</th>
+                    <th>Home</th>
+                    <th>{filter === "to_decide" ? "Waiting" : "Status"}</th>
+                    <th>Result</th>
+                    <th>Batteries</th>
+                    <th>Top reason</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {shown.map((h) => (
-                    <tr key={h.id} className="relative hover:bg-gray-50">
-                      <td className="px-4 py-3">
+                    <tr key={h.id} className="relative">
+                      <td>
                         <Link href={`/review/${h.id}`} className="after:absolute after:inset-0 hover:text-accent">
                           <HomeName home={h} />
                         </Link>
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-gray-700">
+                      <td className="whitespace-nowrap">
                         <WhenText home={h} now={now} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
                       </td>
-                      <td className="px-4 py-3">
+                      <td>
                         <BatteryCell home={h} />
                       </td>
-                      <td className="max-w-sm px-4 py-3 text-gray-700">
+                      <td className="max-w-sm">
                         <TopReason home={h} />
                       </td>
                     </tr>
@@ -199,7 +190,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
             <ul className="mt-6 space-y-3 md:hidden">
               {shown.map((h) => (
                 <li key={h.id}>
-                  <Link href={`/review/${h.id}`} className="block rounded-2xl border border-gray-200 p-4 active:bg-gray-50">
+                  <Link href={`/review/${h.id}`} className="ui-card block p-4 active:bg-page">
                     <div className="flex items-start justify-between gap-3">
                       <span className="min-w-0">
                         <HomeName home={h} />
@@ -208,12 +199,12 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                         <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-gray-500">
+                    <p className="mt-1 text-sm text-muted">
                       <WhenText home={h} now={now} />
                       {" · "}
                       Batteries: <BatteryCell home={h} />
                     </p>
-                    <p className="mt-2 text-sm text-gray-700">
+                    <p className="mt-2 text-sm text-ink">
                       <TopReason home={h} />
                     </p>
                   </Link>

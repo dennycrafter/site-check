@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
-import { buttonClass, StatusBadges } from "@/components/ui";
+import { BADGE_CLASS, buttonClass, StatusBadges, type BadgeTone } from "@/components/ui";
 import { homeLabel, loadHome } from "@/lib/homes";
 import { FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
 import { latestFinishedByStep, latestPhotoByStep, planSteps } from "@/lib/plan";
@@ -35,16 +35,16 @@ const OUTCOME_STYLES: Record<Outcome, { title: string; dot: string; text: string
   PASS: { title: "Pass", dot: "bg-pass", text: "text-pass" },
 };
 
-const STATUS_STYLES: Record<PhotoStatus | "pending", string> = {
-  accepted: "bg-green-50 text-pass",
-  retake: "bg-amber-50 text-review",
-  check_failed: "bg-gray-100 text-gray-700",
-  accepted_after_max_attempts: "bg-amber-50 text-review",
-  pending: "bg-gray-100 text-gray-500",
+const STATUS_TONES: Record<PhotoStatus | "pending", BadgeTone> = {
+  accepted: "pass",
+  retake: "review",
+  check_failed: "neutral",
+  accepted_after_max_attempts: "review",
+  pending: "neutral",
 };
 
 const FACT_STYLES: Record<FactTone, string> = {
-  ok: "text-gray-900",
+  ok: "text-ink",
   unknown: "text-review",
   review: "text-review",
   fail: "text-fail",
@@ -60,8 +60,8 @@ const WALL_ANSWER_LABELS: Record<PanelSameWallAnswer, string> = {
 const photoAnchor = (step: string) => `photo-${step}`;
 
 function YesNo({ value }: { value: boolean | null }) {
-  if (value === null) return <span className="font-semibold text-gray-400">Not given</span>;
-  return <span className="font-semibold text-gray-900">{value ? "Yes" : "No"}</span>;
+  if (value === null) return <span className="font-semibold text-muted">Not given</span>;
+  return <span className="font-semibold text-ink">{value ? "Yes" : "No"}</span>;
 }
 
 function KeyFacts({ home, photos }: { home: HomeRow; photos: PhotoRow[] }) {
@@ -76,12 +76,12 @@ function KeyFacts({ home, photos }: { home: HomeRow; photos: PhotoRow[] }) {
     spaceSteps: [...SPACE_STEPS, ...home.extra_steps.map((e) => e.id)],
   });
   return (
-    <section className="rounded-2xl border border-gray-200 p-5">
-      <h2 className="text-lg font-bold text-gray-900">Key facts</h2>
+    <section className="ui-card">
+      <h2 className="ui-subtitle">Key facts</h2>
       <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
         {facts.map((f) => (
           <div key={f.label}>
-            <dt className="text-xs font-semibold text-gray-500">{f.label}</dt>
+            <dt className="text-xs font-semibold text-muted">{f.label}</dt>
             <dd className={`font-semibold ${FACT_STYLES[f.tone]}`}>{f.value}</dd>
           </div>
         ))}
@@ -103,14 +103,14 @@ function ReasonSection({ outcome, groups }: { outcome: Outcome; groups: ReasonGr
           <li key={g.code} className="flex gap-3">
             <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
             <div className="min-w-0">
-              <p className="text-gray-900">{g.message}</p>
+              <p className="text-ink">{g.message}</p>
               <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm">
                 {g.steps.map((step) => (
                   <a key={step} href={`#${photoAnchor(step)}`} className="font-medium text-accent hover:underline">
                     {stepTitle(step)}
                   </a>
                 ))}
-                <span className="font-mono text-[11px] text-gray-400">{g.code}</span>
+                <span className="font-mono text-[11px] text-muted">{g.code}</span>
               </p>
             </div>
           </li>
@@ -123,16 +123,16 @@ function ReasonSection({ outcome, groups }: { outcome: Outcome; groups: ReasonGr
 function Reasons({ home, hasPhotos }: { home: HomeRow; hasPhotos: boolean }) {
   const groups = groupReasons(home.reasons);
   return (
-    <section className="rounded-2xl border border-gray-200 p-5">
+    <section className="ui-card">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Reasons</h2>
-          <p className="text-xs text-gray-500">From the automatic check. Final decision stays with the review team.</p>
+          <h2 className="ui-subtitle">Reasons</h2>
+          <p className="mt-1 text-sm text-muted">From the automatic check. Final decision stays with the review team.</p>
         </div>
         <RecheckButton homeId={home.id} disabled={!hasPhotos} />
       </div>
       <div className="mt-4 space-y-5">
-        {groups.length === 0 && <p className="text-gray-600">No reasons yet.</p>}
+        {groups.length === 0 && <p className="text-muted">No reasons yet.</p>}
         {(["FAIL", "REVIEW", "PASS"] as Outcome[]).map((o) => (
           <ReasonSection key={o} outcome={o} groups={groups.filter((g) => g.outcome === o)} />
         ))}
@@ -144,8 +144,8 @@ function Reasons({ home, hasPhotos }: { home: HomeRow; hasPhotos: boolean }) {
 function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; reasons: Reason[] }) {
   if (!photo.analysis) {
     return (
-      <p className="text-sm text-gray-600">
-        No AI readout. {photo.error ? <span className="text-gray-500">Error: {photo.error}</span> : null}
+      <p className="text-sm text-muted">
+        No AI readout. {photo.error ? <span className="text-muted">Error: {photo.error}</span> : null}
       </p>
     );
   }
@@ -165,29 +165,29 @@ function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; rea
             : "";
         return (
           <div key={field} className={`col-span-2 grid grid-cols-subgrid rounded-md px-2 py-0.5 ${tone}`}>
-            <dt className={tone ? "" : "text-gray-500"}>{FIELD_LABELS[field]}</dt>
-            <dd className={tone ? "" : value === "Unknown" || value === "Unclear" ? "font-medium text-review" : "font-medium text-gray-900"}>
+            <dt className={tone ? "" : "text-muted"}>{FIELD_LABELS[field]}</dt>
+            <dd className={tone ? "" : value === "Unknown" || value === "Unclear" ? "font-medium text-review" : "font-medium text-ink"}>
               {value}
             </dd>
           </div>
         );
       })}
       <div className="col-span-2 grid grid-cols-subgrid px-2 py-0.5">
-        <dt className="text-gray-500">Confidence</dt>
-        <dd className={`font-medium ${lowConfidence ? "text-review" : "text-gray-900"}`}>
+        <dt className="text-muted">Confidence</dt>
+        <dd className={`font-medium ${lowConfidence ? "text-review" : "text-ink"}`}>
           {a.confidence}%{lowConfidence ? " (low)" : ""}
         </dd>
       </div>
       {a.retake_reason !== "none" && (
         <div className="col-span-2 grid grid-cols-subgrid px-2 py-0.5">
-          <dt className="text-gray-500">Retake reason</dt>
-          <dd className="font-medium text-gray-900">{valueLabel("retake_reason", a.retake_reason)}</dd>
+          <dt className="text-muted">Retake reason</dt>
+          <dd className="font-medium text-ink">{valueLabel("retake_reason", a.retake_reason)}</dd>
         </div>
       )}
       {a.notes && (
         <div className="col-span-2 grid grid-cols-subgrid px-2 py-0.5">
-          <dt className="text-gray-500">AI notes</dt>
-          <dd className="text-gray-700">{a.notes}</dd>
+          <dt className="text-muted">AI notes</dt>
+          <dd className="text-ink">{a.notes}</dd>
         </div>
       )}
     </dl>
@@ -198,7 +198,7 @@ function siteCoverage(home: HomeRow): { label: string; tone: string } {
   if (home.site_check_status === "failed") {
     return { label: "Could not be checked. Look over the photos yourself.", tone: "text-review" };
   }
-  if (home.site_check_status === "not_run") return { label: "Not checked yet", tone: "text-gray-500" };
+  if (home.site_check_status === "not_run") return { label: "Not checked yet", tone: "text-muted" };
   const n = home.extra_steps.length;
   if (n === 0) return { label: "All areas around the meter are covered", tone: "text-pass" };
   return { label: `Some areas were missing, so we asked for ${n} more ${n === 1 ? "photo" : "photos"}`, tone: "text-review" };
@@ -219,13 +219,13 @@ function LocationCard({ property }: { property: HomeProperty }) {
     property.meterUncertain && "Meter spot marked as unsure",
   ].filter((flag): flag is string => Boolean(flag));
   return (
-    <section className="rounded-2xl border border-gray-200 p-5">
-      <h2 className="text-lg font-bold text-gray-900">Location</h2>
-      {property.address && <p className="mt-1 text-gray-700">{property.address}</p>}
+    <section className="ui-card">
+      <h2 className="ui-subtitle">Location</h2>
+      {property.address && <p className="mt-1 text-ink">{property.address}</p>}
       {flags.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-2">
           {flags.map((flag) => (
-            <li key={flag} className="rounded-md bg-amber-50 px-2 py-0.5 text-xs font-semibold text-review">
+            <li key={flag} className="ui-badge-review">
               {flag}
             </li>
           ))}
@@ -237,19 +237,19 @@ function LocationCard({ property }: { property: HomeProperty }) {
             {property.meter ? (
               <MapLink point={property.meter}>Open meter spot in Google Maps</MapLink>
             ) : (
-              <span className="text-gray-500">Meter spot not marked</span>
+              <span className="text-muted">Meter spot not marked</span>
             )}
           </li>
           <li>
             {property.front ? (
               <MapLink point={property.front}>Open front entrance in Google Maps</MapLink>
             ) : (
-              <span className="text-gray-500">Front entrance not marked</span>
+              <span className="text-muted">Front entrance not marked</span>
             )}
           </li>
         </ul>
       ) : (
-        <div className="pl-reference mt-3 max-w-sm rounded-xl border border-gray-200" style={{ height: 420 }}>
+        <div className="pl-reference mt-3 max-w-sm rounded-brand border border-line" style={{ height: 420 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/property-map-reference.png" alt="Example map with the front entrance and meter marked" draggable={false} />
           <span className="pl-example-badge">Example map</span>
@@ -280,10 +280,10 @@ function SiteCoverageCard({
 }) {
   const { label, tone } = siteCoverage(home);
   return (
-    <section className="rounded-2xl border border-gray-200 p-5">
-      <h2 className="text-lg font-bold text-gray-900">Site coverage</h2>
+    <section className="ui-card">
+      <h2 className="ui-subtitle">Site coverage</h2>
       <p className={`mt-1 font-semibold ${tone}`}>{label}</p>
-      {home.site_check?.summary && <p className="mt-2 text-gray-700">{home.site_check.summary}</p>}
+      {home.site_check?.summary && <p className="mt-2 text-ink">{home.site_check.summary}</p>}
       {home.extra_steps.length > 0 && (
         <ul className="mt-4 space-y-3">
           {home.extra_steps.map((extra) => {
@@ -294,13 +294,13 @@ function SiteCoverageCard({
                 {url ? (
                   <PhotoZoom src={url} alt={extra.instruction} className="h-16 w-16 shrink-0 overflow-hidden rounded-md" />
                 ) : (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-gray-100 text-center text-[10px] text-gray-400">
+                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-brand bg-page text-center text-[10px] text-muted">
                     Not taken
                   </div>
                 )}
                 <div className="min-w-0">
-                  <p className="font-medium text-gray-900">{extra.instruction}</p>
-                  {extra.reason && <p className="text-xs text-gray-500">{extra.reason}</p>}
+                  <p className="font-medium text-ink">{extra.instruction}</p>
+                  {extra.reason && <p className="text-xs text-muted">{extra.reason}</p>}
                 </div>
               </li>
             );
@@ -313,7 +313,7 @@ function SiteCoverageCard({
 
 function PhotoMeta({ photo }: { photo: PhotoRow }) {
   return (
-    <p className="text-xs text-gray-400">
+    <p className="text-xs text-muted">
       Attempt {photo.attempt}
       {photo.latency_ms !== null && ` · ${(photo.latency_ms / 1000).toFixed(1)}s`}
       {` · ${photo.ai_attempts} AI ${photo.ai_attempts === 1 ? "call" : "calls"}`}
@@ -339,16 +339,16 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
   return (
     <>
       <SiteHeader tag="Surveyor" />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-        <Link href="/review" className="text-sm font-semibold text-accent hover:underline">
+      <main className="ui-container flex-1 pt-4 pb-12">
+        <Link href="/review" className="ui-button-ghost">
           Back to queue
         </Link>
 
-        <header className="mt-3 flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-start md:justify-between">
+        <header className="mt-1 flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <div className="flex items-start justify-between gap-3">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-bold text-gray-900">{homeLabel(home)}</h1>
+                <h1 className="ui-title">{homeLabel(home)}</h1>
                 <StatusBadges verdict={home.verdict} decision={home.surveyor_decision} />
               </div>
               <div className="md:hidden">
@@ -356,14 +356,14 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               </div>
             </div>
             {home.external_ref && (
-              <p className="mt-1 text-sm font-semibold text-gray-700">Order {home.external_ref}</p>
+              <p className="mt-1 text-sm font-semibold text-ink">Order {home.external_ref}</p>
             )}
             {(home.customer_name || home.customer_email) && home.address && (
-              <p className="mt-1 text-gray-600">
+              <p className="mt-1 text-muted">
                 {[home.customer_name, home.customer_email].filter(Boolean).join(" · ")}
               </p>
             )}
-            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600">
+            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
               <span>
                 Austin: <YesNo value={home.in_austin} />
               </span>
@@ -373,26 +373,26 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               {home.panel_same_wall_answer !== "not_asked" && (
                 <span>
                   Breaker box on meter wall:{" "}
-                  <span className="font-semibold text-gray-900">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
+                  <span className="font-semibold text-ink">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
                 </span>
               )}
             </div>
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-muted">
               {home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "In progress"}
               {` · Started ${formatTime(home.created_at)}`}
             </p>
           </div>
           <div className="flex items-start gap-3">
-            <div className="rounded-2xl border border-gray-200 px-5 py-3">
-              <p className="text-xs font-semibold text-gray-500">Batteries</p>
-              <p className="text-3xl font-bold text-gray-900">{home.battery_count ?? "-"}</p>
-              {home.verdict === "REVIEW" && <p className="text-xs text-review">provisional</p>}
+            <div className="ui-stat bg-surface px-5 py-3">
+              <span className="ui-stat-label mt-0">Batteries</span>
+              <span className="ui-stat-value mt-1">{home.battery_count ?? "-"}</span>
+              {home.verdict === "REVIEW" && <span className="block text-xs text-review">provisional</span>}
             </div>
             <a
               href={`/api/homes/${home.id}/export`}
               target="_blank"
               rel="noreferrer"
-              className={buttonClass("secondary", "min-h-10 text-sm")}
+              className={buttonClass("secondary", "whitespace-nowrap")}
             >
               Export for Base (JSON)
             </a>
@@ -402,7 +402,7 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
           </div>
         </header>
 
-        <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
           <div className="min-w-0 space-y-6">
             <KeyFacts home={home} photos={photos} />
             <Reasons home={home} hasPhotos={photos.length > 0} />
@@ -410,8 +410,8 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
             {home.property && <LocationCard property={home.property} />}
 
             <section>
-              <h2 className="text-lg font-bold text-gray-900">Photos</h2>
-              {stepOrder.length === 0 && <p className="mt-2 text-gray-600">No steps yet.</p>}
+              <h2 className="ui-subtitle">Photos</h2>
+              {stepOrder.length === 0 && <p className="mt-2 text-muted">No steps yet.</p>}
               <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 {stepOrder.map((stepId) => {
                   const photo = latest.get(stepId);
@@ -422,27 +422,25 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                     <article
                       key={stepId}
                       id={photoAnchor(stepId)}
-                      className="scroll-mt-6 overflow-hidden rounded-2xl border border-gray-200 target:ring-2 target:ring-accent"
+                      className="ui-card ui-card-flush scroll-mt-6 target:ring-2 target:ring-accent"
                     >
-                      <div className="relative aspect-[4/3] bg-gray-100">
+                      <div className="relative aspect-[4/3] bg-page">
                         {url ? (
                           <PhotoZoom src={url} alt={stepTitle(stepId)} className="h-full w-full" />
                         ) : (
-                          <div className="flex h-full items-center justify-center text-sm text-gray-400">No photo</div>
+                          <div className="flex h-full items-center justify-center text-sm text-muted">No photo</div>
                         )}
                       </div>
                       <div className="space-y-3 p-4">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-semibold text-gray-900">{stepTitle(stepId)}</h3>
-                          <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[status]}`}>
-                            {PHOTO_STATUS_LABELS[status]}
-                          </span>
+                          <h3 className="ui-label">{stepTitle(stepId)}</h3>
+                          <span className={`shrink-0 ${BADGE_CLASS[STATUS_TONES[status]]}`}>{PHOTO_STATUS_LABELS[status]}</span>
                         </div>
                         {isExtraStepId(stepId) && (
-                          <p className="text-sm text-gray-600">{getStep(stepId, home.extra_steps)?.instruction}</p>
+                          <p className="text-sm text-muted">{getStep(stepId, home.extra_steps)?.instruction}</p>
                         )}
                         {!planned.includes(stepId) && (
-                          <p className="text-xs text-gray-500">No longer required for this setup.</p>
+                          <p className="text-xs text-muted">No longer required for this setup.</p>
                         )}
                         {photo && (
                           <>
@@ -451,8 +449,8 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                           </>
                         )}
                         {history.length > 0 && (
-                          <details className="rounded-lg bg-gray-50 px-3 py-2">
-                            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+                          <details className="rounded-brand bg-page px-3 py-2">
+                            <summary className="cursor-pointer text-sm font-medium text-ink">
                               Previous attempts ({history.length})
                             </summary>
                             <ul className="mt-3 space-y-3">
@@ -466,9 +464,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                                     />
                                   )}
                                   <div className="min-w-0 text-sm">
-                                    <p className="font-medium text-gray-800">{PHOTO_STATUS_LABELS[p.status]}</p>
+                                    <p className="font-medium text-ink">{PHOTO_STATUS_LABELS[p.status]}</p>
                                     {p.analysis?.retake_instruction && (
-                                      <p className="text-gray-600">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
+                                      <p className="text-muted">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
                                     )}
                                     <PhotoMeta photo={p} />
                                   </div>
