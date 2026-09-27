@@ -137,6 +137,12 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
               <span className={filter === f.id ? "text-white/80" : "text-gray-400"}>{counts[f.id]}</span>
             </Link>
           ))}
+          <Link
+            href="/review/audit"
+            className="inline-flex min-h-10 items-center rounded-full px-4 text-sm font-semibold text-accent underline-offset-4 hover:underline"
+          >
+            Audit
+          </Link>
         </nav>
 
         {error && (
