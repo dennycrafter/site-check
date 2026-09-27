@@ -401,7 +401,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     }
   }
 
-  async function usePhoto(step: string, base64: string, preview: string) {
+  async function sendPhoto(step: string, base64: string, preview: string) {
     const token = ++sendToken.current;
     setLocal({ kind: "checking", preview });
     setKeepError(null);
@@ -811,7 +811,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
           local.kind === "ready" ? (
             <Primary onClick={() => setPickerOpen(true)}>Take photo</Primary>
           ) : local.kind === "confirm" ? (
-            <Primary onClick={() => void usePhoto(step.id, local.base64, local.preview)}>Use this photo</Primary>
+            <Primary onClick={() => void sendPhoto(step.id, local.base64, local.preview)}>Use this photo</Primary>
           ) : local.kind === "checking" ? (
             <Primary disabled>
               <Spinner /> Checking your photo...
@@ -862,7 +862,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
           <>
             <p>{step.id === "main_disconnect_closeup" ? "Can you see the main switch number clearly?" : "Can you see the equipment and area clearly?"}</p>
             <img className="sc-upload" src={local.preview} alt={`Your photo: ${step.title}`} />
-            <p className="sc-muted">We'll check it when you continue.</p>
+            <p className="sc-muted">We&apos;ll check it when you continue.</p>
             <button type="button" className="sc-option" onClick={() => setLocal({ kind: "ready" })}>
               Retake photo
             </button>
@@ -1199,7 +1199,7 @@ function SiteCheckScreen({ homeId, onDone }: { homeId: string; onDone: () => Pro
       )}
       {state.kind === "error" && (
         <p className="sc-error" role="alert">
-          We couldn't check your site. Check your connection and try again.
+          We couldn&apos;t check your site. Check your connection and try again.
         </p>
       )}
     </Frame>
