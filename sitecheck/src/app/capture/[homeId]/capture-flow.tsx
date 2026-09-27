@@ -56,8 +56,8 @@ const FILE_ERROR = "We couldn't read that file. Try a JPG or PNG photo.";
 
 const SHOWN: Record<string, string> = {
   meter_area_wide: "Stand about 10 steps back. Show your meter and the whole wall around it.",
-  left_of_meter: "Step back and turn left. Keep the meter at the right edge of the photo.",
-  right_of_meter: "Step back and turn right. Keep the meter at the left edge of the photo.",
+  left_of_meter: "Step back. Keep the meter at the right edge of the photo.",
+  right_of_meter: "Step back. Keep the meter at the left edge of the photo.",
   panel_open: "Open the breaker box door. Show all the switches.",
   main_disconnect_closeup:
     "Open the lid. Get close enough that the number, like 150 or 200, is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
