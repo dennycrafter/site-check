@@ -37,11 +37,18 @@ export type Step = {
   fields: AnalysisField[];
   // External slot name used when exporting photos to another system.
   baseSlot: string;
+  /** Short plain tips shown in the customer help sheet. */
+  help: string[];
 };
 
 export const STEPS: Step[] = [
   {
     id: "meter_area_wide",
+    help: [
+      "Back up until the whole wall and the ground fit.",
+      "Daylight works best. Use flash if it is dark.",
+      "Stay on safe ground. A partial wall is fine if you can't go further back.",
+    ],
     baseSlot: "electric_meter_surroundings",
     title: "Meter and wall",
     instruction:
@@ -64,6 +71,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "meter_closeup",
+    help: [
+      "Stand straight in front of the meter.",
+      "Get close enough to read the numbers.",
+      "Keep the whole meter box in the photo, top to bottom.",
+    ],
     baseSlot: "electric_meter_close_up",
     title: "Meter close-up",
     instruction: "Move close so the numbers are readable. Keep the whole meter box in the photo.",
@@ -79,6 +91,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "left_of_meter",
+    help: [
+      "Stand to the left of the meter and step back.",
+      "The meter should sit at the right edge of the photo.",
+      "Show the wall and the ground on that side.",
+    ],
     baseSlot: "electric_meter_left",
     title: "Left of the meter",
     instruction: "Step back. Keep the meter at the right edge of the photo.",
@@ -98,6 +115,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "right_of_meter",
+    help: [
+      "Stand to the right of the meter and step back.",
+      "The meter should sit at the left edge of the photo.",
+      "Show the wall and the ground on that side.",
+    ],
     baseSlot: "electric_meter_right",
     title: "Right of the meter",
     instruction: "Step back. Keep the meter at the left edge of the photo.",
@@ -117,6 +139,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "adjacent_wall",
+    help: [
+      "Walk to the nearest corner of the house.",
+      "Fit that whole wall, from corner to corner.",
+      "Stay on safe ground. A partial wall is fine if you can't go further back.",
+    ],
     baseSlot: "electric_meter_around_corner",
     title: "Around the corner",
     instruction: "Walk to the nearest corner. Show that whole wall from corner to corner.",
@@ -135,6 +162,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "behind_fence",
+    help: [
+      "Look over or through the gate if it is safe.",
+      "Show the whole area, from corner to corner.",
+      "Never climb the fence.",
+    ],
     baseSlot: "electric_meter_behind_fence",
     title: "Behind the fence",
     instruction: "Show the full area behind the fence, corner to corner.",
@@ -152,6 +184,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "panel_wide",
+    help: [
+      "Step back so we can see where the box is.",
+      "Show the wall, garage or closet around it.",
+      "Zoomed out is better than too close.",
+    ],
     baseSlot: "main_breaker_box_wall",
     title: "Breaker box and surroundings",
     instruction: "Show your main breaker box and what is around it. Zoomed out is better.",
@@ -167,6 +204,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "panel_open",
+    help: [
+      "Open only the hinged door.",
+      "Fit all the switches in the photo.",
+      "Never remove screws or the inner cover.",
+    ],
     baseSlot: "main_breaker_box_open",
     title: "Breaker box open",
     instruction: "Open the breaker box door. Fit all the switches inside the box.",
@@ -177,6 +219,11 @@ export const STEPS: Step[] = [
   },
   {
     id: "main_disconnect_closeup",
+    help: [
+      "Look for the biggest switch, often at the top.",
+      "Get close so the number, like 150 or 200, is readable.",
+      "No big switch in the box? Check the gray box next to your meter.",
+    ],
     baseSlot: "main_disconnect_switch_photo",
     title: "Main switch",
     instruction:
@@ -198,6 +245,11 @@ export function isStepId(value: string): value is StepId {
 
 export const EXTRA_STEP_TITLE = "One more photo";
 export const EXTRA_BASE_SLOT = "electric_meter_additional";
+export const EXTRA_STEP_HELP = [
+  "Stand where you can see the whole area we asked for.",
+  "Daylight works best. Use flash if it is dark.",
+  "Stay on safe ground. A partial view is fine if you can't go further.",
+];
 export const EXTRA_STEP_FIELDS: AnalysisField[] = [
   "clear_ground_space",
   "gas_meter_near",
@@ -224,6 +276,7 @@ export function getStep(id: string, extraSteps: Pick<ExtraStep, "id" | "instruct
     description: `the area described in this request: "${extra.instruction}"`,
     fields: EXTRA_STEP_FIELDS,
     baseSlot: EXTRA_BASE_SLOT,
+    help: EXTRA_STEP_HELP,
   };
 }
 

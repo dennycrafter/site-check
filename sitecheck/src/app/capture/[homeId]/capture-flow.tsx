@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
+import { HelpButton, HelpSheet } from "@/components/help-sheet";
 import { Outline } from "@/components/outline";
 import { Spinner } from "@/components/ui";
+import { useDialog } from "@/components/use-dialog";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
 import type { PhotoStatus, SetupType } from "@/lib/types";
@@ -107,6 +109,45 @@ const COMBO_BREAKER_COPY = {
   lead: "It is under the lid below your meter.",
 } as const;
 
+const GENERAL_HELP = [
+  "Stay on this screen. It only takes a moment.",
+  "Check your internet connection if it seems stuck.",
+  "You can close this page and open your link again later.",
+] as const;
+
+const SCREEN_HELP = {
+  welcome: [
+    "You will take a few photos of your meter and breaker box.",
+    "Daylight works best, so go outside while it is light if you can.",
+    "You can stop and open your link again later.",
+  ],
+  meter: [
+    "Meters are usually on an outside wall, near where the power line comes in.",
+    "Look for a box with a round glass cover or a small screen.",
+    "Keep the meter cover closed.",
+  ],
+  breaker: [
+    "Look in the garage, a utility room, or on an outside wall near the meter.",
+    "It is a gray metal box with a hinged door.",
+    "Leave the inner cover in place.",
+  ],
+  combo: [
+    "Your main switch is under the lid below your meter.",
+    "Open only the hinged lid.",
+    "Leave the inner cover in place.",
+  ],
+  review: [
+    "Use the arrows to check each photo.",
+    "Photos marked for a surveyor are fine to send.",
+    "Tap Submit when you are ready.",
+  ],
+  question: [
+    "Think about which outside wall your meter is on.",
+    "If the breaker box is on the inside of that same wall, choose Yes.",
+    "Not sure is a fine answer.",
+  ],
+} as const;
+
 const PANEL_STEPS = new Set(["panel_wide", "panel_open", "main_disconnect_closeup"]);
 
 function isPanelStep(id: string) {
@@ -132,45 +173,6 @@ async function fetchHome(homeId: string): Promise<HomeData> {
   if (res.status === 404) throw new Error("We couldn't find this photo check. Please start again.");
   if (!res.ok) throw new Error(body.error ?? "Could not load your photo check.");
   return body as HomeData;
-}
-
-function useDialog(
-  open: boolean,
-  panel: RefObject<HTMLElement | null>,
-  initialFocus: RefObject<HTMLElement | null>,
-  close: () => void,
-  suppressRestore?: RefObject<boolean>,
-) {
-  useEffect(() => {
-    if (!open) return;
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    initialFocus.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        close();
-        return;
-      }
-      if (event.key !== "Tab" || !panel.current) return;
-      const items = [...panel.current.querySelectorAll<HTMLElement>("h2, button, a[href], input, label")];
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (!first || !last) return;
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      const skip = suppressRestore?.current;
-      if (suppressRestore) suppressRestore.current = false;
-      if (!skip && previouslyFocused?.isConnected) previouslyFocused.focus();
-    };
-  }, [open, panel, initialFocus, close, suppressRestore]);
 }
 
 export function CaptureFlow({ homeId }: { homeId: string }) {
@@ -585,6 +587,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         inert={safetyOpen}
         headingRef={headingRef}
         title="Let's check your home"
+        help={{ tips: SCREEN_HELP.welcome }}
         actions={<Primary onClick={() => setSafetyOpen(true)}>Start</Primary>}
         overlay={
           safetyOpen ? (
@@ -612,18 +615,16 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
 
   if (intro === "meter" || intro === "breaker") {
     const copy = FIND_COPY[intro];
+    const combo = data.home.setup_type === "combo_meter_main_unit";
     return (
       <Frame
         stage="find"
         headingRef={headingRef}
+        back={intro === "meter" ? () => goIntro("welcome") : null}
+        help={{ tips: intro === "meter" ? SCREEN_HELP.meter : combo ? SCREEN_HELP.combo : SCREEN_HELP.breaker }}
         actions={<Primary onClick={() => goIntro(null)}>{copy.action}</Primary>}
       >
-        <FindEquipment
-          subject={intro}
-          combo={data.home.setup_type === "combo_meter_main_unit"}
-          headingRef={headingRef}
-          onBack={intro === "meter" ? () => goIntro("welcome") : undefined}
-        />
+        <FindEquipment subject={intro} combo={combo} headingRef={headingRef} />
       </Frame>
     );
   }
@@ -640,6 +641,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         stage="review"
         headingRef={headingRef}
         title="Review"
+        help={{ tips: SCREEN_HELP.review }}
         actions={
           <Primary onClick={() => void submitHome()} disabled={submitting}>
             {submitting ? (
@@ -736,6 +738,25 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       title={title}
       back={back}
       progress={progress}
+      help={{
+        tips: step.help,
+        extra:
+          local.kind === "retake" && local.result.canKeep === true
+            ? (close) => (
+                <button
+                  type="button"
+                  className="sc-primary"
+                  disabled={keeping}
+                  onClick={() => {
+                    close();
+                    void keepPhoto(step.id);
+                  }}
+                >
+                  My photo is fine, continue
+                </button>
+              )
+            : undefined,
+      }}
       overlay={
         <>
           {fileInput}
@@ -936,6 +957,12 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   );
 }
 
+export type HelpConfig = {
+  tips: readonly string[];
+  /** Extra buttons for the sheet. Call close before moving to another screen. */
+  extra?: (close: () => void) => ReactNode;
+};
+
 function Frame({
   stage,
   title,
@@ -945,6 +972,7 @@ function Frame({
   progress,
   actions,
   overlay,
+  help,
   children,
 }: {
   stage: string;
@@ -955,33 +983,37 @@ function Frame({
   progress?: ReactNode;
   actions?: ReactNode;
   overlay?: ReactNode;
+  help?: HelpConfig;
   children: ReactNode;
 }) {
-  const find = stage === "find";
+  const [helpOpen, setHelpOpen] = useState(false);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+  const helpButton = useRef<HTMLButtonElement>(null);
+  const tips = help?.tips ?? GENERAL_HELP;
   return (
     <main className="sc-root">
-      <div className={`sc-shell sc-stage-${stage}`} inert={inert || undefined}>
-        {find ? (
-          children
-        ) : (
-          <section className="sc-content">
+      <div className={`sc-shell sc-stage-${stage}`} inert={inert || helpOpen || undefined}>
+        <section className={stage === "find" ? "sc-content sc-find" : "sc-content"}>
+          <div className="sc-topbar">
+            {back && <TopBack onClick={back} />}
             {progress}
-            {back && (
-              <div className="sc-topbar">
-                <TopBack onClick={back} />
-              </div>
-            )}
-            {title && (
-              <h1 ref={headingRef} tabIndex={-1}>
-                {title}
-              </h1>
-            )}
-            {children}
-          </section>
-        )}
+            <HelpButton ref={helpButton} onClick={() => setHelpOpen(true)} />
+          </div>
+          {title && (
+            <h1 ref={headingRef} tabIndex={-1}>
+              {title}
+            </h1>
+          )}
+          {children}
+        </section>
         {actions ? <footer className="sc-actions">{actions}</footer> : null}
       </div>
       {overlay}
+      {helpOpen && (
+        <HelpSheet tips={[...tips]} onClose={closeHelp} returnFocus={helpButton}>
+          {help?.extra?.(closeHelp)}
+        </HelpSheet>
+      )}
     </main>
   );
 }
@@ -990,17 +1022,14 @@ function FindEquipment({
   subject,
   combo,
   headingRef,
-  onBack,
 }: {
   subject: "meter" | "breaker";
   combo: boolean;
   headingRef: RefObject<HTMLHeadingElement | null>;
-  onBack?: () => void;
 }) {
   const text = subject === "breaker" && combo ? { ...FIND_COPY.breaker, ...COMBO_BREAKER_COPY } : FIND_COPY[subject];
   return (
-    <section className="sc-content sc-find">
-      {onBack ? <TopBack onClick={onBack} /> : null}
+    <>
       <h1 ref={headingRef} tabIndex={-1}>
         {text.title}
       </h1>
@@ -1012,7 +1041,7 @@ function FindEquipment({
         <InfoIcon />
         {text.tip}
       </p>
-    </section>
+    </>
   );
 }
 
@@ -1248,7 +1277,7 @@ function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<H
   ];
 
   return (
-    <Frame stage="flow" headingRef={headingRef} title="One quick question">
+    <Frame stage="flow" headingRef={headingRef} title="One quick question" help={{ tips: SCREEN_HELP.question }}>
       <p>Your breaker box looks like it is inside the house.</p>
       <p>Is your breaker box on the other side of the same wall as your meter?</p>
       {options.map(([value, label]) => (

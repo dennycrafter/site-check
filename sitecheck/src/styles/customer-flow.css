@@ -216,3 +216,20 @@
 .sc-root:not(.sc-embed) .sc-welcome-pair{min-height:140px}
 .sc-root:not(.sc-embed) .sc-find-art{min-height:160px}
 @media(max-width:520px){.sc-root:not(.sc-embed)>.sc-shell{height:100%;max-height:100%}}
+/* Help button and "Need a hand?" bottom sheet. */
+.sc-root .sc-topbar .sc-progress{flex:1 1 auto;min-width:0;margin:0}
+.sc-root .sc-help-btn{display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;margin:0 0 0 auto;padding:0;border:0;border-radius:50%;background:var(--brand-lime-soft);color:var(--brand-green);flex:0 0 auto}
+.sc-root .sc-help-btn:hover{background:color-mix(in srgb,var(--brand-lime) 35%,var(--brand-lime-soft))}
+.sc-root .sc-help-btn svg{display:block}
+.sc-sheet-backdrop{position:fixed;inset:0;z-index:45;display:flex;align-items:flex-end;justify-content:center;background:color-mix(in srgb,var(--brand-ink) 45%,transparent)}
+.sc-sheet{width:min(480px,100%);max-height:85dvh;overflow-y:auto;background:var(--brand-surface);border-radius:var(--brand-radius) var(--brand-radius) 0 0;padding:20px 20px max(20px,env(safe-area-inset-bottom));box-shadow:0 -12px 40px color-mix(in srgb,var(--brand-ink) 20%,transparent);animation:sc-sheet-in 200ms ease-out both}
+.sc-sheet-head{display:flex;align-items:center;gap:12px;margin:0 0 12px}
+.sc-root .sc-sheet-head h2{flex:1;margin:0;font-size:28px;line-height:1.15;letter-spacing:-.6px;font-weight:750;outline:none}
+.sc-root .sc-sheet-close{display:grid;place-items:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;border-radius:50%;background:var(--brand-lime-soft);color:var(--brand-green);flex:0 0 auto}
+.sc-sheet-tips{list-style:disc;margin:0 0 16px;padding:0 0 0 22px;display:grid;gap:10px}
+.sc-sheet-tips li{font-size:18px;line-height:1.4;color:var(--brand-ink)}
+.sc-root .sc-sheet-safety{margin:0 0 8px;padding:12px 14px;background:var(--brand-lime-soft);border-radius:var(--brand-radius);font-size:17px;line-height:1.4;font-weight:700}
+.sc-sheet-actions{display:grid;gap:8px;margin-top:12px}
+.sc-root .sc-sheet-actions .sc-option{margin-top:0}
+@keyframes sc-sheet-in{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+@media(prefers-reduced-motion:reduce){.sc-sheet{animation:none}}
