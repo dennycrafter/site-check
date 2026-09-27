@@ -18,8 +18,8 @@
 .sc-find{display:flex;flex-direction:column}
 .sc-root .sc-find .pl-top-back,.sc-root .sc-find h1,.sc-root .sc-find-lead,.sc-root .sc-find-tip{flex:0 0 auto}
 @media(min-width:521px){
-  .sc-stage-find{display:flex;flex-direction:column;max-height:calc(100dvh - 48px);overflow:hidden}
-  .sc-stage-find>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .sc-stage-find{display:flex;flex-direction:column;max-height:calc(100dvh - 48px)}
+  .sc-stage-find>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
   .sc-stage-find .sc-find-art{flex:0 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
   .sc-stage-find .sc-find-art img{max-height:100%;width:auto;max-width:100%;object-fit:contain}
   .sc-stage-find .sc-actions{position:static;flex:0 0 auto}
@@ -43,12 +43,12 @@
 /* Fit image-led steps to the visible phone height. The image/map absorbs any
    extra room and shrinks first on short screens, while controls stay visible. */
 @media(max-width:520px){
-  .sc-root{height:100dvh;min-height:0;overflow:hidden}
-  .sc-shell{height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .sc-root{height:100dvh;min-height:0}
+  .sc-shell{height:100dvh;min-height:0;display:flex;flex-direction:column}
   .sc-actions{position:static;flex:0 0 auto;padding-top:10px;padding-bottom:max(10px,env(safe-area-inset-bottom))}
 
-  .pl-flow{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-  .pl-flow>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .pl-flow{height:100%;min-height:0;display:flex;flex-direction:column}
+  .pl-flow>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
   .pl-phase-search>.sc-content{justify-content:safe center;overflow:auto}
   .pl-map-wrap{flex:1;min-height:150px;margin-top:10px}
   .pl-google-map,.pl-reference,.pl-map-preview .pl-reference{height:100%}
@@ -57,7 +57,7 @@
   .sc-root .pl-selection{margin-top:8px}
 
   .sc-stage-photo>.sc-content,
-  .sc-stage-confirm>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .sc-stage-confirm>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
   .sc-stage-photo .sc-topbar,.sc-stage-confirm .sc-topbar{flex:0 0 auto;margin-bottom:6px}
   .sc-stage-photo h1,.sc-stage-confirm h1{font-size:clamp(26px,8vw,34px);margin-bottom:8px}
   .sc-stage-photo>.sc-content>p,.sc-stage-confirm>.sc-content>p{font-size:clamp(17px,5vw,20px);line-height:1.3;margin-bottom:8px}
@@ -68,7 +68,7 @@
 
   .sc-stage-review{max-height:none;height:100dvh}
   .sc-stage-review h1{margin-bottom:8px}
-  .sc-stage-find>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .sc-stage-find>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
   .sc-stage-find .sc-find-art{flex:0 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
   .sc-stage-find .sc-find-art img{max-height:100%;width:auto;max-width:100%;object-fit:contain}
   .sc-stage-find .sc-find-lead{margin-top:12px;margin-bottom:10px}
@@ -95,8 +95,8 @@
 .sc-root .sc-camera-status{position:absolute;inset:0;display:grid;place-items:center;margin:0;padding:16px;color:var(--brand-surface);font-size:18px;text-align:center}
 .sc-camera .sc-actions{position:static}
 .sc-camera .sc-error{margin:12px 16px 0}
-.sc-stage-review{display:flex;flex-direction:column;height:calc(100dvh - 48px);max-height:calc(100dvh - 48px);overflow:hidden}
-.sc-stage-review>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.sc-stage-review{display:flex;flex-direction:column;height:calc(100dvh - 48px);max-height:calc(100dvh - 48px)}
+.sc-stage-review>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
 .sc-stage-review .sc-topbar,.sc-stage-review h1,.sc-stage-review .sc-review-caption,.sc-stage-review .sc-option,.sc-stage-review .sc-actions{flex:0 0 auto}
 .sc-stage-review .sc-actions{position:static}
 .sc-review{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
@@ -144,8 +144,8 @@
 .sc-text-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .sc-review-empty{width:min(100%,320px);aspect-ratio:.85;border-radius:var(--brand-radius);background:var(--brand-bg)}
 .sc-root .sc-section-title{font-size:32px;line-height:1.12;letter-spacing:-.8px;font-weight:750;margin:0 0 8px}
-.sc-stage-welcome{display:flex;flex-direction:column;overflow:hidden}
-.sc-stage-welcome>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.sc-stage-welcome{display:flex;flex-direction:column}
+.sc-stage-welcome>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
 .sc-stage-welcome .sc-welcome-pair{flex:1 1 auto;min-height:0}
 .sc-stage-welcome .sc-welcome-pair img{max-height:100%;width:auto;max-width:calc(50% - 6px);object-fit:contain}
 .sc-root:not(.sc-embed){min-height:100dvh;height:auto}
@@ -158,9 +158,9 @@
   .sc-root:not(.sc-embed) .sc-stage-confirm,
   .sc-root:not(.sc-embed) .sc-stage-review{height:calc(100dvh - 48px);max-height:calc(100dvh - 48px)}
   .sc-root:not(.sc-embed) .sc-stage-photo,
-  .sc-root:not(.sc-embed) .sc-stage-confirm{display:flex;flex-direction:column;overflow:hidden}
+  .sc-root:not(.sc-embed) .sc-stage-confirm{display:flex;flex-direction:column}
   .sc-root:not(.sc-embed) .sc-stage-photo>.sc-content,
-  .sc-root:not(.sc-embed) .sc-stage-confirm>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+  .sc-root:not(.sc-embed) .sc-stage-confirm>.sc-content{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto}
   .sc-root:not(.sc-embed) .sc-stage-photo .sc-topbar,
   .sc-root:not(.sc-embed) .sc-stage-confirm .sc-topbar,
   .sc-root:not(.sc-embed) .sc-stage-photo h1,
@@ -204,3 +204,15 @@
 .sc-progress-track{height:4px;border-radius:999px;background:var(--brand-border);overflow:hidden}
 .sc-progress-fill{height:100%;border-radius:inherit;background:var(--brand-green);transition:width 300ms ease-out}
 @media(prefers-reduced-motion:reduce){.sc-progress-fill{transition:none}}
+/* Customer screens: the button bar stays pinned at the bottom and the content between the top and the
+   button bar scrolls, so nothing is ever clipped. */
+.sc-root:not(.sc-embed){height:100dvh;max-height:100dvh;min-height:0}
+.sc-root:not(.sc-embed)>.sc-shell{display:flex;flex-direction:column;max-height:100%;min-height:0}
+.sc-root:not(.sc-embed) .sc-shell>.sc-content,
+.sc-root:not(.sc-embed) .pl-flow>.sc-content{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:32px}
+.sc-root:not(.sc-embed) .pl-flow{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.sc-root:not(.sc-embed) .sc-shell .sc-actions{position:static;flex:0 0 auto}
+.sc-root:not(.sc-embed) .sc-review-viewer{min-height:200px}
+.sc-root:not(.sc-embed) .sc-welcome-pair{min-height:140px}
+.sc-root:not(.sc-embed) .sc-find-art{min-height:160px}
+@media(max-width:520px){.sc-root:not(.sc-embed)>.sc-shell{height:100%;max-height:100%}}

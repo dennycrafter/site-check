@@ -310,7 +310,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const viewKey = `${intro ?? "flow"}:${data?.nextStep ?? ""}:${local.kind}:${data?.home.status ?? ""}`;
   useEffect(() => {
     if (modalOpen) return;
-    headingRef.current?.focus();
+    headingRef.current?.closest(".sc-content")?.scrollTo(0, 0);
+    headingRef.current?.focus({ preventScroll: true });
   }, [viewKey, modalOpen]);
 
   function goIntro(next: Intro | null) {
