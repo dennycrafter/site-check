@@ -31,7 +31,7 @@ npm run dev
 
 4. Open `http://localhost:3000`.
 
-Note: phone cameras only work over HTTPS, so test on phones using the deployed URL. On a laptop, `localhost` works, and every step also has "Upload a photo instead".
+Note: phone cameras only work over HTTPS, so test on phones using the deployed URL. On a laptop, `localhost` works, and every step also has "Select from library".
 
 ## Tech stack
 
@@ -40,7 +40,7 @@ Note: phone cameras only work over HTTPS, so test on phones using the deployed U
 - `@supabase/supabase-js` with the secret key for Postgres and private Storage (server only)
 - `zod` to validate request bodies and the AI's JSON
 - `qrcode` for the customer link QR code on the demo home page
-- `vitest` for unit tests of the rules engine and the review page helpers
+- `vitest` for unit tests of the rules engine, photo decisions, step planning and the review page helpers
 - Vercel Hobby for hosting and HTTPS
 
 ## Branding
@@ -71,7 +71,9 @@ flowchart TD
 ```
 
 - The AI only reads. Every photo is turned into the same fixed JSON schema (27 required fields, no free-form verdicts), validated with zod after lowercasing enum values.
+- The live camera shows an outline for each step (`src/components/outline.tsx`), such as a small box for the meter or corner lines for a wall. It is drawn over a box with the same shape as the camera frame, so it lines up with the photo that is saved.
 - A photo that the AI can read but that does not show enough to decide is sent back with a specific instruction (see "Retake triggers" below).
+- The meter and breaker box setup comes from the accepted wide meter photo. If that photo was kept instead of accepted, the other accepted photos vote, and a tie or no votes means the setup is unclear.
 - After the regular steps, one whole-site check (`src/lib/siteCheck.ts`, `POST /api/homes/{id}/site-check`) looks at all the wall photos together. If a view is missing it adds up to 2 "One more photo" steps with its own instruction. If it cannot run, the homeowner still finishes and the review team sees REVIEW.
 - A pure rules engine (`src/lib/rules.ts`) turns those readings into PASS, FAIL or REVIEW plus a battery count of 0, 1 or 2, with a reason for every decision.
 - Anything uncertain goes to a human: low confidence turns a FAIL into REVIEW, and missing, unclear or unchecked photos add REVIEW reasons.
@@ -154,7 +156,7 @@ Before a photo is accepted, it must show enough to decide. If the AI did not giv
 | Left, right, around the corner, behind the fence | Less than about 6 feet of wall and ground is shown (the wall may run out of the frame) | Step back so we can see more of the wall and the ground in front of it. |
 | Breaker box and surroundings | The room or wall around the box is not visible | Step back so we can see the room or wall around the breaker box. |
 
-Plants, clutter, vehicles or fences in front of a wall are recorded as findings, never a reason to retake. Under every retake request the homeowner can tap "Use this photo anyway" to keep the photo and move on. It is marked "Kept for review" and adds a `STEP_UNCLEAR` REVIEW reason, the same as a photo kept after 3 tries.
+Plants, clutter, vehicles or fences in front of a wall are recorded as findings, never a reason to retake. From the second try, the homeowner can tap "Use this photo anyway" under a retake request to keep the photo and move on. It never appears on the first try, and never for a photo of the wrong thing (the AI says the photo does not match the step, or the retake reason is `wrong_subject`). This rule is `canKeep` in `src/lib/decide.ts`: `POST /api/photos` returns `canKeep` with every retake, and `POST /api/photos/keep` refuses with 409 when it is false. A kept photo is marked "Kept for review" and adds a `STEP_UNCLEAR` REVIEW reason, the same as a photo kept after 3 tries.
 
 ## Reproduce the demo
 
@@ -179,7 +181,7 @@ The flow still completes; any step that fails all 3 attempts is saved as `check_
 
 Check connectivity at `/api/health`, which returns `{ "anthropic": "OK", "database": "OK", "storage": "OK" }` when everything is set up.
 
-Run the unit tests (rules engine and review page helpers):
+Run the unit tests (rules engine, photo decisions, step planning and review page helpers):
 
 ```bash
 npx vitest run
