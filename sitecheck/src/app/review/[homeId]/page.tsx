@@ -2,23 +2,24 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
-import { buttonClass, VerdictBadge } from "@/components/ui";
+import { buttonClass, StatusBadges } from "@/components/ui";
 import { homeLabel, loadHome } from "@/lib/homes";
+import { FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
+import { latestFinishedByStep, latestPhotoByStep, planSteps } from "@/lib/plan";
 import {
-  DECISION_LABELS,
-  FIELD_LABELS,
-  formatField,
-  formatTime,
-  HAZARD_FIELDS,
-  PHOTO_STATUS_LABELS,
-  SETUP_LABELS,
-} from "@/lib/labels";
-import { latestPhotoByStep, planSteps } from "@/lib/plan";
+  groupReasons,
+  highlightedFields,
+  keyFacts,
+  valueLabel,
+  type FactTone,
+  type ReasonGroup,
+} from "@/lib/review";
 import { CONFIDENCE_MIN } from "@/lib/rules";
-import { getStep, isExtraStepId, STEP_IDS, stepTitle } from "@/lib/steps";
+import type { PhotoAnalysis } from "@/lib/schema";
+import { getStep, isExtraStepId, SPACE_STEPS, STEP_IDS, stepTitle } from "@/lib/steps";
 import { signedUrls } from "@/lib/supabase";
-import type { HomeRow, Outcome, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
-import { DecisionPanel, RecheckButton } from "./actions";
+import type { HomeRow, Outcome, PanelSameWallAnswer, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
+import { DecisionPanel, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Home detail | SiteCheck" };
@@ -39,12 +40,105 @@ const STATUS_STYLES: Record<PhotoStatus | "pending", string> = {
   pending: "bg-gray-100 text-gray-500",
 };
 
+const FACT_STYLES: Record<FactTone, string> = {
+  ok: "text-gray-900",
+  unknown: "text-review",
+  review: "text-review",
+  fail: "text-fail",
+};
+
+const WALL_ANSWER_LABELS: Record<PanelSameWallAnswer, string> = {
+  yes: "Yes",
+  no: "No",
+  not_sure: "Not sure",
+  not_asked: "Not asked",
+};
+
+const photoAnchor = (step: string) => `photo-${step}`;
+
 function YesNo({ value }: { value: boolean | null }) {
-  if (value === null) return <span className="font-semibold text-gray-400">Not asked</span>;
+  if (value === null) return <span className="font-semibold text-gray-400">Not given</span>;
   return <span className="font-semibold text-gray-900">{value ? "Yes" : "No"}</span>;
 }
 
-function Readout({ photo, home }: { photo: PhotoRow; home: HomeRow }) {
+function KeyFacts({ home, photos }: { home: HomeRow; photos: PhotoRow[] }) {
+  const analyses = new Map<string, PhotoAnalysis>();
+  for (const [step, p] of latestFinishedByStep(photos)) {
+    if (p.status === "accepted" && p.analysis) analyses.set(step, p.analysis);
+  }
+  const facts = keyFacts({
+    setupType: home.setup_type,
+    analyses,
+    reasons: home.reasons,
+    spaceSteps: [...SPACE_STEPS, ...home.extra_steps.map((e) => e.id)],
+  });
+  return (
+    <section className="rounded-2xl border border-gray-200 p-5">
+      <h2 className="text-lg font-bold text-gray-900">Key facts</h2>
+      <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        {facts.map((f) => (
+          <div key={f.label}>
+            <dt className="text-xs font-semibold text-gray-500">{f.label}</dt>
+            <dd className={`font-semibold ${FACT_STYLES[f.tone]}`}>{f.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function ReasonSection({ outcome, groups }: { outcome: Outcome; groups: ReasonGroup[] }) {
+  if (groups.length === 0) return null;
+  const style = OUTCOME_STYLES[outcome];
+  return (
+    <div>
+      <h3 className={`text-sm font-bold ${style.text}`}>
+        {style.title} ({groups.length})
+      </h3>
+      <ul className="mt-2 space-y-3">
+        {groups.map((g) => (
+          <li key={g.code} className="flex gap-3">
+            <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
+            <div className="min-w-0">
+              <p className="text-gray-900">{g.message}</p>
+              <p className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-sm">
+                {g.steps.map((step) => (
+                  <a key={step} href={`#${photoAnchor(step)}`} className="font-medium text-accent hover:underline">
+                    {stepTitle(step)}
+                  </a>
+                ))}
+                <span className="font-mono text-[11px] text-gray-400">{g.code}</span>
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Reasons({ home, hasPhotos }: { home: HomeRow; hasPhotos: boolean }) {
+  const groups = groupReasons(home.reasons);
+  return (
+    <section className="rounded-2xl border border-gray-200 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Reasons</h2>
+          <p className="text-xs text-gray-500">From the automatic check. Final decision stays with the review team.</p>
+        </div>
+        <RecheckButton homeId={home.id} disabled={!hasPhotos} />
+      </div>
+      <div className="mt-4 space-y-5">
+        {groups.length === 0 && <p className="text-gray-600">No reasons yet.</p>}
+        {(["FAIL", "REVIEW", "PASS"] as Outcome[]).map((o) => (
+          <ReasonSection key={o} outcome={o} groups={groups.filter((g) => g.outcome === o)} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; reasons: Reason[] }) {
   if (!photo.analysis) {
     return (
       <p className="text-sm text-gray-600">
@@ -54,46 +148,60 @@ function Readout({ photo, home }: { photo: PhotoRow; home: HomeRow }) {
   }
   const a = photo.analysis;
   const fields = getStep(photo.step, home.extra_steps)?.fields ?? [];
+  const flagged = new Set(highlightedFields(photo.step, a, reasons));
+  const failing = new Set(highlightedFields(photo.step, a, reasons.filter((r) => r.outcome === "FAIL")));
   const lowConfidence = a.confidence < CONFIDENCE_MIN;
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 text-sm">
       {fields.map((field) => {
-        const hazard = HAZARD_FIELDS.includes(field) && a[field] === true;
+        const value = valueLabel(field, a[field]);
+        const tone = failing.has(field)
+          ? "bg-red-50 font-semibold text-fail"
+          : flagged.has(field)
+            ? "bg-amber-50 font-semibold text-review"
+            : "";
         return (
-          <div key={field} className="contents">
-            <dt className="text-gray-500">{FIELD_LABELS[field]}</dt>
-            <dd className={`font-medium ${hazard ? "text-fail" : "text-gray-900"}`}>{formatField(field, a)}</dd>
+          <div key={field} className={`col-span-2 grid grid-cols-subgrid rounded-md px-2 py-0.5 ${tone}`}>
+            <dt className={tone ? "" : "text-gray-500"}>{FIELD_LABELS[field]}</dt>
+            <dd className={tone ? "" : value === "Unknown" || value === "Unclear" ? "font-medium text-review" : "font-medium text-gray-900"}>
+              {value}
+            </dd>
           </div>
         );
       })}
-      <dt className="text-gray-500">Confidence</dt>
-      <dd className={`font-medium ${lowConfidence ? "text-review" : "text-gray-900"}`}>
-        {a.confidence}%{lowConfidence ? " (low)" : ""}
-      </dd>
+      <div className="col-span-2 grid grid-cols-subgrid px-2 py-0.5">
+        <dt className="text-gray-500">Confidence</dt>
+        <dd className={`font-medium ${lowConfidence ? "text-review" : "text-gray-900"}`}>
+          {a.confidence}%{lowConfidence ? " (low)" : ""}
+        </dd>
+      </div>
       {a.retake_reason !== "none" && (
-        <>
+        <div className="col-span-2 grid grid-cols-subgrid px-2 py-0.5">
           <dt className="text-gray-500">Retake reason</dt>
-          <dd className="font-medium text-gray-900">{formatField("retake_reason", a)}</dd>
-        </>
+          <dd className="font-medium text-gray-900">{valueLabel("retake_reason", a.retake_reason)}</dd>
+        </div>
       )}
       {a.notes && (
-        <>
+        <div className="col-span-2 grid grid-cols-subgrid px-2 py-0.5">
           <dt className="text-gray-500">AI notes</dt>
           <dd className="text-gray-700">{a.notes}</dd>
-        </>
+        </div>
       )}
     </dl>
   );
 }
 
-function siteCheckStatusLabel(home: HomeRow): string {
-  if (home.site_check_status === "failed") return "Could not run";
-  if (home.site_check_status === "not_run") return "Not run yet";
+function siteCoverage(home: HomeRow): { label: string; tone: string } {
+  if (home.site_check_status === "failed") {
+    return { label: "Could not be checked. Look over the photos yourself.", tone: "text-review" };
+  }
+  if (home.site_check_status === "not_run") return { label: "Not checked yet", tone: "text-gray-500" };
   const n = home.extra_steps.length;
-  return n === 0 ? "Covered" : `Asked for ${n} more ${n === 1 ? "photo" : "photos"}`;
+  if (n === 0) return { label: "All areas around the meter are covered", tone: "text-pass" };
+  return { label: `Some areas were missing, so we asked for ${n} more ${n === 1 ? "photo" : "photos"}`, tone: "text-review" };
 }
 
-function SiteCheckCard({
+function SiteCoverageCard({
   home,
   latest,
   urls,
@@ -102,19 +210,11 @@ function SiteCheckCard({
   latest: Map<string, PhotoRow>;
   urls: Record<string, string>;
 }) {
-  const label = siteCheckStatusLabel(home);
-  const tone =
-    home.site_check_status === "done" && home.extra_steps.length === 0
-      ? "text-pass"
-      : home.site_check_status === "not_run"
-        ? "text-gray-500"
-        : "text-review";
+  const { label, tone } = siteCoverage(home);
   return (
     <section className="rounded-2xl border border-gray-200 p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-lg font-bold text-gray-900">Whole-site check</h2>
-        <span className={`text-sm font-semibold ${tone}`}>{label}</span>
-      </div>
+      <h2 className="text-lg font-bold text-gray-900">Site coverage</h2>
+      <p className={`mt-1 font-semibold ${tone}`}>{label}</p>
       {home.site_check?.summary && <p className="mt-2 text-gray-700">{home.site_check.summary}</p>}
       {home.extra_steps.length > 0 && (
         <ul className="mt-4 space-y-3">
@@ -124,10 +224,7 @@ function SiteCheckCard({
             return (
               <li key={extra.id} className="flex gap-3">
                 {url ? (
-                  <a href={url} target="_blank" rel="noreferrer" className="shrink-0">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt={extra.instruction} className="h-16 w-16 rounded-md object-cover" />
-                  </a>
+                  <PhotoZoom src={url} alt={extra.instruction} className="h-16 w-16 shrink-0 overflow-hidden rounded-md" />
                 ) : (
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md bg-gray-100 text-center text-[10px] text-gray-400">
                     Not taken
@@ -157,32 +254,6 @@ function PhotoMeta({ photo }: { photo: PhotoRow }) {
   );
 }
 
-function ReasonGroup({ outcome, reasons }: { outcome: Outcome; reasons: Reason[] }) {
-  if (reasons.length === 0) return null;
-  const style = OUTCOME_STYLES[outcome];
-  return (
-    <div>
-      <h3 className={`text-sm font-bold uppercase tracking-wide ${style.text}`}>
-        {style.title} ({reasons.length})
-      </h3>
-      <ul className="mt-2 space-y-2">
-        {reasons.map((r, i) => (
-          <li key={`${r.code}-${i}`} className="flex gap-3">
-            <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
-            <div>
-              <p className="text-gray-900">{r.message}</p>
-              <p className="text-xs text-gray-500">
-                <span className="font-mono">{r.code}</span>
-                {r.step && ` · ${stepTitle(r.step)}`}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 export default async function HomeDetailPage({ params }: PageProps<"/review/[homeId]">) {
   const { homeId } = await params;
   if (!UUID_RE.test(homeId)) notFound();
@@ -205,10 +276,15 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
         </Link>
 
         <header className="mt-3 flex flex-col gap-4 border-b border-gray-200 pb-6 md:flex-row md:items-start md:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-bold text-gray-900">{homeLabel(home)}</h1>
-              <VerdictBadge verdict={home.verdict} />
+          <div className="min-w-0">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold text-gray-900">{homeLabel(home)}</h1>
+                <StatusBadges verdict={home.verdict} decision={home.surveyor_decision} />
+              </div>
+              <div className="md:hidden">
+                <HomeMenu homeId={home.id} />
+              </div>
             </div>
             {home.external_ref && (
               <p className="mt-1 text-sm font-semibold text-gray-700">Order {home.external_ref}</p>
@@ -225,13 +301,10 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               <span>
                 Solar: <YesNo value={home.has_solar} />
               </span>
-              <span>
-                Setup: <span className="font-semibold text-gray-900">{SETUP_LABELS[home.setup_type]}</span>
-              </span>
               {home.panel_same_wall_answer !== "not_asked" && (
                 <span>
-                  Panel on meter wall:{" "}
-                  <span className="font-semibold text-gray-900">{home.panel_same_wall_answer.replace("_", " ")}</span>
+                  Breaker box on meter wall:{" "}
+                  <span className="font-semibold text-gray-900">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
                 </span>
               )}
             </div>
@@ -240,138 +313,116 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               {` · Started ${formatTime(home.created_at)}`}
             </p>
           </div>
-          <div className="flex flex-col items-stretch gap-3 md:items-end">
-            <div className="flex items-center gap-4 rounded-2xl border border-gray-200 px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Batteries</p>
-                <p className="text-3xl font-bold text-gray-900">{home.battery_count ?? "-"}</p>
-                {home.verdict === "REVIEW" && <p className="text-xs text-review">provisional</p>}
-              </div>
-              <div className="h-12 w-px bg-gray-200" />
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Decision</p>
-                <p className="text-base font-semibold text-gray-900">
-                  {home.surveyor_decision ? DECISION_LABELS[home.surveyor_decision] : "Undecided"}
-                </p>
-              </div>
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl border border-gray-200 px-5 py-3">
+              <p className="text-xs font-semibold text-gray-500">Batteries</p>
+              <p className="text-3xl font-bold text-gray-900">{home.battery_count ?? "-"}</p>
+              {home.verdict === "REVIEW" && <p className="text-xs text-review">provisional</p>}
             </div>
             <a
               href={`/api/homes/${home.id}/export`}
               target="_blank"
               rel="noreferrer"
-              className={buttonClass("secondary", "text-sm")}
+              className={buttonClass("secondary", "min-h-10 text-sm")}
             >
               Export for Base (JSON)
             </a>
+            <div className="hidden md:block">
+              <HomeMenu homeId={home.id} />
+            </div>
           </div>
         </header>
 
         <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div className="order-2 lg:order-1">
-            <SiteCheckCard home={home} latest={latest} urls={urls} />
-            <h2 className="mt-6 text-lg font-bold text-gray-900">Photos</h2>
-            {stepOrder.length === 0 && <p className="mt-2 text-gray-600">No steps yet.</p>}
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              {stepOrder.map((stepId) => {
-                const photo = latest.get(stepId);
-                const history = photos.filter((p) => p.step === stepId && p.id !== photo?.id).reverse();
-                const status = photo?.status ?? "pending";
-                return (
-                  <article key={stepId} className="overflow-hidden rounded-2xl border border-gray-200">
-                    <div className="relative aspect-[4/3] bg-gray-100">
-                      {photo && urls[photo.storage_path] ? (
-                        <a href={urls[photo.storage_path]} target="_blank" rel="noreferrer">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={urls[photo.storage_path]}
-                            alt={stepTitle(stepId)}
-                            className="h-full w-full object-cover"
-                          />
-                        </a>
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-sm text-gray-400">
-                          No photo
-                        </div>
-                      )}
-                    </div>
-                    <div className="space-y-3 p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-gray-900">{stepTitle(stepId)}</h3>
-                        <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[status]}`}>
-                          {PHOTO_STATUS_LABELS[status]}
-                        </span>
-                      </div>
-                      {isExtraStepId(stepId) && (
-                        <p className="text-sm text-gray-600">{getStep(stepId, home.extra_steps)?.instruction}</p>
-                      )}
-                      {!planned.includes(stepId) && (
-                        <p className="text-xs text-gray-500">No longer required for this setup.</p>
-                      )}
-                      {photo && (
-                        <>
-                          <Readout photo={photo} home={home} />
-                          <PhotoMeta photo={photo} />
-                        </>
-                      )}
-                      {history.length > 0 && (
-                        <details className="rounded-lg bg-gray-50 px-3 py-2">
-                          <summary className="cursor-pointer text-sm font-medium text-gray-700">
-                            Previous attempts ({history.length})
-                          </summary>
-                          <ul className="mt-3 space-y-3">
-                            {history.map((p) => (
-                              <li key={p.id} className="flex gap-3">
-                                {urls[p.storage_path] && (
-                                  <a href={urls[p.storage_path]} target="_blank" rel="noreferrer" className="shrink-0">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={urls[p.storage_path]} alt="" className="h-16 w-16 rounded-md object-cover" />
-                                  </a>
-                                )}
-                                <div className="min-w-0 text-sm">
-                                  <p className="font-medium text-gray-800">{PHOTO_STATUS_LABELS[p.status]}</p>
-                                  {p.analysis?.retake_instruction && (
-                                    <p className="text-gray-600">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
-                                  )}
-                                  <PhotoMeta photo={p} />
-                                </div>
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
+          <div className="min-w-0 space-y-6">
+            <KeyFacts home={home} photos={photos} />
+            <Reasons home={home} hasPhotos={photos.length > 0} />
+            <SiteCoverageCard home={home} latest={latest} urls={urls} />
 
-          <aside className="order-1 space-y-6 lg:order-2">
-            <section className="rounded-2xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-lg font-bold text-gray-900">Preliminary check</h2>
-                <RecheckButton homeId={home.id} disabled={photos.length === 0} />
-              </div>
-              <div className="mt-1 flex items-center gap-2">
-                <VerdictBadge verdict={home.verdict} />
-                <p className="text-xs text-gray-500">Final decision stays with the review team.</p>
-              </div>
-              <div className="mt-4 space-y-5">
-                {reasons.length === 0 && <p className="text-gray-600">No reasons yet.</p>}
-                {(["FAIL", "REVIEW", "PASS"] as Outcome[]).map((o) => (
-                  <ReasonGroup key={o} outcome={o} reasons={reasons.filter((r) => r.outcome === o)} />
-                ))}
+            <section>
+              <h2 className="text-lg font-bold text-gray-900">Photos</h2>
+              {stepOrder.length === 0 && <p className="mt-2 text-gray-600">No steps yet.</p>}
+              <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                {stepOrder.map((stepId) => {
+                  const photo = latest.get(stepId);
+                  const history = photos.filter((p) => p.step === stepId && p.id !== photo?.id).reverse();
+                  const status = photo?.status ?? "pending";
+                  const url = photo ? urls[photo.storage_path] : undefined;
+                  return (
+                    <article
+                      key={stepId}
+                      id={photoAnchor(stepId)}
+                      className="scroll-mt-6 overflow-hidden rounded-2xl border border-gray-200 target:ring-2 target:ring-accent"
+                    >
+                      <div className="relative aspect-[4/3] bg-gray-100">
+                        {url ? (
+                          <PhotoZoom src={url} alt={stepTitle(stepId)} className="h-full w-full" />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-sm text-gray-400">No photo</div>
+                        )}
+                      </div>
+                      <div className="space-y-3 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-semibold text-gray-900">{stepTitle(stepId)}</h3>
+                          <span className={`shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[status]}`}>
+                            {PHOTO_STATUS_LABELS[status]}
+                          </span>
+                        </div>
+                        {isExtraStepId(stepId) && (
+                          <p className="text-sm text-gray-600">{getStep(stepId, home.extra_steps)?.instruction}</p>
+                        )}
+                        {!planned.includes(stepId) && (
+                          <p className="text-xs text-gray-500">No longer required for this setup.</p>
+                        )}
+                        {photo && (
+                          <>
+                            <Readout photo={photo} home={home} reasons={reasons} />
+                            <PhotoMeta photo={photo} />
+                          </>
+                        )}
+                        {history.length > 0 && (
+                          <details className="rounded-lg bg-gray-50 px-3 py-2">
+                            <summary className="cursor-pointer text-sm font-medium text-gray-700">
+                              Previous attempts ({history.length})
+                            </summary>
+                            <ul className="mt-3 space-y-3">
+                              {history.map((p) => (
+                                <li key={p.id} className="flex gap-3">
+                                  {urls[p.storage_path] && (
+                                    <PhotoZoom
+                                      src={urls[p.storage_path]}
+                                      alt={`${stepTitle(stepId)}, attempt ${p.attempt}`}
+                                      className="h-16 w-16 shrink-0 overflow-hidden rounded-md"
+                                    />
+                                  )}
+                                  <div className="min-w-0 text-sm">
+                                    <p className="font-medium text-gray-800">{PHOTO_STATUS_LABELS[p.status]}</p>
+                                    {p.analysis?.retake_instruction && (
+                                      <p className="text-gray-600">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
+                                    )}
+                                    <PhotoMeta photo={p} />
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             </section>
-            <DecisionPanel
-              homeId={home.id}
-              decision={home.surveyor_decision}
-              note={home.surveyor_note ?? ""}
-            />
+          </div>
+
+          <aside>
+            <DecisionPanel homeId={home.id} decision={home.surveyor_decision} note={home.surveyor_note ?? ""} />
           </aside>
         </div>
       </main>
-      <Footer />
+      <div className="pb-48 lg:pb-0">
+        <Footer />
+      </div>
     </>
   );
 }

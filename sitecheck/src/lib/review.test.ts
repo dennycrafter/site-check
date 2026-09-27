@@ -4,6 +4,8 @@ import {
   decisionLabel,
   filterQueue,
   groupReasons,
+  highlightedFields,
+  keyFacts,
   parseQueueFilter,
   QUEUE_FILTERS,
   queueTab,
@@ -13,6 +15,9 @@ import {
   waitingTime,
 } from "./review";
 import { AI_SETUP_TYPES, GROUND_SPACE, LOCATIONS, PANEL_BRANDS, PHOTO_ANALYSIS_SCHEMA, RETAKE_REASONS } from "./schema";
+import { evaluate } from "./rules";
+import type { PhotoAnalysis } from "./schema";
+import { GOOD_ANALYSIS } from "./testing";
 import type { Outcome, Reason } from "./types";
 
 const reason = (code: string, outcome: Outcome, step: string | null = null, message = `${code} message`): Reason => ({
@@ -333,5 +338,132 @@ describe("waitingTime", () => {
     expect(waitingTime(null, now)).toBe("");
     expect(waitingTime(undefined, now)).toBe("");
     expect(waitingTime("not a date", now)).toBe("");
+  });
+});
+
+describe("keyFacts", () => {
+  const spaceSteps = ["meter_area_wide", "left_of_meter", "right_of_meter"];
+  const good = (over: Partial<PhotoAnalysis> = {}) => ({ ...GOOD_ANALYSIS, ...over });
+  const facts = (analyses: Record<string, PhotoAnalysis>, reasons: Reason[] = [], setupType = "combo_meter_main_unit") =>
+    Object.fromEntries(
+      keyFacts({ setupType, analyses: new Map(Object.entries(analyses)), reasons, spaceSteps }).map((f) => [
+        f.label,
+        f,
+      ]),
+    );
+
+  it("lists the five facts in order", () => {
+    const list = keyFacts({ setupType: "unknown", analyses: new Map(), reasons: [], spaceSteps });
+    expect(list.map((f) => f.label)).toEqual(["Amp rating", "Setup", "Ground space", "Hazards", "Condition"]);
+  });
+
+  it("marks everything unknown when there are no photos yet", () => {
+    const list = keyFacts({ setupType: "unknown", analyses: new Map(), reasons: null, spaceSteps });
+    expect(list.every((f) => f.tone === "unknown")).toBe(true);
+    expect(list.map((f) => f.value)).toEqual(["Unknown", "Unknown", "Unknown", "Unknown", "Unknown"]);
+  });
+
+  it("reads a clean home in plain words", () => {
+    const f = facts({ meter_area_wide: good(), main_disconnect_closeup: good(), panel_open: good() });
+    expect(f["Amp rating"]).toEqual({ label: "Amp rating", value: "200A", tone: "ok" });
+    expect(f["Setup"].value).toBe("All-in-one meter and main breaker");
+    expect(f["Ground space"]).toMatchObject({ value: "Room for 2 batteries", tone: "ok" });
+    expect(f["Hazards"]).toMatchObject({ value: "None seen", tone: "ok" });
+    expect(f["Condition"]).toMatchObject({ value: "No damage or rust seen", tone: "ok" });
+  });
+
+  it("shows an unreadable amp rating as Unknown in amber", () => {
+    const f = facts({ main_disconnect_closeup: good({ amp_rating: 0, amp_rating_legible: false }) });
+    expect(f["Amp rating"]).toMatchObject({ value: "Unknown", tone: "unknown" });
+  });
+
+  it("uses the rules to turn a failing amp rating red", () => {
+    const analyses = {
+      meter_area_wide: good(),
+      main_disconnect_closeup: good({ amp_rating: 60 }),
+    };
+    const { reasons } = evaluate({
+      inAustin: false,
+      hasSolar: false,
+      panelSameWallAnswer: "not_asked",
+      setupType: "combo_meter_main_unit",
+      siteCheckStatus: "done",
+      photos: Object.entries(analyses).map(([step, analysis]) => ({ step, status: "accepted", analysis })),
+    });
+    expect(facts(analyses, reasons)["Amp rating"]).toMatchObject({ value: "60A", tone: "fail" });
+  });
+
+  it("picks the best ground space across photos", () => {
+    const f = facts({
+      meter_area_wide: good({ clear_ground_space: "none" }),
+      left_of_meter: good({ clear_ground_space: "room_for_one" }),
+      right_of_meter: good({ clear_ground_space: "unclear" }),
+    });
+    expect(f["Ground space"]).toMatchObject({ value: "Room for 1 battery", tone: "ok" });
+  });
+
+  it("shows unclear ground space in amber", () => {
+    const f = facts({ meter_area_wide: good({ clear_ground_space: "unclear" }) });
+    expect(f["Ground space"]).toMatchObject({ value: "Unclear", tone: "unknown" });
+  });
+
+  it("lists hazards and condition problems", () => {
+    const f = facts({
+      meter_area_wide: good({ gas_meter_near: true, ac_unit_near: true }),
+      panel_open: good({ panel_brand: "zinsco", heavy_rust: true }),
+    });
+    expect(f["Hazards"]).toMatchObject({ value: "Gas meter nearby, A/C unit nearby", tone: "review" });
+    expect(f["Condition"]).toMatchObject({ value: "Heavy rust, recalled brand (Zinsco)", tone: "review" });
+  });
+
+  it("adds the breaker box location to the setup", () => {
+    const f = facts({ panel_wide: good({ location: "garage" }) }, [], "separate_meter_and_panel_outdoors");
+    expect(f["Setup"].value).toBe("Meter and separate breaker box, both outside, breaker box: garage");
+  });
+
+  it("shows an unknown setup in amber", () => {
+    expect(facts({}, [], "unknown")["Setup"]).toMatchObject({ value: "Unknown", tone: "unknown" });
+  });
+});
+
+describe("highlightedFields", () => {
+  const a = (over: Partial<PhotoAnalysis> = {}) => ({ ...GOOD_ANALYSIS, ...over });
+
+  it("returns nothing without an analysis or reasons", () => {
+    expect(highlightedFields("meter_closeup", null, [reason("DAMAGE", "REVIEW", "meter_closeup")])).toEqual([]);
+    expect(highlightedFields("meter_closeup", a(), [])).toEqual([]);
+    expect(highlightedFields("meter_closeup", a(), null)).toEqual([]);
+  });
+
+  it("marks the field behind a reason on the same step only", () => {
+    const reasons = [reason("DAMAGE", "REVIEW", "meter_closeup")];
+    expect(highlightedFields("meter_closeup", a({ damage_visible: true }), reasons)).toEqual(["damage_visible"]);
+    expect(highlightedFields("panel_wide", a({ damage_visible: true }), reasons)).toEqual([]);
+  });
+
+  it("ignores Pass reasons", () => {
+    expect(highlightedFields("main_disconnect_closeup", a(), [reason("AMP_OK", "PASS", "main_disconnect_closeup")])).toEqual([]);
+  });
+
+  it("marks only the obstacles that were actually seen", () => {
+    const reasons = [reason("OBSTACLE_NEAR_METER", "REVIEW", "meter_area_wide")];
+    expect(highlightedFields("meter_area_wide", a({ window_near: true }), reasons)).toEqual(["window_near"]);
+  });
+
+  it("marks ground space on photos with no clear space for step-less space reasons", () => {
+    const reasons = [reason("SPACE_UNCLEAR", "REVIEW", null)];
+    expect(highlightedFields("left_of_meter", a({ clear_ground_space: "unclear" }), reasons)).toEqual(["clear_ground_space"]);
+    expect(highlightedFields("right_of_meter", a({ clear_ground_space: "room_for_one" }), reasons)).toEqual([]);
+  });
+
+  it("marks the setup on the wide meter photo when the setup is unclear", () => {
+    const reasons = [reason("SETUP_UNCLEAR", "REVIEW", null)];
+    expect(highlightedFields("meter_area_wide", a(), reasons)).toEqual(["setup_type"]);
+    expect(highlightedFields("meter_closeup", a(), reasons)).toEqual([]);
+  });
+
+  it("does not repeat a field", () => {
+    const reasons = [reason("PANEL_BRAND_CHECK", "REVIEW", "panel_open"), reason("PANEL_BRAND_UNREADABLE", "REVIEW", "panel_open")];
+    expect(highlightedFields("panel_open", a(), reasons)).toEqual(["panel_brand", "panel_label_legible"]);
   });
 });

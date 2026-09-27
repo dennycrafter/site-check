@@ -1,5 +1,5 @@
 import { DECISION_LABELS } from "./labels";
-import type { AnalysisField } from "./schema";
+import type { AnalysisField, PhotoAnalysis } from "./schema";
 import type { HomeRow, Outcome, Reason, SurveyorDecision } from "./types";
 
 export const VERDICT_LABELS: Record<Outcome, string> = {
@@ -157,6 +157,156 @@ export function groupReasons(reasons: Reason[] | null | undefined): ReasonGroup[
     if (r.step && !group.steps.includes(r.step)) group.steps.push(r.step);
   }
   return [...groups.values()].sort((a, b) => SEVERITY[a.outcome] - SEVERITY[b.outcome]);
+}
+
+export type FactTone = "ok" | "unknown" | "review" | "fail";
+export type KeyFact = { label: string; value: string; tone: FactTone };
+
+const FACT_CODES = {
+  amp: ["AMP_UNREADABLE", "AMP_TOO_LOW", "AMP_LOCATION_UNKNOWN", "SOLAR_UNKNOWN", "AMP_ABOVE_200"],
+  setup: ["SETUP_UNCLEAR", "PANEL_IN_LIVING_SPACE", "PANEL_NOT_SAME_WALL", "PANEL_WALL_UNSURE"],
+  space: ["NO_SPACE", "SPACE_UNCLEAR"],
+  hazards: ["OBSTACLE_NEAR_METER", "MULTIPLE_METERS", "MULTIPLE_PANELS"],
+  condition: ["DAMAGE", "HEAVY_RUST", "PANEL_RECALLED_BRAND", "PANEL_BRAND_CHECK", "PANEL_BRAND_UNREADABLE"],
+};
+
+const RECALLED = ["federal_pacific", "zinsco", "challenger", "sylvania"];
+const SPACE_ORDER = ["none", "room_for_one", "room_for_two"];
+
+function reasonTone(reasons: Reason[], codes: string[]): FactTone {
+  const related = reasons.filter((r) => codes.includes(r.code));
+  if (related.some((r) => r.outcome === "FAIL")) return "fail";
+  if (related.some((r) => r.outcome === "REVIEW")) return "review";
+  return "ok";
+}
+
+/** The worse of a value-based tone and the tone from the rules. */
+function worst(a: FactTone, b: FactTone): FactTone {
+  const rank: Record<FactTone, number> = { fail: 0, unknown: 1, review: 2, ok: 3 };
+  return rank[a] <= rank[b] ? a : b;
+}
+
+type FactInput = {
+  setupType: string;
+  /** Accepted photo analyses by step, the same photos the rules read. */
+  analyses: Map<string, PhotoAnalysis>;
+  reasons: Reason[] | null | undefined;
+  spaceSteps: string[];
+};
+
+/** The five facts a surveyor checks first. Unknown values and rule findings set the tone. */
+export function keyFacts({ setupType, analyses, reasons: rawReasons, spaceSteps }: FactInput): KeyFact[] {
+  const reasons = rawReasons ?? [];
+  const all = [...analyses.values()];
+
+  const amp = analyses.get("main_disconnect_closeup");
+  const ampKnown = !!amp && amp.amp_rating_legible && amp.amp_rating > 0;
+  const ampFact: KeyFact = {
+    label: "Amp rating",
+    value: ampKnown ? valueLabel("amp_rating", amp.amp_rating) : "Unknown",
+    tone: worst(ampKnown ? "ok" : "unknown", reasonTone(reasons, FACT_CODES.amp)),
+  };
+
+  const setupFact: KeyFact = {
+    label: "Setup",
+    value: valueLabel("setup_type", setupType),
+    tone: worst(setupType === "unknown" ? "unknown" : "ok", reasonTone(reasons, FACT_CODES.setup)),
+  };
+  const location = analyses.get("panel_wide")?.location;
+  if (location && location !== "unknown") setupFact.value += `, breaker box: ${valueLabel("location", location).toLowerCase()}`;
+
+  const spaceValues = spaceSteps.flatMap((s) => {
+    const v = analyses.get(s)?.clear_ground_space;
+    return v ? [v] : [];
+  });
+  const ranked = spaceValues.filter((v) => SPACE_ORDER.includes(v));
+  const best = ranked.sort((a, b) => SPACE_ORDER.indexOf(b) - SPACE_ORDER.indexOf(a))[0];
+  const spaceFact: KeyFact = {
+    label: "Ground space",
+    value: best ? valueLabel("clear_ground_space", best) : spaceValues.length ? "Unclear" : "Unknown",
+    tone: worst(
+      !best ? "unknown" : best === "none" ? "review" : "ok",
+      reasonTone(reasons, FACT_CODES.space),
+    ),
+  };
+
+  const hazards: string[] = [];
+  if (all.some((a) => a.gas_meter_near)) hazards.push("gas meter nearby");
+  if (all.some((a) => a.window_near)) hazards.push("window nearby");
+  if (all.some((a) => a.ac_unit_near)) hazards.push("A/C unit nearby");
+  if (all.some((a) => a.meter_count > 1)) hazards.push("more than one meter");
+  if (all.some((a) => a.multiple_panels_visible)) hazards.push("more than one breaker box");
+  const hazardText = hazards.join(", ");
+  const hazardFact: KeyFact = {
+    label: "Hazards",
+    value: all.length === 0 ? "Unknown" : hazards.length ? hazardText.charAt(0).toUpperCase() + hazardText.slice(1) : "None seen",
+    tone: worst(all.length === 0 ? "unknown" : hazards.length ? "review" : "ok", reasonTone(reasons, FACT_CODES.hazards)),
+  };
+
+  const problems: string[] = [];
+  if (all.some((a) => a.damage_visible)) problems.push("damage");
+  if (all.some((a) => a.heavy_rust)) problems.push("heavy rust");
+  const brand = analyses.get("panel_open")?.panel_brand;
+  if (brand && RECALLED.includes(brand)) problems.push(`recalled brand (${valueLabel("panel_brand", brand)})`);
+  else if (brand === "westinghouse") problems.push("Westinghouse panel to verify");
+  const conditionText = problems.length ? problems.join(", ") : "No damage or rust seen";
+  const conditionFact: KeyFact = {
+    label: "Condition",
+    value: all.length === 0 ? "Unknown" : conditionText.charAt(0).toUpperCase() + conditionText.slice(1),
+    tone: worst(all.length === 0 ? "unknown" : problems.length ? "review" : "ok", reasonTone(reasons, FACT_CODES.condition)),
+  };
+
+  return [ampFact, setupFact, spaceFact, hazardFact, conditionFact];
+}
+
+const REASON_FIELDS: Record<string, AnalysisField[]> = {
+  AMP_UNREADABLE: ["amp_rating", "amp_rating_legible"],
+  AMP_TOO_LOW: ["amp_rating"],
+  AMP_LOCATION_UNKNOWN: ["amp_rating"],
+  SOLAR_UNKNOWN: ["amp_rating"],
+  AMP_ABOVE_200: ["amp_rating"],
+  PANEL_IN_LIVING_SPACE: ["location"],
+  MULTIPLE_METERS: ["meter_count"],
+  MULTIPLE_PANELS: ["multiple_panels_visible"],
+  DAMAGE: ["damage_visible"],
+  PANEL_RECALLED_BRAND: ["panel_brand"],
+  PANEL_BRAND_CHECK: ["panel_brand"],
+  PANEL_BRAND_UNREADABLE: ["panel_brand", "panel_label_legible"],
+  HEAVY_RUST: ["heavy_rust"],
+  OBSTACLE_NEAR_METER: ["gas_meter_near", "window_near", "ac_unit_near"],
+  SETUP_UNCLEAR: ["setup_type"],
+};
+
+/**
+ * Fields on this photo that led to a Fail or Needs review reason. Space reasons
+ * have no step, so they mark the ground space field on photos with no clear space.
+ */
+export function highlightedFields(
+  step: string,
+  analysis: PhotoAnalysis | null | undefined,
+  reasons: Reason[] | null | undefined,
+): AnalysisField[] {
+  if (!analysis) return [];
+  const out = new Set<AnalysisField>();
+  for (const r of reasons ?? []) {
+    if (r.outcome === "PASS") continue;
+    if (r.step === step) {
+      for (const f of REASON_FIELDS[r.code] ?? []) {
+        if (f === "gas_meter_near" || f === "window_near" || f === "ac_unit_near") {
+          if (analysis[f]) out.add(f);
+        } else {
+          out.add(f);
+        }
+      }
+    } else if (r.step === null && (r.code === "NO_SPACE" || r.code === "SPACE_UNCLEAR")) {
+      if (analysis.clear_ground_space === "none" || analysis.clear_ground_space === "unclear") {
+        out.add("clear_ground_space");
+      }
+    } else if (r.step === null && r.code === "SETUP_UNCLEAR" && step === "meter_area_wide") {
+      out.add("setup_type");
+    }
+  }
+  return [...out];
 }
 
 /** Short wait text like "45m", "3h", "2d". Empty when there is no submit time. */

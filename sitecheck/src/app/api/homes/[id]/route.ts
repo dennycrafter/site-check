@@ -3,7 +3,7 @@ import { z } from "zod";
 import { HomeIdZod, jsonError, readJson, serverError } from "@/lib/api";
 import { buildStepViews, loadHome, publicHome, recomputeHome } from "@/lib/homes";
 import { nextStep } from "@/lib/plan";
-import { getSupabase } from "@/lib/supabase";
+import { getSupabase, listHomeFiles, removeFiles } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,6 +23,30 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/homes/[id]"
     });
   } catch (err) {
     return serverError("homes.get", err);
+  }
+}
+
+/** Removes the home's photo files first, so a failed cleanup leaves the row in place to retry. */
+export async function DELETE(_request: Request, ctx: RouteContext<"/api/homes/[id]">) {
+  const { id } = await ctx.params;
+  if (!HomeIdZod.safeParse(id).success) return jsonError(404, "Home not found");
+  try {
+    const supabase = getSupabase();
+    const [homeRes, photosRes] = await Promise.all([
+      supabase.from("homes").select("id").eq("id", id).maybeSingle(),
+      supabase.from("photos").select("storage_path").eq("home_id", id),
+    ]);
+    if (homeRes.error) throw homeRes.error;
+    if (photosRes.error) throw photosRes.error;
+    if (!homeRes.data) return jsonError(404, "Home not found");
+    const listed = await listHomeFiles(id);
+    const recorded = (photosRes.data ?? []).map((p) => p.storage_path as string).filter(Boolean);
+    await removeFiles([...new Set([...listed, ...recorded])]);
+    const { error } = await supabase.from("homes").delete().eq("id", id);
+    if (error) throw error;
+    return NextResponse.json({ deleted: true });
+  } catch (err) {
+    return serverError("homes.delete", err);
   }
 }
 
