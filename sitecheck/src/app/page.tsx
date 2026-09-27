@@ -39,7 +39,7 @@ export default async function Home() {
     <>
       <SiteHeader narrow />
 
-      <main className="ui-container ui-container-narrow flex-1 pt-12 pb-16 md:pt-20">
+      <main className="ui-container ui-container-narrow flex-1 pt-12 pb-12 md:pt-20">
         <section className="mx-auto max-w-3xl text-center">
           <h1 className="ui-hero">Home battery site photos, checked on the spot</h1>
           <p className="ui-lead mt-4 text-muted">Homeowners get it right the first time. Surveyors get a pre-checked site.</p>
