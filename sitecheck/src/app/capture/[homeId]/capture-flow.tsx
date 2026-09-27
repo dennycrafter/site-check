@@ -5,7 +5,7 @@ import { Outline } from "@/components/outline";
 import { Spinner } from "@/components/ui";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
-import type { PhotoStatus } from "@/lib/types";
+import type { PhotoStatus, SetupType } from "@/lib/types";
 import "@/styles/customer-flow.css";
 
 type StepView = {
@@ -22,6 +22,7 @@ type HomeData = {
     address: string | null;
     status: "in_progress" | "submitted";
     extra_steps: { id: string; instruction: string }[];
+    setup_type: SetupType;
   };
   steps: StepView[];
   /** A step id, "question_5", "site_check" or null when everything is done. */
@@ -58,7 +59,8 @@ const SHOWN: Record<string, string> = {
   left_of_meter: "Step back and turn left. Keep the meter at the right edge of the photo.",
   right_of_meter: "Step back and turn right. Keep the meter at the left edge of the photo.",
   panel_open: "Open the breaker box door. Show all the switches.",
-  main_disconnect_closeup: "Open the lid. Get close enough that the number, like 150 or 200, is readable.",
+  main_disconnect_closeup:
+    "Open the lid. Get close enough that the number, like 150 or 200, is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
 };
 
 const GUIDE: Record<string, Guide> = {
@@ -98,6 +100,11 @@ const FIND_COPY = {
     alt: "Person photographing an open breaker panel in a garage",
     action: "I found it",
   },
+} as const;
+
+const COMBO_BREAKER_COPY = {
+  title: "Find your main switch",
+  lead: "It is under the lid below your meter.",
 } as const;
 
 const PANEL_STEPS = new Set(["panel_wide", "panel_open", "main_disconnect_closeup"]);
@@ -613,6 +620,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       >
         <FindEquipment
           subject={intro}
+          combo={data.home.setup_type === "combo_meter_main_unit"}
           headingRef={headingRef}
           onBack={intro === "meter" ? () => goIntro("welcome") : undefined}
         />
@@ -980,14 +988,16 @@ function Frame({
 
 function FindEquipment({
   subject,
+  combo,
   headingRef,
   onBack,
 }: {
   subject: "meter" | "breaker";
+  combo: boolean;
   headingRef: RefObject<HTMLHeadingElement | null>;
   onBack?: () => void;
 }) {
-  const text = FIND_COPY[subject];
+  const text = subject === "breaker" && combo ? { ...FIND_COPY.breaker, ...COMBO_BREAKER_COPY } : FIND_COPY[subject];
   return (
     <section className="sc-content sc-find">
       {onBack ? <TopBack onClick={onBack} /> : null}

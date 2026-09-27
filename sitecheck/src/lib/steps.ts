@@ -180,7 +180,7 @@ export const STEPS: Step[] = [
     baseSlot: "main_disconnect_switch_photo",
     title: "Main switch",
     instruction:
-      "Open the lid. Fill the box with the main switch so the number (like 150 or 200) is readable.",
+      "Open the lid. Fill the box with the main switch so the number (like 150 or 200) is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
     outline: "rect_large",
     description:
       "a close-up of the main disconnect switch with the lid open and the amp rating number readable",
