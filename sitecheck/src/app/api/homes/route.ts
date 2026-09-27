@@ -8,8 +8,8 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * A homeowner who opens /start directly gives only the address. A customer sent
- * from another system arrives with name, email, Austin and solar already known.
+ * Base's signup system creates the home with what it already knows about the
+ * customer, then sends them the /capture/[id] link. The demo home page stands in for it.
  */
 const CreateHomeZod = z
   .object({

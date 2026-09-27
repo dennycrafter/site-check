@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Outline } from "@/components/outline";
-import { Banner, Button, buttonClass, Spinner } from "@/components/ui";
+import { Banner, Button, Spinner } from "@/components/ui";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
 import type { PhotoStatus } from "@/lib/types";
@@ -229,12 +229,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       <Shell>
         <div className="mt-10 space-y-4">
           <Banner tone="error">{loadError}</Banner>
-          <div className="flex gap-3">
-            <Button onClick={load}>Try again</Button>
-            <Link href="/start" className={buttonClass("secondary")}>
-              Start over
-            </Link>
-          </div>
+          <Button onClick={load}>Try again</Button>
         </div>
       </Shell>
     );
