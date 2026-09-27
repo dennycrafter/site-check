@@ -46,7 +46,8 @@ type Local =
 
 type Intro = "welcome" | "meter" | "breaker";
 
-type Guide = { image: number; guide: number; angle: string };
+/** photo replaces the atlas tile when the atlas has no matching example. */
+type Guide = { image: number; guide: number; angle: string; photo?: string };
 
 const NETWORK_ERROR = "We couldn't send your photo. Check your connection and try again.";
 const FILE_ERROR = "We couldn't read that file. Try a JPG or PNG photo.";
@@ -66,7 +67,12 @@ const GUIDE: Record<string, Guide> = {
   right_of_meter: { image: 3, guide: 3, angle: "Keep the meter at the left edge." },
   adjacent_wall: { image: 5, guide: 4, angle: "Stand back to fit the whole wall." },
   panel_wide: { image: 6, guide: 5, angle: "Stand straight in front of the panel." },
-  panel_open: { image: 6, guide: 5, angle: "Open only the hinged door. Never remove screws or covers." },
+  panel_open: {
+    image: 6,
+    guide: 5,
+    photo: "/find-breaker.webp",
+    angle: "Open only the hinged door. Never remove screws or covers.",
+  },
   main_disconnect_closeup: {
     image: 7,
     guide: 6,
@@ -85,7 +91,7 @@ const FIND_COPY = {
   },
   breaker: {
     title: "Find your breaker panel",
-    lead: "Look in your garage or utility room.",
+    lead: "It is often on an outside wall near the meter, or in a garage or utility room.",
     tip: "Leave the inner cover in place.",
     image: "/find-breaker.webp",
     alt: "Person photographing an open breaker panel in a garage",
@@ -973,6 +979,14 @@ function FindEquipment({
 }
 
 function Example({ guide, title }: { guide: Guide; title: string }) {
+  if (guide.photo) {
+    return (
+      <div role="img" aria-label={`Example: ${title}. ${guide.angle}`} className="sc-example sc-example-photo">
+        <img src={guide.photo} alt="" />
+        <span className="sc-example-label">Example photo</span>
+      </div>
+    );
+  }
   return (
     <div role="img" aria-label={`Example: ${title}. ${guide.angle}`} className={`sc-example sc-example-${guide.image}`}>
       <span className="sc-example-label">Example photo</span>
