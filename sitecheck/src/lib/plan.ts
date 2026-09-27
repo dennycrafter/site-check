@@ -47,10 +47,17 @@ export function isFinished(status: PhotoStatus | undefined): boolean {
   return status !== undefined && FINISHED.includes(status);
 }
 
-/** Setup type comes from the finished meter_area_wide photo; only an accepted one is trusted. */
+const VOTING_SETUPS = ["separate_meter_and_panel_outdoors", "combo_meter_main_unit"] as const;
+
+/**
+ * Setup type comes from the finished meter_area_wide photo; only an accepted one is trusted.
+ * Without it, the other accepted photos vote; a tie or no votes is "unknown".
+ */
 export function deriveSetupType(photos: PlanPhoto[]): SetupType {
-  const photo = latestFinishedByStep(photos).get("meter_area_wide");
-  if (!photo || photo.status !== "accepted" || !photo.analysis) return "unknown";
+  const finished = latestFinishedByStep(photos);
+  const photo = finished.get("meter_area_wide");
+  if (!photo || photo.status !== "accepted") return setupTypeByVote(finished);
+  if (!photo.analysis) return "unknown";
   switch (photo.analysis.setup_type) {
     case "separate_meter_and_panel_outdoors":
       return "separate_meter_and_panel_outdoors";
@@ -61,6 +68,18 @@ export function deriveSetupType(photos: PlanPhoto[]): SetupType {
     default:
       return "unknown";
   }
+}
+
+function setupTypeByVote(finished: Map<string, PlanPhoto>): SetupType {
+  const votes = { separate_meter_and_panel_outdoors: 0, combo_meter_main_unit: 0 };
+  for (const [step, p] of finished) {
+    if (step === "meter_area_wide" || p.status !== "accepted" || !p.analysis) continue;
+    const value = p.analysis.setup_type;
+    if ((VOTING_SETUPS as readonly string[]).includes(value)) votes[value as keyof typeof votes] += 1;
+  }
+  if (votes.separate_meter_and_panel_outdoors > votes.combo_meter_main_unit) return "separate_meter_and_panel_outdoors";
+  if (votes.combo_meter_main_unit > votes.separate_meter_and_panel_outdoors) return "combo_meter_main_unit";
+  return "unknown";
 }
 
 export function regularSteps(home: PlanHome, photos: PlanPhoto[]): StepId[] {
