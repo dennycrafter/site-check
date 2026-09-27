@@ -99,7 +99,7 @@ SiteCheck does not own the customer. It starts from a link sent by the system th
 | Left of the meter | `electric_meter_left` |
 | Right of the meter | `electric_meter_right` |
 | Around the corner | `electric_meter_around_corner` |
-| Behind the fence (only if a fence is seen) | `electric_meter_behind_fence` |
+| Behind the fence (only if the Meter and wall, Left or Right photo shows a fence next to the house, including a kept photo) | `electric_meter_behind_fence` |
 | Breaker box and surroundings (skipped for combo meter and main units) | `main_breaker_box_wall` |
 | Breaker box open (skipped for combo meter and main units) | `main_breaker_box_open` |
 | Main switch | `main_disconnect_switch_photo` |

@@ -355,6 +355,13 @@ describe("planSteps", () => {
     expect(steps.indexOf("behind_fence")).toBe(steps.indexOf("adjacent_wall") + 1);
   });
 
+  it("asks for behind_fence when a kept photo shows a fence", () => {
+    const steps = planSteps(combo, [
+      { step: "right_of_meter", status: "accepted_after_max_attempts", analysis: { ...GOOD, fence_present: true } },
+    ]);
+    expect(steps).toContain("behind_fence");
+  });
+
   it("ignores fences seen only in retake photos", () => {
     const steps = planSteps(combo, [
       { step: "left_of_meter", status: "retake", analysis: { ...GOOD, fence_present: true } },
