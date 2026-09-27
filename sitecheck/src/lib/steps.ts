@@ -84,7 +84,7 @@ export const STEPS: Step[] = [
     instruction: "Step back and turn left. Keep the meter at the right edge of the screen.",
     outline: "small_right_edge",
     description:
-      "the wall and ground to the left of the electric meter, with the meter at the right edge",
+      "the wall and ground to the left of the electric meter, with the meter at the right edge. If the meter is at the left edge or in the middle, this is the wrong side: set photo_matches_request to false",
     fields: [
       "clear_ground_space",
       "gas_meter_near",
@@ -103,7 +103,7 @@ export const STEPS: Step[] = [
     instruction: "Step back and turn right. Keep the meter at the left edge of the screen.",
     outline: "small_left_edge",
     description:
-      "the wall and ground to the right of the electric meter, with the meter at the left edge",
+      "the wall and ground to the right of the electric meter, with the meter at the left edge. If the meter is at the right edge or in the middle, this is the wrong side: set photo_matches_request to false",
     fields: [
       "clear_ground_space",
       "gas_meter_near",

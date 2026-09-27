@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
+import { Outline } from "@/components/outline";
 import { Spinner } from "@/components/ui";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
@@ -170,6 +171,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [cameraGeneration, setCameraGeneration] = useState(0);
+  const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
   const [keeping, setKeeping] = useState(false);
   const [keepError, setKeepError] = useState<string | null>(null);
   const [reviewIndex, setReviewIndex] = useState(0);
@@ -198,6 +200,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    setVideoSize(null);
     setCameraReady(false);
     setCameraError("");
     setCameraOpen(false);
@@ -252,13 +255,22 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     const markReady = () => {
       if (!cancelled) setCameraReady(true);
     };
+    const readSize = () => {
+      if (!cancelled && video.videoWidth && video.videoHeight) {
+        setVideoSize({ width: video.videoWidth, height: video.videoHeight });
+      }
+    };
     video.addEventListener("playing", markReady);
+    video.addEventListener("loadedmetadata", readSize);
+    video.addEventListener("resize", readSize);
     video.play().catch(() => {
       if (!cancelled && video.paused) setCameraError("The camera preview couldn't start. Try again.");
     });
     return () => {
       cancelled = true;
       video.removeEventListener("playing", markReady);
+      video.removeEventListener("loadedmetadata", readSize);
+      video.removeEventListener("resize", readSize);
     };
   }, [cameraOpen, cameraGeneration]);
 
@@ -723,7 +735,21 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                 </div>
                 <p className="sc-camera-hint">{shown}</p>
                 <div className="sc-camera-stage">
-                  <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
+                  <div
+                    className="sc-camera-frame"
+                    style={
+                      videoSize
+                        ? {
+                            aspectRatio: `${videoSize.width} / ${videoSize.height}`,
+                            width: `min(100cqw, calc(100cqh * ${videoSize.width / videoSize.height}))`,
+                            height: "auto",
+                          }
+                        : undefined
+                    }
+                  >
+                    <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
+                    {videoSize && <Outline id={step.outline} aspect={videoSize.width / videoSize.height} />}
+                  </div>
                   {!cameraReady && !cameraError && <p className="sc-camera-status">Opening camera…</p>}
                 </div>
                 {cameraError && (
