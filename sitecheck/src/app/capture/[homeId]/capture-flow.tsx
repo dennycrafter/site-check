@@ -107,6 +107,8 @@ const FIND_COPY = {
 const COMBO_BREAKER_COPY = {
   title: "Find your main switch",
   lead: "It is under the lid below your meter.",
+  image: "/find-meter.webp",
+  alt: "Person photographing an all-in-one meter unit on the outside wall of a house",
 } as const;
 
 const GENERAL_HELP = [
