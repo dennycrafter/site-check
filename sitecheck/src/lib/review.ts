@@ -86,6 +86,46 @@ export function queueTab(home: Pick<HomeRow, "status" | "surveyor_decision">): Q
   return home.status === "submitted" ? "to_decide" : "in_progress";
 }
 
+export type QueueFilter = QueueTab | "all";
+
+export const QUEUE_FILTERS: { id: QueueFilter; label: string }[] = [
+  { id: "to_decide", label: "To decide" },
+  { id: "in_progress", label: "In progress" },
+  { id: "decided", label: "Decided" },
+  { id: "all", label: "All" },
+];
+
+export function parseQueueFilter(value: unknown): QueueFilter {
+  return QUEUE_FILTERS.some((f) => f.id === value) ? (value as QueueFilter) : "to_decide";
+}
+
+type QueueHome = Pick<HomeRow, "status" | "surveyor_decision" | "created_at" | "submitted_at" | "decided_at">;
+
+const time = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() || 0 : 0);
+const lastActivity = (h: QueueHome) => Math.max(time(h.decided_at), time(h.submitted_at), time(h.created_at));
+
+/** To decide: oldest submitted first. Every other tab: most recent activity first. */
+export function filterQueue<T extends QueueHome>(homes: T[], filter: QueueFilter): T[] {
+  const shown = filter === "all" ? [...homes] : homes.filter((h) => queueTab(h) === filter);
+  if (filter === "to_decide") return shown.sort((a, b) => time(a.submitted_at) - time(b.submitted_at));
+  return shown.sort((a, b) => lastActivity(b) - lastActivity(a));
+}
+
+const dayKey = (d: Date | number, timeZone: string) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+
+/** Whether the decision was saved on the same calendar day as now, in Austin time by default. */
+export function decidedToday(
+  decidedAt: string | null | undefined,
+  now: Date | number = Date.now(),
+  timeZone = "America/Chicago",
+): boolean {
+  if (!decidedAt) return false;
+  const at = new Date(decidedAt);
+  if (Number.isNaN(at.getTime())) return false;
+  return dayKey(at, timeZone) === dayKey(now, timeZone);
+}
+
 const SEVERITY: Record<Outcome, number> = { FAIL: 0, REVIEW: 1, PASS: 2 };
 
 /** The most severe reason (first one wins a tie) and how many other non-Pass reasons there are. */

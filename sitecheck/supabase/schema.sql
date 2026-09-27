@@ -55,6 +55,9 @@ alter table public.homes
   add column if not exists site_check jsonb,
   add column if not exists extra_steps jsonb not null default '[]'::jsonb;
 
+-- v3 column (same as migration-v3.sql).
+alter table public.homes add column if not exists decided_at timestamptz;
+
 create index if not exists photos_home_idx on public.photos(home_id, step, attempt);
 create index if not exists homes_created_idx on public.homes(created_at desc);
 

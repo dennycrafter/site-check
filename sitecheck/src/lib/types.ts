@@ -33,6 +33,8 @@ export type HomeRow = {
   reasons: Reason[];
   surveyor_decision: SurveyorDecision | null;
   surveyor_note: string | null;
+  /** When the surveyor decision was last saved. Null for decisions made before this was tracked. */
+  decided_at: string | null;
   submitted_at: string | null;
   /** Order ID from the system that sent the customer here. */
   external_ref: string | null;

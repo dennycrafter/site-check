@@ -19,7 +19,11 @@ export async function POST(request: Request, ctx: RouteContext<"/api/homes/[id]/
   try {
     const { data, error } = await getSupabase()
       .from("homes")
-      .update({ surveyor_decision: body.data.decision, surveyor_note: body.data.note || null })
+      .update({
+        surveyor_decision: body.data.decision,
+        surveyor_note: body.data.note || null,
+        decided_at: new Date().toISOString(),
+      })
       .eq("id", id)
       .select("surveyor_decision, surveyor_note");
     if (error) throw error;

@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import type { Outcome } from "@/lib/types";
+import { decisionLabel, verdictLabel } from "@/lib/review";
+import type { Outcome, SurveyorDecision } from "@/lib/types";
 
 type Variant = "primary" | "secondary" | "ghost";
 
@@ -38,19 +39,30 @@ const VERDICT_STYLES: Record<Outcome, string> = {
   REVIEW: "bg-review text-white",
 };
 
+const BADGE = "inline-flex whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-bold";
+
 export function VerdictBadge({ verdict }: { verdict: Outcome | null }) {
-  if (!verdict) {
-    return (
-      <span className="inline-flex rounded-md bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-600">
-        PENDING
-      </span>
-    );
-  }
+  const style = verdict ? VERDICT_STYLES[verdict] : "bg-gray-200 text-gray-600";
+  return <span className={`${BADGE} ${style}`}>{verdictLabel(verdict)}</span>;
+}
+
+const DECISION_STYLES: Record<SurveyorDecision, string> = {
+  approved: "bg-pass text-white",
+  rejected: "bg-fail text-white",
+  needs_site_visit: "bg-review text-white",
+};
+
+export function DecisionBadge({ decision }: { decision: SurveyorDecision }) {
+  return <span className={`${BADGE} ${DECISION_STYLES[decision]}`}>{decisionLabel(decision)}</span>;
+}
+
+/** Decision as the main badge when there is one, with the AI verdict small and grey. */
+export function StatusBadges({ verdict, decision }: { verdict: Outcome | null; decision: SurveyorDecision | null }) {
+  if (!decision) return <VerdictBadge verdict={verdict} />;
   return (
-    <span
-      className={`inline-flex rounded-md px-2 py-0.5 text-xs font-bold tracking-wide ${VERDICT_STYLES[verdict]}`}
-    >
-      {verdict}
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <DecisionBadge decision={decision} />
+      <span className="whitespace-nowrap text-xs text-gray-400">AI: {verdictLabel(verdict)}</span>
     </span>
   );
 }

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  decidedToday,
   decisionLabel,
+  filterQueue,
   groupReasons,
+  parseQueueFilter,
+  QUEUE_FILTERS,
   queueTab,
   topReason,
   valueLabel,
@@ -129,6 +133,88 @@ describe("queueTab", () => {
   it("puts any home with a decision in Decided, even if not submitted", () => {
     expect(queueTab({ status: "submitted", surveyor_decision: "approved" })).toBe("decided");
     expect(queueTab({ status: "in_progress", surveyor_decision: "needs_site_visit" })).toBe("decided");
+  });
+});
+
+describe("parseQueueFilter", () => {
+  it("defaults to To decide for missing or unknown tabs", () => {
+    expect(parseQueueFilter(undefined)).toBe("to_decide");
+    expect(parseQueueFilter("nope")).toBe("to_decide");
+    expect(parseQueueFilter(["decided"])).toBe("to_decide");
+  });
+
+  it("keeps known tabs", () => {
+    for (const id of ["to_decide", "in_progress", "decided", "all"]) expect(parseQueueFilter(id)).toBe(id);
+  });
+
+  it("lists the tabs in the right order", () => {
+    expect(QUEUE_FILTERS.map((f) => f.label)).toEqual(["To decide", "In progress", "Decided", "All"]);
+  });
+});
+
+describe("filterQueue", () => {
+  const home = (id: string, over: Partial<Parameters<typeof filterQueue>[0][number]>) => ({
+    id,
+    status: "submitted" as const,
+    surveyor_decision: null,
+    created_at: "2026-09-20T10:00:00Z",
+    submitted_at: null,
+    decided_at: null,
+    ...over,
+  });
+  const homes = [
+    home("new-submit", { submitted_at: "2026-09-26T10:00:00Z" }),
+    home("old-submit", { submitted_at: "2026-09-24T10:00:00Z" }),
+    home("draft-old", { status: "in_progress", created_at: "2026-09-21T10:00:00Z" }),
+    home("draft-new", { status: "in_progress", created_at: "2026-09-25T10:00:00Z" }),
+    home("decided-early", { surveyor_decision: "approved", submitted_at: "2026-09-22T10:00:00Z", decided_at: "2026-09-23T10:00:00Z" }),
+    home("decided-late", { surveyor_decision: "rejected", submitted_at: "2026-09-22T10:00:00Z", decided_at: "2026-09-26T12:00:00Z" }),
+  ];
+  const ids = (list: { id: string }[]) => list.map((h) => h.id);
+
+  it("sorts To decide oldest submitted first", () => {
+    expect(ids(filterQueue(homes, "to_decide"))).toEqual(["old-submit", "new-submit"]);
+  });
+
+  it("sorts the other tabs newest first", () => {
+    expect(ids(filterQueue(homes, "in_progress"))).toEqual(["draft-new", "draft-old"]);
+    expect(ids(filterQueue(homes, "decided"))).toEqual(["decided-late", "decided-early"]);
+    expect(ids(filterQueue(homes, "all"))).toEqual([
+      "decided-late",
+      "new-submit",
+      "draft-new",
+      "old-submit",
+      "decided-early",
+      "draft-old",
+    ]);
+  });
+
+  it("does not change the input list", () => {
+    const before = ids(homes);
+    filterQueue(homes, "all");
+    expect(ids(homes)).toEqual(before);
+  });
+
+  it("returns an empty list when nothing matches", () => {
+    expect(filterQueue([], "to_decide")).toEqual([]);
+  });
+});
+
+describe("decidedToday", () => {
+  const now = new Date("2026-09-27T15:00:00Z");
+
+  it("counts decisions from the same Austin day", () => {
+    expect(decidedToday("2026-09-27T06:00:00Z", now)).toBe(true);
+  });
+
+  it("uses Austin time, not UTC, for the day boundary", () => {
+    expect(decidedToday("2026-09-27T03:00:00Z", now)).toBe(false);
+    expect(decidedToday("2026-09-27T03:00:00Z", now, "UTC")).toBe(true);
+  });
+
+  it("ignores missing or invalid times", () => {
+    expect(decidedToday(null, now)).toBe(false);
+    expect(decidedToday("bad", now)).toBe(false);
   });
 });
 
