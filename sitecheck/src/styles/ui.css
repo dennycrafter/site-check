@@ -82,6 +82,7 @@
     font-weight: 750;
     color: var(--brand-ink);
     margin: 0;
+    text-wrap: balance;
   }
   .ui-title {
     font-size: var(--text-title);
@@ -129,6 +130,23 @@
     font-size: var(--text-body);
     padding: 14px;
     color: var(--brand-ink);
+  }
+  .ui-input-mono {
+    font-family: var(--brand-font-mono);
+    font-size: var(--text-note);
+  }
+  .ui-qr {
+    width: 200px;
+    height: 200px;
+    padding: var(--space-2);
+    background: var(--brand-white);
+    border: 1px solid var(--brand-border);
+    border-radius: var(--brand-radius);
+  }
+  .ui-qr svg {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
   .ui-input:focus-visible {
     outline: 3px solid var(--brand-green);
@@ -185,7 +203,7 @@
     border: var(--brand-border-strong) solid var(--brand-muted);
     background: transparent;
     font-size: var(--text-label);
-    line-height: 1.3;
+    line-height: 1.4;
   }
   .ui-button-secondary:hover:not(:disabled) {
     border-color: var(--brand-green);
@@ -358,6 +376,17 @@
   }
   .ui-table tbody tr:hover {
     background: var(--brand-bg);
+  }
+}
+
+@media (max-width: 520px) {
+  @layer components {
+    .ui-hero {
+      font-size: 34px;
+    }
+    .ui-stat {
+      padding: var(--space-3);
+    }
   }
 }
 

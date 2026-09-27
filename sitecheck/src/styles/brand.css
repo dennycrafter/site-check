@@ -22,6 +22,8 @@
   --brand-radius: 8px;
   /* Font for all text */
   --brand-font: var(--font-geist), system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Font for links and codes */
+  --brand-font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   /* PASS results and approved decisions */
   --status-pass: #15803d;
   /* REVIEW results, warnings and site visit decisions */

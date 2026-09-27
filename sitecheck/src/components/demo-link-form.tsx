@@ -15,23 +15,29 @@ type Picked = { address: string; placeId: string; lat: number; lng: number };
 
 function YesNo({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   const option = (next: boolean, text: string) => (
-    <button
-      type="button"
-      aria-pressed={value === next}
-      onClick={() => onChange(next)}
-      className={value === next ? "sc-option selected" : "sc-option"}
-    >
+    <button type="button" aria-pressed={value === next} onClick={() => onChange(next)} className="ui-button-secondary flex-1">
       {text}
     </button>
   );
   return (
-    <fieldset className="sc-choice">
-      <legend>{label}</legend>
-      <div className="sc-yesno">
+    <fieldset className="m-0 min-w-0 border-0 p-0">
+      <legend className="ui-label mb-2 p-0">{label}</legend>
+      <div className="flex gap-2">
         {option(true, "Yes")}
         {option(false, "No")}
       </div>
     </fieldset>
+  );
+}
+
+function CardIntro() {
+  return (
+    <div>
+      <p className="ui-eyebrow">For homeowners</p>
+      <h2 className="ui-title">Customer photo check</h2>
+      <p className="ui-lead mt-3">Guided photos with an instant AI check on every shot.</p>
+      <p className="ui-card-note mt-3">Demo only: stands in for Base&apos;s system</p>
+    </div>
   );
 }
 
@@ -119,83 +125,87 @@ export function DemoLinkForm() {
 
   if (created) {
     return (
-      <div className="sc-root sc-embed">
-        <div className="sc-shell">
-          <p className="sc-demo-note">Demo only: stands in for Base&apos;s system</p>
-          <section className="sc-content">
-            <h2 className="sc-section-title">Customer link ready</h2>
-            <div className="sc-link-row">
-              <input readOnly value={created.url} onFocus={(e) => e.currentTarget.select()} aria-label="Customer photo link" />
-              <button type="button" className="sc-option" onClick={() => void copy()}>
-                {copied ? "Copied" : "Copy"}
-              </button>
+      <section className="ui-card flex h-full flex-col">
+        <CardIntro />
+        <div className="mt-6 flex flex-1 flex-col">
+          <h3 className="ui-subtitle">Customer link ready</h3>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              readOnly
+              value={created.url}
+              onFocus={(e) => e.currentTarget.select()}
+              aria-label="Customer photo link"
+              className="ui-input ui-input-mono min-w-0 flex-1"
+            />
+            <button type="button" className="ui-button-secondary whitespace-nowrap" onClick={() => void copy()}>
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          {created.qrSvg && (
+            <div className="mt-3 flex flex-col items-center gap-1">
+              <div
+                role="img"
+                aria-label="QR code of the customer link"
+                className="ui-qr"
+                dangerouslySetInnerHTML={{ __html: created.qrSvg }}
+              />
+              <p className="ui-muted text-center">Scan with a phone to take the photos as the customer.</p>
             </div>
-            {created.qrSvg && (
-              <div className="sc-qr">
-                <div
-                  role="img"
-                  aria-label="QR code of the customer link"
-                  className="sc-qr-frame"
-                  dangerouslySetInnerHTML={{ __html: created.qrSvg }}
-                />
-                <p className="sc-muted">Scan with a phone to take the photos as the customer.</p>
-              </div>
-            )}
-            <div className="sc-text-row">
-              <a href={created.url} className="sc-text-button">
-                Open link here
-              </a>
-              <button type="button" className="sc-text-button" onClick={reset}>
-                Create another
-              </button>
-            </div>
-          </section>
+          )}
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+            <a href={created.url} className="ui-button-ghost">
+              Open link here
+            </a>
+            <button type="button" className="ui-button-ghost" onClick={reset}>
+              Create another
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div className="sc-root sc-embed">
-      <form className="sc-shell" onSubmit={onSubmit}>
-        <p className="sc-demo-note">Demo only: stands in for Base&apos;s system</p>
-        <section className="sc-content">
-          <h2 className="sc-section-title">Customer photo link</h2>
-          <p className="sc-muted">Sent by Base after signup</p>
-          <div className="sc-fields">
-            <div className="pl-address-field">
-              <label>
-                Address
-                <input
-                  ref={addressInput}
-                  value={address}
-                  onChange={(e) => {
-                    setAddress(e.target.value);
-                    setPicked(null);
-                    suggest.onQueryChange(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    const pick = suggest.onKeyDown(e);
-                    if (pick) void chooseSuggestion(pick);
-                  }}
-                  onBlur={suggest.close}
-                  placeholder="1234 Oak St, Austin, TX 78704"
-                  autoComplete={MAPS_API_KEY ? "off" : "street-address"}
-                  maxLength={300}
-                  required
-                  {...(MAPS_API_KEY
-                    ? {
-                        role: "combobox",
-                        "aria-autocomplete": "list" as const,
-                        "aria-expanded": suggest.open,
-                        "aria-controls": "demo-address-list",
-                        "aria-activedescendant":
-                          suggest.open && suggest.active >= 0 ? `demo-address-list-option-${suggest.active}` : undefined,
-                      }
-                    : {})}
-                />
-              </label>
-              {suggest.open && suggest.box && (
+    <section className="ui-card flex h-full flex-col">
+      <CardIntro />
+      <form className="mt-6 flex flex-1 flex-col" onSubmit={onSubmit}>
+        <div className="grid gap-[18px]">
+          <div className="pl-address-field">
+            <label className="ui-label">
+              Address
+              <input
+                className="ui-input mt-2.5"
+                ref={addressInput}
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setPicked(null);
+                  suggest.onQueryChange(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  const pick = suggest.onKeyDown(e);
+                  if (pick) void chooseSuggestion(pick);
+                }}
+                onBlur={suggest.close}
+                placeholder="1234 Oak St, Austin, TX 78704"
+                autoComplete={MAPS_API_KEY ? "off" : "street-address"}
+                maxLength={300}
+                required
+                {...(MAPS_API_KEY
+                  ? {
+                      role: "combobox",
+                      "aria-autocomplete": "list" as const,
+                      "aria-expanded": suggest.open,
+                      "aria-controls": "demo-address-list",
+                      "aria-activedescendant":
+                        suggest.open && suggest.active >= 0 ? `demo-address-list-option-${suggest.active}` : undefined,
+                    }
+                  : {})}
+              />
+            </label>
+            {suggest.open && suggest.box && (
+              /* The dropdown keeps the exact look it has in the customer flow. */
+              <div className="sc-root sc-embed">
                 <AddressSuggestions
                   id="demo-address-list"
                   suggestions={suggest.suggestions}
@@ -204,32 +214,33 @@ export function DemoLinkForm() {
                   onChoose={(item) => void chooseSuggestion(item)}
                   onHover={suggest.setActive}
                 />
-              )}
-            </div>
-            <label>
-              Customer name
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Jane Doe"
-                autoComplete="name"
-                maxLength={200}
-                required
-              />
-            </label>
-            <div className="sc-split">
-              <YesNo label="In Austin" value={inAustin} onChange={setInAustin} />
-              <YesNo label="Has solar" value={hasSolar} onChange={setHasSolar} />
-            </div>
+              </div>
+            )}
           </div>
-          {error && (
-            <p className="sc-error" role="alert">
-              {error}
-            </p>
-          )}
-        </section>
-        <footer className="sc-actions">
-          <button type="submit" className="sc-primary" disabled={!ready || submitting}>
+          <label className="ui-label">
+            Customer name
+            <input
+              className="ui-input mt-2.5"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Jane Doe"
+              autoComplete="name"
+              maxLength={200}
+              required
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-4">
+            <YesNo label="In Austin" value={inAustin} onChange={setInAustin} />
+            <YesNo label="Has solar" value={hasSolar} onChange={setHasSolar} />
+          </div>
+        </div>
+        {error && (
+          <p className="ui-banner ui-banner-error mt-4" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="mt-auto pt-6">
+          <button type="submit" className="ui-button w-full" disabled={!ready || submitting}>
             {submitting ? (
               <>
                 <Spinner /> Creating...
@@ -238,8 +249,8 @@ export function DemoLinkForm() {
               "Create customer link"
             )}
           </button>
-        </footer>
+        </div>
       </form>
-    </div>
+    </section>
   );
 }

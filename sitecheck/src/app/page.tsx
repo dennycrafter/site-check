@@ -3,39 +3,81 @@ import { DemoLinkForm } from "@/components/demo-link-form";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
 import { buttonClass } from "@/components/ui";
+import { decidedToday, queueTab } from "@/lib/review";
+import { getSupabase } from "@/lib/supabase";
+import type { HomeRow } from "@/lib/types";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+type QueueStat = { label: string; value: number };
+
+async function loadQueueStats(): Promise<QueueStat[] | null> {
+  const now = Date.now();
+  try {
+    const { data, error } = await getSupabase()
+      .from("homes")
+      .select("status, surveyor_decision, decided_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) return null;
+    const homes = (data ?? []) as Pick<HomeRow, "status" | "surveyor_decision" | "decided_at">[];
+    const counts = { to_decide: 0, in_progress: 0, decided: 0 };
+    for (const h of homes) counts[queueTab(h)] += 1;
+    return [
+      { label: "To decide", value: counts.to_decide },
+      { label: "In progress", value: counts.in_progress },
+      { label: "Decided today", value: homes.filter((h) => decidedToday(h.decided_at, now)).length },
+    ];
+  } catch {
+    return null;
+  }
+}
+
+export default async function Home() {
+  const stats = await loadQueueStats();
   return (
     <>
       <SiteHeader narrow />
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-5 pb-16">
-        <section className="max-w-2xl py-4 md:py-8">
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Home battery site photos, checked on the spot</h1>
-          <p className="mt-3 text-base text-gray-600">
-            This demo shows two separate parts of Base Power&apos;s signup flow on one site. Customers only ever see
-            their photo link. Surveyors work from the queue.
-          </p>
+      <main className="ui-container ui-container-narrow flex-1 pt-12 pb-16 md:pt-20">
+        <section className="mx-auto max-w-3xl text-center">
+          <h1 className="ui-hero">Home battery site photos, checked on the spot</h1>
+          <p className="ui-lead mt-4 text-muted">Homeowners get it right the first time. Surveyors get a pre-checked site.</p>
         </section>
 
-        <div className="grid items-start gap-6 md:grid-cols-2">
+        <div className="mt-12 grid gap-6 md:grid-cols-2">
           <DemoLinkForm />
 
-          <section className="flex flex-col rounded-2xl border border-gray-200 bg-gray-50 p-6">
-            <h2 className="text-xl font-bold text-gray-900">Surveyor queue</h2>
-            <p className="mt-1 text-sm text-gray-500">Inside Base&apos;s internal tools</p>
-            <p className="mt-5 text-sm text-gray-600">
-              Every submitted home arrives with its photos, a preliminary check and a battery count. The surveyor makes
-              the final decision.
-            </p>
-            <div className="mt-6">
-              <Link href="/review" className={buttonClass("primary")}>
+          <section className="ui-card flex h-full flex-col">
+            <div>
+              <p className="ui-eyebrow">For surveyors</p>
+              <h2 className="ui-title">Surveyor queue</h2>
+              <p className="ui-lead mt-3">
+                Every home arrives with photos, a preliminary check and a battery count. The surveyor makes the final call.
+              </p>
+            </div>
+            {stats && (
+              <div className="mt-6 grid grid-cols-3 gap-2">
+                {stats.map((s) => (
+                  <div key={s.label} className="ui-stat">
+                    <span className="ui-stat-value">{s.value}</span>
+                    <span className="ui-stat-label">{s.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-auto grid gap-3 pt-6">
+              <Link href="/review/audit" className={buttonClass("secondary", "w-full")}>
+                Audit log
+              </Link>
+              <Link href="/review" className={buttonClass("primary", "w-full")}>
                 Open surveyor queue
               </Link>
             </div>
           </section>
         </div>
       </main>
+
       <Footer />
     </>
   );
