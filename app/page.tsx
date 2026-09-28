@@ -94,7 +94,7 @@ export default function Home() {
             <span>{completion}% complete</span><div className="progress"><i style={{ width: `${completion}%` }} /></div>
           </div>
         )}
-        <div className="header-actions"><button className="customer-view" type="button" onClick={() => { if (screen === 'ops' || screen === 'case') window.location.href = '/customer-deck'; else setScreen('ops'); }}>{screen === 'ops' || screen === 'case' ? 'View customer deck' : 'Team workspace'}</button><button className="help-button" type="button" onClick={() => setHelpOpen(true)}>Help</button></div>
+        <div className="header-actions"><a className="customer-view" href="/schemas">Schemas</a><button className="customer-view" type="button" onClick={() => { if (screen === 'ops' || screen === 'case') window.location.href = '/customer-deck'; else setScreen('ops'); }}>{screen === 'ops' || screen === 'case' ? 'View customer deck' : 'Team workspace'}</button><button className="help-button" type="button" onClick={() => setHelpOpen(true)}>Help</button></div>
       </header>
 
       {screen === 'ops' && (
