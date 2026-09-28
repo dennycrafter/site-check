@@ -15,9 +15,7 @@ export const GUIDE: Record<StepId, Guide> = {
   left_of_meter: { image: 4, guide: 2, angle: "Keep the meter at the right edge." },
   right_of_meter: { image: 3, guide: 3, angle: "Keep the meter at the left edge." },
   adjacent_wall: { image: 5, guide: 4, angle: "Stand back to fit the whole wall." },
-  // No photo of a fenced side yard exists yet. The corner-to-corner wall tile shows the
-  // same framing (whole wall and ground, corner to corner), so it stands in until one does.
-  behind_fence: { image: 5, guide: 4, angle: "Look over or through the gate. Never climb the fence." },
+  behind_fence: { image: 8, guide: 4, angle: "Look over or through the gate. Never climb the fence." },
   panel_wide: { image: 6, guide: 5, angle: "Stand straight in front of the panel." },
   panel_open: {
     image: 6,
