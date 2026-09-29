@@ -4,6 +4,8 @@
   --brand-green: #1e4d2b;
   /* Hover and pressed state of primary buttons */
   --brand-green-dark: #163a20;
+  /* Landing page goal lines only */
+  --brand-orange: #ee7733;
   /* Success check, selected options, highlights */
   --brand-lime: #b2dd79;
   /* Soft backgrounds for icons and selected options */

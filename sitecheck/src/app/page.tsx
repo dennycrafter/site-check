@@ -3,12 +3,12 @@ import { Footer } from "@/components/footer";
 
 const GOALS = [
   {
-    label: "Today",
+    label: "Immediate impact",
     heading: "Get it right the first time.",
     text: "Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.",
   },
   {
-    label: "Over time",
+    label: "Long-term impact",
     heading: "Every survey makes the next one smarter.",
     text: "Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.",
   },
@@ -26,7 +26,10 @@ export default function Home() {
         <div className="mt-10 md:mt-0 md:flex md:flex-1 md:items-center">
           <div className="grid w-full gap-x-16 gap-y-6 md:grid-cols-2 md:gap-y-4">
             <div className="md:col-start-1 md:row-start-1">
-              <h1 className="ui-hero text-accent">Guided photo checks for site surveys.</h1>
+              <h1 className="ui-hero text-accent md:text-[60px] md:leading-[1.05]">
+                Guided photo checks
+                <br className="hidden md:block" /> for site surveys.
+              </h1>
               <p className="ui-lead mt-4 text-[length:var(--text-muted)] text-ink-strong">
                 Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
               </p>
@@ -34,7 +37,7 @@ export default function Home() {
 
             <div className="grid gap-6 md:col-start-1 md:row-start-2">
               {GOALS.map((g) => (
-                <section key={g.label} className="border-l-[3px] border-accent pl-5">
+                <section key={g.label} className="border-l-[3px] border-[var(--brand-orange)] pl-5">
                   <p className="ui-eyebrow">{g.label}</p>
                   <h2 className="ui-subtitle text-accent">{g.heading}</h2>
                   <p className="mt-3 text-[length:var(--text-muted)] leading-normal text-ink-strong">{g.text}</p>

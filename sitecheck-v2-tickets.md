@@ -35,10 +35,10 @@ Replace `/` with this layout. It overrides the master doc rule about not using B
 Laptop layout (768 px and wider): two equal columns (50/50), max width 1200 px, centered, with generous side padding. The content is vertically centered in the screen height. The product name is written **site-check** (all lowercase) everywhere in the app UI, including the browser tab title.
 
 - Top left of the page: small **site-check** name in dark green. No big title, no "Guided site photos for home battery installs." line.
-- Row 1, left side only: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), then directly under it, smaller, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
-- Row 2, left side: two goal blocks stacked, **Today** on top, **Over time** below. No card: no background, border or shadow. Each is plain text on the page background with a 3 px dark green vertical line along its left side. Spacing between row 1 and row 2 is tight so the page reads as one group.
-  - Small label **Today** (grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
-  - Small label **Over time** (grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
+- Row 1, left side only: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), about 60 px with line height about 1.05, always broken after "checks" ("Guided photo checks" / "for site surveys."), then directly under it, smaller, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
+- Row 2, left side: two goal blocks stacked, **Immediate impact** on top, **Long-term impact** below. No card: no background, border or shadow. Each is plain text on the page background with a 3 px orange vertical line (about `#EE7733`, used only for these two lines) along its left side. Spacing between row 1 and row 2 is tight so the page reads as one group.
+  - Small label **Immediate impact** (grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
+  - Small label **Long-term impact** (grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
 - Row 2, right side: two buttons stacked, centered horizontally in the right half and vertically against the two goal blocks. Each is about 260 px wide, 52 px tall, 17 px semibold text, 10 px corner radius, 12 px gap between them.
   1. **Start demo**: lime fill (about `#B5E07B`), dark green text. For now it links to `/start`. (T9 changes it to `/demo`.)
   2. **Dashboard**: white fill, thin dark green border, dark green text. Links to `/review`.
@@ -46,7 +46,7 @@ Laptop layout (768 px and wider): two equal columns (50/50), max width 1200 px, 
 
 Page background on every page: about `#EEECE7` (`--brand-bg`).
 
-Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Today, Over time, then both buttons full width. Headings may wrap.
+Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Immediate impact, Long-term impact, then both buttons full width. Headings may wrap. The green line keeps its smaller size and wraps naturally.
 
 Colors come from `src/styles/brand.css`. Near black for this page is `--brand-ink-strong`.
 
