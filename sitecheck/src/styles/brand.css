@@ -14,6 +14,8 @@
   --brand-surface: #fafaf8;
   /* Main text */
   --brand-ink: #292826;
+  /* Near-black text on the landing page */
+  --brand-ink-strong: #1a1a1a;
   /* Secondary text */
   --brand-muted: #5f5d58;
   /* Borders and dividers */

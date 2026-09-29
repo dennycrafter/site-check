@@ -12,6 +12,7 @@
   --color-page: var(--brand-bg);
   --color-surface: var(--brand-surface);
   --color-ink: var(--brand-ink);
+  --color-ink-strong: var(--brand-ink-strong);
   --color-muted: var(--brand-muted);
   --color-line: var(--brand-border);
   --color-pass: var(--status-pass);

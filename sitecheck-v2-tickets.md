@@ -30,21 +30,31 @@ This continues `sitecheck-MASTER.md`. Tickets T0 to T4 are done and the app work
 
 ## T5: Landing page
 
-Replace `/` with this, top to bottom, centered, max width about 720 px:
+Replace `/` with this layout. It overrides the master doc rule about not using Base's brand colors, for this page only. The name SiteCheck and the "Hackathon prototype" footer stay so it never looks like an official Base page.
 
-- **SiteCheck** (large)
-- Guided site photos for home battery installs.
-- Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
-- Two goal blocks, side by side on laptop, stacked on phone:
-  - Small label **Today**. Heading **Get it right the first time.** Text: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
-  - Small label **Over time**. Heading **Every survey makes the next one smarter.** Text: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
-- One button: **Start**. For now it links to `/start`. (T9 changes it to `/demo`.)
+Laptop layout (768 px and wider), left aligned, max width 1152 px:
+
+- Top left: small **SiteCheck** name in dark green. No big title, no "Guided site photos for home battery installs." line.
+- Left column, top to bottom:
+  1. **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`).
+  2. Directly under it, smaller, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
+  3. Two boxes stacked, **Today** on top, **Over time** below. Same box style as before. Box width is just enough that "Get it right the first time." stays on one line at laptop width.
+     - Small label **Today** (unchanged grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
+     - Small label **Over time** (unchanged grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
+- Right column: two buttons stacked as a pair, vertically centered next to the two boxes:
+  1. **Start demo**: lime fill (about `#B5E07B`), dark green text. For now it links to `/start`. (T9 changes it to `/demo`.)
+  2. **Surveyor dashboard**: white fill, thin dark green border, dark green text. Links to `/review`.
 - Footer: Built for Base Power site surveys. Hackathon prototype.
+
+Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Today, Over time, then both buttons full width. Headings may wrap.
+
+Colors come from `src/styles/brand.css`. Near black for this page is `--brand-ink-strong`.
 
 Remove the QR code and the Surveyor queue link from this page. `/review` still works when typed directly. Keep the `qrcode` package (T9 uses it).
 
 Checks:
 - [ ] Page text matches the above exactly.
+- [ ] The two buttons sit side by side with the boxes on laptop, and stack in the order above on phone.
 - [ ] Looks right at 375 px and 1280 px wide. No console errors.
 - [ ] Search `src` for the em dash character: none found.
 
@@ -253,7 +263,7 @@ Create `public/demo/scenarios.json`:
 - `?live=1` on review pages: refresh the server data every 2 seconds (`router.refresh()` in a small client component) so the verdict and photos update as the homeowner goes. On the detail page, `?live=1` also shows a collapsed **Engine log** at the bottom: this home's photo rows, newest first, with time, step title, status, AI tries and latency in seconds. Data from the `photos` table only.
 - Under 900 px wide, `/demo` redirects to `/start` (real camera, normal form).
 - Small link under the phone: **Try it on your own phone**. It opens a QR code of `<origin>/start`.
-- Change the landing page **Start** button to link to `/demo`.
+- Change the landing page **Start demo** button to link to `/demo`.
 
 ### 9.5 Outage switch
 
