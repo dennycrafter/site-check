@@ -35,13 +35,13 @@ Replace `/` with this layout. It overrides the master doc rule about not using B
 Laptop layout (768 px and wider): max width 1200 px, centered, with generous side padding. The product name is written **site-check** (all lowercase) everywhere in the app UI, including the browser tab title.
 
 - Top left of the page: small **site-check** name in dark green. No big title, no "Guided site photos for home battery installs." line.
-- About 48 px below the name, full width, on one line: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), about 56 px with line height about 1.05. No forced line break. If it does not fit on one line at 1280 px, reduce the size until it does.
-- Directly under the headline, left aligned, smaller, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
-- Below that, two equal halves (50/50):
+- At least 48 px below the name, full width, on one line: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), about 56 px with line height about 1.05. No forced line break. If it does not fit on one line at 1280 px, reduce the size until it does.
+- Directly under the headline, left aligned, about 20 px, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
+- About 64 px below that, two equal halves (50/50). The whole block from the headline down is vertically centered in the space below the name, so there is no large empty band at the bottom:
   - Left: two goal blocks stacked, **Immediate impact** on top, **Long-term impact** below. No card: no background, border or shadow. Each is plain text on the page background with a 3 px orange vertical line (about `#EE7733`, used only for these two lines) along its left side.
     - Small label **Immediate impact** (grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
     - Small label **Long-term impact** (grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
-  - Right: two buttons stacked, centered horizontally in the right half and vertically against the two goal blocks. Each is about 260 px wide, 52 px tall, 17 px semibold text, 10 px corner radius, 12 px gap between them.
+  - Right: two buttons stacked, right-aligned so their right edge lines up with the right edge of the headline text, and centered vertically against the two goal blocks. Each is about 260 px wide, 52 px tall, 17 px semibold text, 10 px corner radius, 12 px gap between them.
     1. **Start demo**: lime fill (about `#B5E07B`), dark green text. For now it links to `/start`. (T9 changes it to `/demo`.)
     2. **Dashboard**: white fill, thin dark green border, dark green text. Links to `/review`.
 - Footer: Built for Base Power site surveys. Hackathon prototype.
