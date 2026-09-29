@@ -35,7 +35,7 @@ Replace `/` with this layout. It overrides the master doc rule about not using B
 Laptop layout (768 px and wider): max width 1200 px, centered, with generous side padding. The product name is written **site-check** (all lowercase) everywhere in the app UI, including the browser tab title.
 
 - Top left of the page: small **site-check** name in dark green. No big title, no "Guided site photos for home battery installs." line.
-- At least 48 px below the name, full width, on one line: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), about 56 px with line height about 1.05. No forced line break. If it does not fit on one line at 1280 px, reduce the size until it does.
+- At least 48 px below the name, full width, on one line: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), about 60 px with line height about 1.05. No forced line break. If it does not fit on one line at 1280 px, reduce the size until it does.
 - Directly under the headline, left aligned, about 20 px, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
 - About 64 px below that, two equal halves (50/50). The whole block from the headline down is vertically centered in the space below the name, so there is no large empty band at the bottom:
   - Left: two goal blocks stacked, **Immediate impact** on top, **Long-term impact** below. No card: no background, border or shadow. Each is plain text on the page background with a 3 px orange vertical line (about `#EE7733`, used only for these two lines) along its left side.
@@ -49,6 +49,8 @@ Laptop layout (768 px and wider): max width 1200 px, centered, with generous sid
 Page background on every page: about `#EEECE7` (`--brand-bg`).
 
 Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Immediate impact, Long-term impact, then both buttons full width. The green line keeps its smaller size and wraps naturally.
+
+Fonts: two only. Fraunces (`--brand-font-headline`) for the headline and the two goal headings, Geist for everything else. Laptop sizes: goal headings 22 px, goal body text 18 px, labels 14 px. Nothing is smaller than 14 px except the footer. Phone sizes are unchanged.
 
 Colors come from `src/styles/brand.css`. Near black for this page is `--brand-ink-strong`.
 
