@@ -15,7 +15,7 @@ const GOALS = [
 ];
 
 const BUTTON =
-  "inline-flex min-h-[52px] w-full items-center justify-center rounded-[10px] px-6 py-3 text-[17px] leading-tight font-semibold text-accent no-underline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent md:max-w-[260px]";
+  "inline-flex min-h-[52px] md:min-h-[56px] w-full items-center justify-center rounded-[10px] px-6 py-3 text-[17px] md:text-[18px] leading-tight font-semibold text-accent no-underline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent md:max-w-[280px]";
 
 export default function Home() {
   return (
