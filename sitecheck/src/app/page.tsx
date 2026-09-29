@@ -54,7 +54,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="flex flex-col gap-3 md:col-start-2 md:row-start-2 md:items-end md:justify-center md:[contain:inline-size]">
+            <div className="flex flex-col gap-3 md:col-start-2 md:row-start-2 md:items-center md:justify-center md:[contain:inline-size]">
               <Link
                 href="/start"
                 className={`${BUTTON} bg-lime hover:brightness-95`}
