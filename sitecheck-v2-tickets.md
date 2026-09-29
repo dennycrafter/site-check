@@ -76,6 +76,7 @@ In real use, Base already knows the customer and sends them a link. Simulate tha
   - **Hi {first name}.**
   - Let's photograph your meter and breaker box. About 5 minutes.
   - Three short lines with small check icons: Go out in daylight. / Unlock any gate near your meter. / Be ready to open your breaker box lid.
+  - Above the Begin button, the 3 phases in order as a short numbered list: 1. Your meter / 2. The space around it / 3. Your breaker box. Take the titles from the phase titles exported by `src/lib/steps.ts` so the two never drift apart.
   - Button **Begin**: calls the existing `POST /api/homes` with the four values, then goes to `/capture/[homeId]`. Carry any other URL parameters through to the capture URL (T9 adds `demo`).
 - If any parameter is missing or invalid, show the existing form (fallback for people trying it without a link).
 
@@ -87,11 +88,19 @@ Add `phase` to every step in `src/lib/steps.ts` and export the phase titles:
 |---|---|---|
 | 1 | Your meter | meter_area_wide, meter_closeup |
 | 2 | The space around it | left_of_meter, right_of_meter, adjacent_wall, behind_fence (when shown) |
-| 3 | Your breaker box | breaker box question (when shown), panel_wide (when shown), main_disconnect_closeup |
+| 3 | Your breaker box | breaker box question (when shown), panel_wide (when shown), panel_open (when shown), main_disconnect_closeup |
 
 Step order does not change. `planSteps` and `nextStep` keep their logic.
 
 Capture page header: replace "Step X of Y" with the phase title and a 3-segment bar (one segment per phase; the current segment fills as its shots finish). The bar never moves backwards when a conditional step appears.
+
+Under the phase title, show two short labels: **Part X of 3** (X is the phase number) and **Photo Y of Z**.
+
+- Z is the number of planned photos in that phase **when the phase starts** (the regular steps `planSteps` returns for that phase at that moment). Freeze it for the phase, and keep it for the tab session so a page reload does not change it. The breaker box question is not a photo and is not counted.
+- Y is the position of the current photo among those planned photos.
+- A conditional step that was not planned when the phase started (for example `behind_fence` once a fence is first seen in the left or right photo) does **not** change Z. Its title on the capture page reads **One extra photo: {step title}**. Its Y stays at Z, so it never reads higher than Z. A step the whole-site check asks for reads just **One extra photo**. If the conditional step was already planned when the phase started (for example a fence seen in `meter_area_wide`), it is an ordinary photo and counts in Z.
+- The breaker box question screen shows the phase title, Part 3 of 3 and the bar, without a Photo label.
+- The bar fills the current segment by finished planned photos divided by Z, so an extra photo cannot make it shrink.
 
 ### 6.3 Breaker box question
 
@@ -122,11 +131,17 @@ Never show the homeowner a verdict, battery count, hazard, or anything that soun
 
 On the final summary screen, tapping a photo opens that step again. The new photo is a new attempt with the normal checks and the 3-attempt limit. When it finishes, return to the summary. Hide the redo option on steps that already have 3 attempts.
 
+`POST /api/photos` accepts `redo: true` to take a new attempt on a step that is already finished (only while it has fewer than 3 attempts). Without it, a finished step still returns 409. The redo header shows the step's phase with a full bar.
+
 Checks:
 - [ ] `/start` with the four parameters shows the welcome screen and never the form. Without them it shows the form.
+- [ ] The welcome screen lists the 3 phases as a numbered list above Begin, in the order Your meter, The space around it, Your breaker box.
+- [ ] Every capture screen shows the phase title with "Part X of 3" and "Photo Y of Z" under it. Z does not change during a phase.
+- [ ] A conditional step that appears mid-phase is labeled "One extra photo: {step title}" and Z stays the same.
 - [ ] A full run on the deployed URL (upload fallback is fine) shows phase titles, a bar that never jumps back, and a "what we saw" line on each accepted photo.
 - [ ] The breaker box question appears when setup is `panel_indoors` (test with a meter photo that has no breaker box in view) and saves correctly.
-- [ ] `npx vitest run` passes, including the new `sawLine` tests.
+- [ ] Redo from the summary opens the step, returns to the summary, and is hidden on steps with 3 attempts.
+- [ ] `npx vitest run` passes, including the new `sawLine`, `phases` and `startLink` tests.
 
 ---
 

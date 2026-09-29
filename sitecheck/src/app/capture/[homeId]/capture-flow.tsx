@@ -8,7 +8,8 @@ import { Spinner } from "@/components/ui";
 import { useDialog } from "@/components/use-dialog";
 import { guideFor, type Guide } from "@/lib/guides";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
-import { getStep, MAX_ATTEMPTS } from "@/lib/steps";
+import { phaseProgress, plannedForPhase, stepLabel } from "@/lib/phases";
+import { getStep, MAX_ATTEMPTS, PHASE_COUNT, PHASE_TITLES, phaseOf, type Phase } from "@/lib/steps";
 import type { HomeProperty, PhotoStatus, SetupType } from "@/lib/types";
 import "@/styles/customer-flow.css";
 
@@ -40,13 +41,15 @@ type PhotoResult = {
   attempt: number;
   nextStep: string | null;
   canKeep?: boolean;
+  /** One short "what we saw" line for an accepted photo. */
+  saw?: string;
 };
 
 type Local =
   | { kind: "ready" }
   | { kind: "confirm"; preview: string; base64: string }
   | { kind: "checking"; preview: string }
-  | { kind: "accepted"; preview: string }
+  | { kind: "accepted"; preview: string; saw: string }
   | { kind: "retake"; preview: string; result: PhotoResult }
   | { kind: "held"; preview: string; result: PhotoResult }
   | { kind: "error"; message: string };
@@ -125,7 +128,7 @@ const SCREEN_HELP = {
   ],
   question: [
     "Think about which outside wall your meter is on.",
-    "If the breaker box is on the inside of that same wall, choose Yes.",
+    "If the breaker box is on the inside of that same wall, choose the first one.",
     "Not sure is a fine answer.",
   ],
 } as const;
@@ -145,6 +148,34 @@ function shouldWelcome(data: HomeData) {
 function shouldBreaker(data: HomeData) {
   if (!data.nextStep || !isPanelStep(data.nextStep)) return false;
   return !data.steps.some((step) => isPanelStep(step.id) && step.status !== "pending");
+}
+
+type PhasePlans = Partial<Record<Phase, string[]>>;
+
+const plansKey = (homeId: string) => `sc-phase-plans:${homeId}`;
+
+/** The photos planned when each phase started. Kept for the tab session so a reload does not change the counts. */
+function loadPlans(homeId: string): PhasePlans {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw: unknown = JSON.parse(window.sessionStorage.getItem(plansKey(homeId)) ?? "{}");
+    const plans: PhasePlans = {};
+    for (const phase of [1, 2, 3] as const) {
+      const list = raw && typeof raw === "object" ? (raw as Record<string, unknown>)[phase] : undefined;
+      if (Array.isArray(list) && list.every((id) => typeof id === "string")) plans[phase] = list;
+    }
+    return plans;
+  } catch {
+    return {};
+  }
+}
+
+function savePlans(homeId: string, plans: PhasePlans) {
+  try {
+    window.sessionStorage.setItem(plansKey(homeId), JSON.stringify(plans));
+  } catch {
+    // Private mode or storage full: the counts just stay in memory.
+  }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -176,6 +207,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [reviewIndex, setReviewIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [plans, setPlans] = useState<PhasePlans>(() => loadPlans(homeId));
+  const [redoStep, setRedoStep] = useState<string | null>(null);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const safetyPanel = useRef<HTMLDivElement>(null);
@@ -275,8 +308,21 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     return () => observer.disconnect();
   }, [cameraOpen]);
 
+  const flowStep = data ? (data.nextStep ?? redoStep) : null;
+  const stepId = flowStep && flowStep !== "question_5" && flowStep !== "site_check" ? flowStep : null;
+  const stepPhase = stepId ? phaseOf(stepId) : null;
+  const frozenPlan = stepPhase ? plans[stepPhase] : undefined;
+
+  if (data && stepPhase && !frozenPlan) {
+    setPlans({ ...plans, [stepPhase]: plannedForPhase(data.steps.map((item) => item.id), stepPhase) });
+  }
+
+  useEffect(() => {
+    savePlans(homeId, plans);
+  }, [homeId, plans]);
+
   const intro = !data ? null : introLocked ? introChoice : shouldWelcome(data) ? "welcome" : shouldBreaker(data) ? "breaker" : null;
-  const onReview = data?.home.status !== "submitted" && data?.nextStep === null && intro === null;
+  const onReview = data?.home.status !== "submitted" && data?.nextStep === null && redoStep === null && intro === null;
 
   useEffect(() => {
     if (!onReview) return;
@@ -294,7 +340,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   }, [onReview, data?.steps.length]);
 
   const modalOpen = safetyOpen || pickerOpen || cameraOpen;
-  const viewKey = `${intro ?? "flow"}:${data?.nextStep ?? ""}:${local.kind}:${data?.home.status ?? ""}`;
+  const viewKey = `${intro ?? "flow"}:${data?.nextStep ?? ""}:${redoStep ?? ""}:${local.kind}:${data?.home.status ?? ""}`;
   useEffect(() => {
     if (modalOpen) return;
     headingRef.current?.closest(".sc-content")?.scrollTo(0, 0);
@@ -330,12 +376,19 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
 
   function handoff(fromStep: string, fresh: HomeData) {
     setData(fresh);
+    setRedoStep(null);
     setLocal({ kind: "ready" });
     setKeepError(null);
     if (!isPanelStep(fromStep) && fresh.nextStep && isPanelStep(fresh.nextStep)) {
       setIntroChoice("breaker");
       setIntroLocked(true);
     }
+  }
+
+  function startRedo(id: string) {
+    setRedoStep(id);
+    setLocal({ kind: "ready" });
+    setKeepError(null);
   }
 
   function openCamera() {
@@ -425,7 +478,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       res = await fetch("/api/photos", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ homeId, step, imageBase64: base64 }),
+        body: JSON.stringify({ homeId, step, imageBase64: base64, ...(redoStep === step ? { redo: true } : {}) }),
       });
       body = await res.json().catch(() => ({}));
     } catch {
@@ -437,6 +490,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       const fresh = await fetchHome(homeId).catch(() => null);
       if (!alive.current || !fresh) return;
       setData(fresh);
+      setRedoStep(null);
       setIntroLocked(false);
       setLocal({ kind: "ready" });
       return;
@@ -453,8 +507,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       return;
     }
     if (result.status === "accepted") {
-      setLocal({ kind: "accepted", preview });
-      await sleep(900);
+      setLocal({ kind: "accepted", preview, saw: result.saw ?? "Got it." });
+      await sleep(1400);
       if (!alive.current || token !== sendToken.current) return;
       try {
         handoff(step, await fetchHome(homeId));
@@ -517,7 +571,6 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     }
   }
 
-  const stepId = data?.nextStep && data.nextStep !== "question_5" && data.nextStep !== "site_check" ? data.nextStep : null;
   const step = data && stepId ? getStep(stepId, data.home.extra_steps) : null;
   const guide = step ? guideFor(step.id) : undefined;
 
@@ -528,6 +581,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         setKeepError(null);
         setLocal({ kind: "ready" });
       };
+    } else if (local.kind === "ready" && redoStep !== null && data.nextStep === null) {
+      back = () => setRedoStep(null);
     } else if (local.kind === "ready") {
       const firstPanel = data.steps.find((item) => isPanelStep(item.id));
       if (firstPanel && step.id === firstPanel.id) back = () => goIntro("breaker");
@@ -651,7 +706,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   if (data.nextStep === "question_5") return <Question5 homeId={homeId} onDone={load} />;
   if (data.nextStep === "site_check") return <SiteCheckScreen homeId={homeId} onDone={load} />;
 
-  if (data.nextStep === null) {
+  if (data.nextStep === null && redoStep === null) {
     const total = data.steps.length;
     const index = total === 0 ? 0 : reviewIndex % total;
     const current = data.steps[index];
@@ -678,13 +733,22 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
           <div className="sc-review">
             <div className="sc-review-viewer">
               <IconButton label="Previous photo" direction="left" onClick={() => setReviewIndex((currentIndex) => (currentIndex + total - 1) % total)} />
-              <div className="sc-review-photo">
-                {current.thumbnailUrl ? (
+              {current.thumbnailUrl && current.attempts < MAX_ATTEMPTS ? (
+                <button type="button" className="sc-review-photo sc-review-redo" aria-label={`Retake ${current.title}`} onClick={() => startRedo(current.id)}>
                   <img src={current.thumbnailUrl} alt={current.title} />
-                ) : (
-                  <div className="sc-review-empty" role="img" aria-label={`${current.title} is missing`} />
-                )}
-              </div>
+                  <span className="sc-review-redo-chip" aria-hidden="true">
+                    Tap to retake
+                  </span>
+                </button>
+              ) : (
+                <div className="sc-review-photo">
+                  {current.thumbnailUrl ? (
+                    <img src={current.thumbnailUrl} alt={current.title} />
+                  ) : (
+                    <div className="sc-review-empty" role="img" aria-label={`${current.title} is missing`} />
+                  )}
+                </div>
+              )}
               <IconButton label="Next photo" direction="right" onClick={() => setReviewIndex((currentIndex) => (currentIndex + 1) % total)} />
             </div>
             <p className="sc-review-caption" aria-live="polite">
@@ -717,37 +781,32 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
 
   const shown = SHOWN[step.id] ?? step.instruction;
   const preview = "preview" in local ? local.preview : null;
+  const planned = frozenPlan ?? plannedForPhase(data.steps.map((item) => item.id), phaseOf(step.id));
+  const progressInfo = phaseProgress(
+    step.id,
+    planned,
+    (id) => data.steps.find((item) => item.id === id)?.status ?? "pending",
+    redoStep === step.id && data.nextStep === null,
+  );
+  const stepName = stepLabel(step.id, step.title, progressInfo.extra);
   const title =
     local.kind === "confirm"
       ? "Use this photo?"
       : local.kind === "checking"
         ? "Checking your photo"
         : local.kind === "accepted"
-          ? "Looks good"
+          ? local.saw
           : local.kind === "retake"
             ? "Let's try that photo again"
-            : step.title;
+            : stepName;
 
-  const stepNumber = data.steps.findIndex((item) => item.id === step.id) + 1;
-  const stepCount = data.steps.length;
-  const progress =
-    stepNumber > 0 ? (
-      <div className="sc-progress">
-        <p className="sc-progress-label">
-          Step {stepNumber} of {stepCount}
-        </p>
-        <div
-          className="sc-progress-track"
-          role="progressbar"
-          aria-label={`Step ${stepNumber} of ${stepCount}`}
-          aria-valuemin={1}
-          aria-valuemax={stepCount}
-          aria-valuenow={stepNumber}
-        >
-          <div className="sc-progress-fill" style={{ width: `${(stepNumber / stepCount) * 100}%` }} />
-        </div>
-      </div>
-    ) : null;
+  const progress = (
+    <PhaseHeader
+      phase={progressInfo.phase}
+      segments={progressInfo.segments}
+      photo={progressInfo.photoCount > 0 ? { y: progressInfo.photo, z: progressInfo.photoCount } : null}
+    />
+  );
 
   return (
     <Frame
@@ -807,7 +866,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                 <div className="sc-camera-bar">
                   <TopBack onClick={closeCamera} />
                   <h2 id="camera-title" ref={cameraHeading} tabIndex={-1}>
-                    {step.title}
+                    {stepName}
                   </h2>
                 </div>
                 <p className="sc-camera-hint">{shown}</p>
@@ -875,6 +934,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                   .then((fresh) => {
                     if (!alive.current) return;
                     setData(fresh);
+                    setRedoStep(null);
                     setIntroLocked(false);
                     setLocal({ kind: "ready" });
                   })
@@ -919,10 +979,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                     <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
-                <p className="sc-accepted-text">Looks good</p>
               </div>
             </div>
-            <p>That photo is in.</p>
           </>
         )}
         {local.kind === "retake" && (
@@ -1064,6 +1122,38 @@ function Example({ guide, title }: { guide: Guide; title: string }) {
     <div role="img" aria-label={`Example: ${title}. ${guide.angle}`} className={`sc-example sc-example-${guide.image}`}>
       <span className="sc-example-label">Example photo</span>
       <div className={`sc-guide sc-guide-${guide.guide}`} />
+    </div>
+  );
+}
+
+function PhaseHeader({ phase, segments, photo }: { phase: Phase; segments: number[]; photo: { y: number; z: number } | null }) {
+  return (
+    <div className="sc-progress">
+      <p className="sc-progress-phase">{PHASE_TITLES[phase]}</p>
+      <p className="sc-progress-label">
+        <span>
+          Part {phase} of {PHASE_COUNT}
+        </span>
+        {photo && (
+          <span>
+            Photo {photo.y} of {photo.z}
+          </span>
+        )}
+      </p>
+      <div
+        className="sc-progress-bar"
+        role="progressbar"
+        aria-label={`Part ${phase} of ${PHASE_COUNT}`}
+        aria-valuemin={0}
+        aria-valuemax={PHASE_COUNT}
+        aria-valuenow={Math.round(segments.reduce((sum, value) => sum + value, 0) * 100) / 100}
+      >
+        {segments.map((fill, index) => (
+          <div key={index} className="sc-progress-seg">
+            <div className="sc-progress-fill" style={{ width: `${fill * 100}%` }} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1277,17 +1367,22 @@ function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<H
   }
 
   const options: Array<["yes" | "no" | "not_sure", string]> = [
-    ["yes", "Yes"],
-    ["no", "No"],
+    ["yes", "Inside, right behind the meter wall"],
+    ["no", "Inside, somewhere else"],
     ["not_sure", "Not sure"],
   ];
 
   return (
-    <Frame stage="flow" headingRef={headingRef} title="One quick question" help={{ tips: SCREEN_HELP.question }}>
-      <p>Your breaker box looks like it is inside the house.</p>
-      <p>Is your breaker box on the other side of the same wall as your meter?</p>
+    <Frame
+      stage="flow"
+      headingRef={headingRef}
+      title="Where's your breaker box?"
+      progress={<PhaseHeader phase={3} segments={[1, 1, 0]} photo={null} />}
+      help={{ tips: SCREEN_HELP.question }}
+    >
+      <p>We couldn&apos;t see it next to your meter.</p>
       {options.map(([value, label]) => (
-        <button key={value} type="button" className="sc-option" onClick={() => void answer(value)} disabled={busy !== null}>
+        <button key={value} type="button" className="sc-option sc-option-large" onClick={() => void answer(value)} disabled={busy !== null}>
           {busy === value ? "Saving..." : label}
         </button>
       ))}

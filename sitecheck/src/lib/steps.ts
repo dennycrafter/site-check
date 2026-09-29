@@ -25,9 +25,20 @@ export type OutlineId =
   | "rect_large"
   | "tall_center";
 
+export type Phase = 1 | 2 | 3;
+
+export const PHASE_TITLES: Record<Phase, string> = {
+  1: "Your meter",
+  2: "The space around it",
+  3: "Your breaker box",
+};
+
+export const PHASE_COUNT = 3;
+
 export type Step = {
   /** A StepId, or extra_<n> for photos the whole-site check asked for. */
   id: string;
+  phase: Phase;
   title: string;
   instruction: string;
   outline: OutlineId;
@@ -44,6 +55,7 @@ export type Step = {
 export const STEPS: Step[] = [
   {
     id: "meter_area_wide",
+    phase: 1,
     help: [
       "Back up until the whole wall and the ground fit.",
       "Daylight works best. Use flash if it is dark.",
@@ -71,6 +83,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "meter_closeup",
+    phase: 1,
     help: [
       "Stand straight in front of the meter.",
       "Get close enough to read the numbers.",
@@ -91,6 +104,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "left_of_meter",
+    phase: 2,
     help: [
       "Stand to the left of the meter and step back.",
       "The meter should sit at the right edge of the photo.",
@@ -115,6 +129,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "right_of_meter",
+    phase: 2,
     help: [
       "Stand to the right of the meter and step back.",
       "The meter should sit at the left edge of the photo.",
@@ -139,6 +154,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "adjacent_wall",
+    phase: 2,
     help: [
       "Walk to the nearest corner of the house.",
       "Fit that whole wall, from corner to corner.",
@@ -162,6 +178,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "behind_fence",
+    phase: 2,
     help: [
       "Look over or through the gate if it is safe.",
       "Show the whole area, from corner to corner.",
@@ -184,6 +201,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "panel_wide",
+    phase: 3,
     help: [
       "Step back so we can see where the box is.",
       "Show the wall, garage or closet around it.",
@@ -204,6 +222,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "panel_open",
+    phase: 3,
     help: [
       "Open only the hinged door.",
       "Fit all the switches in the photo.",
@@ -219,6 +238,7 @@ export const STEPS: Step[] = [
   },
   {
     id: "main_disconnect_closeup",
+    phase: 3,
     help: [
       "Look for the biggest switch, often at the top.",
       "Get close so the number, like 150 or 200, is readable.",
@@ -270,6 +290,7 @@ export function getStep(id: string, extraSteps: Pick<ExtraStep, "id" | "instruct
   if (!extra) return null;
   return {
     id,
+    phase: 3,
     title: EXTRA_STEP_TITLE,
     instruction: extra.instruction,
     outline: "corner_markers",
@@ -283,6 +304,11 @@ export function getStep(id: string, extraSteps: Pick<ExtraStep, "id" | "instruct
 export function stepTitle(id: string): string {
   if (isStepId(id)) return STEP_BY_ID[id].title;
   return isExtraStepId(id) ? EXTRA_STEP_TITLE : id;
+}
+
+/** Phase of any step id. Extra steps from the whole-site check come after everything else, so they belong to the last phase. */
+export function phaseOf(id: string): Phase {
+  return isStepId(id) ? STEP_BY_ID[id].phase : 3;
 }
 
 export function baseSlotFor(id: string): string {
