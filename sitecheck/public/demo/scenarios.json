@@ -1,0 +1,29 @@
+{
+  "good": {
+    "label": "Good home",
+    "customer": { "name": "Denis Lee", "email": "jordan@example.com", "inAustin": true, "hasSolar": false },
+    "steps": {
+      "meter_area_wide": ["meter-wide"],
+      "meter_closeup": ["meter-close"],
+      "left_of_meter": ["left"],
+      "right_of_meter": ["right"],
+      "adjacent_wall": ["corner"],
+      "behind_fence": ["fence"],
+      "panel_wide": ["panel-wide"],
+      "main_disconnect_closeup": ["main-switch"]
+    }
+  },
+  "retakes": {
+    "label": "Needs retakes",
+    "customer": { "name": "Denis Ortiz", "email": "sam@example.com", "inAustin": true, "hasSolar": false },
+    "steps": {
+      "meter_closeup": ["meter-close-dark", "meter-close"],
+      "main_disconnect_closeup": ["main-switch-lid-closed", "main-switch"]
+    }
+  },
+  "fail": {
+    "label": "Doesn't qualify",
+    "customer": { "name": "Denis Chen", "email": "riley@example.com", "inAustin": true, "hasSolar": true },
+    "steps": {}
+  }
+}

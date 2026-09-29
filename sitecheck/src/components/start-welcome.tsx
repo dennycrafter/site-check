@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Spinner } from "@/components/ui";
 import { PHASE_TITLES } from "@/lib/steps";
-import type { StartLink } from "@/lib/startLink";
+import { welcomedKey, type StartLink } from "@/lib/startLink";
 import "@/styles/customer-flow.css";
 
 const TIPS = ["Go out in daylight.", "Unlock any gate near your meter.", "Be ready to open your breaker box lid."];
@@ -42,6 +42,11 @@ export function StartWelcome({ link }: { link: StartLink }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.id) throw new Error(data.error ?? CREATE_ERROR);
+      try {
+        window.sessionStorage.setItem(welcomedKey(data.id), "1");
+      } catch {
+        // Without storage the customer just sees the capture welcome as well.
+      }
       router.push(`/capture/${data.id}${link.extra ? `?${link.extra}` : ""}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : CREATE_ERROR);
@@ -63,7 +68,10 @@ export function StartWelcome({ link }: { link: StartLink }) {
               </li>
             ))}
           </ul>
-          <ol className="sc-phase-list" aria-label="The three parts">
+          <p className="sc-phase-label" id="phase-list-label">
+            3 short parts
+          </p>
+          <ol className="sc-phase-list" aria-labelledby="phase-list-label">
             {Object.values(PHASE_TITLES).map((title) => (
               <li key={title}>{title}</li>
             ))}

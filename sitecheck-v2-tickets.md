@@ -76,9 +76,10 @@ In real use, Base already knows the customer and sends them a link. Simulate tha
   - **Hi {first name}.**
   - Let's photograph your meter and breaker box. About 5 minutes.
   - Three short lines with small check icons: Go out in daylight. / Unlock any gate near your meter. / Be ready to open your breaker box lid.
-  - Above the Begin button, the 3 phases in order as a short numbered list: 1. Your meter / 2. The space around it / 3. Your breaker box. Take the titles from the phase titles exported by `src/lib/steps.ts` so the two never drift apart.
+  - Above the Begin button, a small grey label **3 short parts** (same style as the landing page goal labels) and the 3 phases in order as a short numbered list: 1. Your meter / 2. The space around it / 3. Your breaker box. Take the titles from the phase titles exported by `src/lib/steps.ts` so the two never drift apart.
   - Button **Begin**: calls the existing `POST /api/homes` with the four values, then goes to `/capture/[homeId]`. Carry any other URL parameters through to the capture URL (T9 adds `demo`).
 - If any parameter is missing or invalid, show the existing form (fallback for people trying it without a link).
+- The customer has been welcomed already, so the capture page skips its own "Let's check your home" screen: after the map step it goes straight to the safety dialog, then Find your meter. Begin sets a per-tab flag for this; people who arrive without the welcome link keep the capture welcome.
 
 ### 6.2 Phases
 

@@ -39,3 +39,6 @@ export function parseStartLink(params: Params): StartLink | null {
   }
   return { name, firstName: name.split(/\s+/)[0], email, inAustin, hasSolar, extra: extra.toString() };
 }
+
+/** Set in the tab when the customer taps Begin on the /start welcome, so the capture page does not welcome them twice. */
+export const welcomedKey = (homeId: string) => `sc-welcomed:${homeId}`;

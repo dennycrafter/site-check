@@ -253,3 +253,4 @@
 .sc-root .sc-option-large{min-height:64px;padding:16px;font-size:19px;font-weight:600;text-align:left}
 .sc-root .sc-review-redo{position:relative;padding:0;border:0;background:none;cursor:pointer;min-height:0}
 .sc-root .sc-review-redo-chip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--brand-surface) 94%,transparent);color:var(--brand-green);font-size:15px;font-weight:600;white-space:nowrap;box-shadow:0 1px 6px color-mix(in srgb,var(--brand-ink) 25%,transparent)}
+.sc-root .sc-phase-label{margin:0 0 8px;font-size:var(--text-small);line-height:1.3;font-weight:600;color:var(--brand-muted)}
