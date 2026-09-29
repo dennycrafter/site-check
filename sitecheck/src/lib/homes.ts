@@ -3,9 +3,11 @@ import {
   deriveSetupType,
   latestFinishedByStep,
   latestPhotoByStep,
+  photosFingerprint,
   planSteps,
 } from "./plan";
 import { evaluate, type RulesPhoto } from "./rules";
+import { sawLine } from "./sawLine";
 import { getStep, stepTitle } from "./steps";
 import { getSupabase, signedUrls } from "./supabase";
 import type { HomeRow, PhotoRow, PhotoStatus } from "./types";
@@ -35,11 +37,30 @@ export function rulesPhotos(photos: PhotoRow[]): RulesPhoto[] {
   }));
 }
 
-/** Re-derives setup type and re-runs the rules engine, then saves both on the home. */
+const MAX_RECOMPUTE_PASSES = 3;
+
+/**
+ * Re-derives setup type and re-runs the rules engine on photos read fresh from the database, then
+ * saves both on the home. Several photo checks can finish at once and each recomputes, so after
+ * saving it reads the photo rows again: if another request changed them in between, this save may
+ * be stale and the pass runs again.
+ */
 export async function recomputeHome(
   homeId: string,
   extra: Partial<HomeRow> = {},
 ): Promise<{ home: HomeRow; photos: PhotoRow[] }> {
+  let saved = await recomputeOnce(homeId, extra);
+  for (let pass = 1; pass < MAX_RECOMPUTE_PASSES; pass++) {
+    const { data, error } = await getSupabase().from("photos").select("id, status").eq("home_id", homeId);
+    if (error) throw new Error(`Load photos failed: ${error.message}`);
+    if (photosFingerprint(data ?? []) === photosFingerprint(saved.photos)) break;
+    console.log(`[recompute] home=${homeId} photos changed during pass ${pass}, recomputing`);
+    saved = await recomputeOnce(homeId, extra);
+  }
+  return saved;
+}
+
+async function recomputeOnce(homeId: string, extra: Partial<HomeRow>): Promise<{ home: HomeRow; photos: PhotoRow[] }> {
   const loaded = await loadHome(homeId);
   if (!loaded) throw new Error(`Home ${homeId} not found`);
   const { home, photos } = loaded;
@@ -76,6 +97,8 @@ export type StepView = {
   status: PhotoStatus | "pending";
   attempts: number;
   thumbnailUrl: string | null;
+  /** The "what we saw" line of an accepted photo. */
+  saw?: string;
 };
 
 export async function buildStepViews(home: HomeRow, photos: PhotoRow[]): Promise<StepView[]> {
@@ -90,6 +113,7 @@ export async function buildStepViews(home: HomeRow, photos: PhotoRow[]): Promise
       status: photo?.status ?? "pending",
       attempts: photos.filter((p) => p.step === id).length,
       thumbnailUrl: photo ? (urls[photo.storage_path] ?? null) : null,
+      ...(photo?.status === "accepted" ? { saw: sawLine(id, photo.analysis) } : {}),
     };
   });
 }

@@ -1,7 +1,10 @@
 import { isExtraStepId, isStepId, PHASE_COUNT, phaseOf, type Phase } from "./steps";
 import type { PhotoStatus } from "./types";
 
-const FINISHED: Array<PhotoStatus | "pending"> = ["accepted", "check_failed", "accepted_after_max_attempts"];
+/** "sent" is a photo taken inside a phase whose check has not come back yet. It counts as done for the bar. */
+export type ShotStatus = PhotoStatus | "pending" | "sent";
+
+const DONE: ShotStatus[] = ["accepted", "check_failed", "accepted_after_max_attempts", "sent"];
 
 /**
  * The photos planned for a phase at the moment it starts: the regular steps that phase has in the
@@ -25,23 +28,33 @@ export type PhaseProgress = {
   segments: number[];
 };
 
+/** The bar: earlier phases full, the current one filled by its done planned photos over Z, later ones empty. */
+export function phaseSegments(
+  phase: Phase,
+  planned: string[],
+  statusOf: (id: string) => ShotStatus,
+  redo = false,
+): number[] {
+  const done = planned.filter((id) => DONE.includes(statusOf(id))).length;
+  return Array.from({ length: PHASE_COUNT }, (_, i) => {
+    const number = i + 1;
+    if (redo || number < phase) return 1;
+    if (number > phase) return 0;
+    return planned.length === 0 ? 0 : Math.min(done, planned.length) / planned.length;
+  });
+}
+
 export function phaseProgress(
   stepId: string,
   planned: string[],
-  statusOf: (id: string) => PhotoStatus | "pending",
+  statusOf: (id: string) => ShotStatus,
   redo = false,
 ): PhaseProgress {
   const phase = phaseOf(stepId);
   const index = planned.indexOf(stepId);
   const extra = index === -1;
   const photoCount = planned.length;
-  const finished = planned.filter((id) => FINISHED.includes(statusOf(id))).length;
-  const segments = Array.from({ length: PHASE_COUNT }, (_, i) => {
-    const number = i + 1;
-    if (redo || number < phase) return 1;
-    if (number > phase) return 0;
-    return photoCount === 0 ? 0 : Math.min(finished, photoCount) / photoCount;
-  });
+  const segments = phaseSegments(phase, planned, statusOf, redo);
   return {
     phase,
     part: phase,

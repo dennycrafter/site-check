@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveSetupType, type PlanPhoto } from "./plan";
+import { deriveSetupType, photosFingerprint, type PlanPhoto } from "./plan";
 import type { PhotoAnalysis } from "./schema";
 import { GOOD_ANALYSIS } from "./testing";
 
@@ -50,5 +50,15 @@ describe("deriveSetupType", () => {
         photo("left_of_meter", "accepted", "separate_meter_and_panel_outdoors"),
       ]),
     ).toBe("unknown");
+  });
+});
+
+describe("photosFingerprint", () => {
+  it("ignores row order and changes when a photo is added or its status changes", () => {
+    const a = { id: "a", status: "accepted" as const };
+    const b = { id: "b", status: "retake" as const };
+    expect(photosFingerprint([a, b])).toBe(photosFingerprint([b, a]));
+    expect(photosFingerprint([a])).not.toBe(photosFingerprint([a, b]));
+    expect(photosFingerprint([a, b])).not.toBe(photosFingerprint([a, { ...b, status: "accepted_after_max_attempts" }]));
   });
 });
