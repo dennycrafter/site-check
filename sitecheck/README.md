@@ -15,8 +15,8 @@ https://sitecheck-sigma.vercel.app
 You need Node.js LTS (version 20 or newer).
 
 ```bash
-git clone https://github.com/dennycrafter/base-home-check.git
-cd base-home-check/sitecheck
+git clone https://github.com/dennycrafter/site-check.git
+cd site-check/sitecheck
 npm install
 cp .env.example .env.local   # on Windows: copy .env.example .env.local
 ```
