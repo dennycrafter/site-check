@@ -235,3 +235,21 @@
 .sc-root .sc-sheet-actions .sc-option{margin-top:0}
 @keyframes sc-sheet-in{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
 @media(prefers-reduced-motion:reduce){.sc-sheet{animation:none}}
+
+/* Welcome from the customer link: tips and the three parts */
+.sc-root .sc-tips{list-style:none;margin:0 0 24px;padding:0;display:grid;gap:14px}
+.sc-root .sc-tips li{display:flex;align-items:center;gap:12px;font-size:19px;line-height:1.35}
+.sc-root .sc-tip-icon{flex:0 0 auto}
+.sc-root .sc-phase-list{list-style:decimal outside;margin:0;padding:0 0 0 28px;display:grid;gap:8px;font-size:19px;line-height:1.35;font-weight:600;color:var(--brand-green)}
+.sc-root .sc-phase-list li::marker{color:var(--brand-muted);font-weight:600}
+
+/* Phase header: title, "Part X of 3", "Photo Y of Z" and a 3-segment bar */
+.sc-root .sc-progress-phase{margin:0 0 2px;font-size:20px;line-height:1.25;font-weight:750;letter-spacing:-.3px;color:var(--brand-green)}
+.sc-root .sc-progress-label{display:flex;flex-wrap:wrap;gap:0 14px;margin:0 0 8px}
+.sc-progress-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.sc-progress-seg{height:4px;border-radius:999px;background:var(--brand-border);overflow:hidden}
+
+/* Question and summary */
+.sc-root .sc-option-large{min-height:64px;padding:16px;font-size:19px;font-weight:600;text-align:left}
+.sc-root .sc-review-redo{position:relative;padding:0;border:0;background:none;cursor:pointer;min-height:0}
+.sc-root .sc-review-redo-chip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);padding:6px 12px;border-radius:999px;background:color-mix(in srgb,var(--brand-surface) 94%,transparent);color:var(--brand-green);font-size:15px;font-weight:600;white-space:nowrap;box-shadow:0 1px 6px color-mix(in srgb,var(--brand-ink) 25%,transparent)}

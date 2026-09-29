@@ -5,6 +5,7 @@ import { analyzePhoto } from "@/lib/analyze";
 import { canKeep, decidePhoto, MESSAGES } from "@/lib/decide";
 import { loadHome, recomputeHome } from "@/lib/homes";
 import { isFinished, latestPhotoByStep, nextStep, planSteps } from "@/lib/plan";
+import { sawLine } from "@/lib/sawLine";
 import { getStep, isExtraStepId, isStepId, MAX_ATTEMPTS } from "@/lib/steps";
 import { getSupabase, PHOTO_BUCKET } from "@/lib/supabase";
 import type { PhotoStatus } from "@/lib/types";
@@ -18,6 +19,8 @@ const PhotoBodyZod = z.object({
   homeId: HomeIdZod,
   step: z.string().refine((s) => isStepId(s) || isExtraStepId(s)),
   imageBase64: z.string().min(100).max(MAX_BASE64_CHARS),
+  /** The homeowner tapped a finished photo on the summary to take it again. */
+  redo: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -40,7 +43,9 @@ export async function POST(request: Request) {
     if (!stepDef || !planSteps(home, photos).includes(step)) {
       return jsonError(409, "This step is not needed for your home.", { nextStep: nextStep(home, photos) });
     }
-    if (isFinished(latestPhotoByStep(photos).get(step)?.status)) {
+    const attemptsSoFar = photos.filter((p) => p.step === step).length;
+    const finished = isFinished(latestPhotoByStep(photos).get(step)?.status);
+    if (finished && !(body.data.redo && attemptsSoFar < MAX_ATTEMPTS)) {
       return jsonError(409, "This step is already done.", { nextStep: nextStep(home, photos) });
     }
 
@@ -105,7 +110,8 @@ export async function POST(request: Request) {
       const keepable = canKeep(attempt, result.ok ? result.analysis : null);
       return NextResponse.json({ status, message, attempt, nextStep: next, canKeep: keepable });
     }
-    return NextResponse.json({ status, message, attempt, nextStep: next });
+    const saw = status === "accepted" ? sawLine(step, result.ok ? result.analysis : null) : undefined;
+    return NextResponse.json({ status, message, attempt, nextStep: next, ...(saw ? { saw } : {}) });
   } catch (err) {
     return serverError("photos", err);
   }
