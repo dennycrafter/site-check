@@ -10,6 +10,7 @@ import { guideFor, type Guide } from "@/lib/guides";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
 import { phaseProgress, plannedForPhase, stepLabel } from "@/lib/phases";
 import { getStep, MAX_ATTEMPTS, PHASE_COUNT, PHASE_TITLES, phaseOf, type Phase } from "@/lib/steps";
+import { welcomedKey } from "@/lib/startLink";
 import type { HomeProperty, PhotoStatus, SetupType } from "@/lib/types";
 import "@/styles/customer-flow.css";
 
@@ -170,6 +171,16 @@ function loadPlans(homeId: string): PhasePlans {
   }
 }
 
+/** True when the customer came through the /start welcome screen, which already did the welcoming. */
+function readWelcomed(homeId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(welcomedKey(homeId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function savePlans(homeId: string, plans: PhasePlans) {
   try {
     window.sessionStorage.setItem(plansKey(homeId), JSON.stringify(plans));
@@ -209,6 +220,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [plans, setPlans] = useState<PhasePlans>(() => loadPlans(homeId));
   const [redoStep, setRedoStep] = useState<string | null>(null);
+  const [welcomed] = useState(() => readWelcomed(homeId));
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const safetyPanel = useRef<HTMLDivElement>(null);
@@ -238,7 +250,6 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     setCameraOpen(false);
   }, []);
 
-  useDialog(safetyOpen, safetyPanel, safetyHeading, closeSafety);
   useDialog(pickerOpen, photoPanel, photoHeading, closePicker, suppressPhotoFocusRestore);
   useDialog(cameraOpen, cameraPanel, cameraHeading, closeCamera);
 
@@ -339,7 +350,11 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onReview, data?.steps.length]);
 
-  const modalOpen = safetyOpen || pickerOpen || cameraOpen;
+  const skipWelcome = welcomed && intro === "welcome";
+  const safetyShown = safetyOpen || skipWelcome;
+  useDialog(safetyShown, safetyPanel, safetyHeading, closeSafety);
+
+  const modalOpen = safetyShown || pickerOpen || cameraOpen;
   const viewKey = `${intro ?? "flow"}:${data?.nextStep ?? ""}:${redoStep ?? ""}:${local.kind}:${data?.home.status ?? ""}`;
   useEffect(() => {
     if (modalOpen) return;
@@ -654,6 +669,20 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     );
   }
 
+  if (skipWelcome) {
+    return (
+      <Frame
+        stage="welcome"
+        inert
+        overlay={
+          <SafetyDialog panelRef={safetyPanel} headingRef={safetyHeading} onAccept={() => goIntro("meter")} />
+        }
+      >
+        {null}
+      </Frame>
+    );
+  }
+
   if (intro === "welcome") {
     return (
       <Frame
@@ -694,7 +723,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       <Frame
         stage="find"
         headingRef={headingRef}
-        back={intro === "meter" ? () => goIntro("welcome") : null}
+        back={intro === "meter" && !welcomed ? () => goIntro("welcome") : null}
         help={{ tips: intro === "meter" ? SCREEN_HELP.meter : combo ? SCREEN_HELP.combo : SCREEN_HELP.breaker }}
         actions={<Primary onClick={() => goIntro(null)}>{copy.action}</Primary>}
       >
@@ -1205,18 +1234,19 @@ function SafetyDialog({
 }: {
   panelRef: RefObject<HTMLDivElement | null>;
   headingRef: RefObject<HTMLHeadingElement | null>;
-  onClose: () => void;
+  /** Left out when there is no screen behind the dialog to go back to. */
+  onClose?: () => void;
   onAccept: () => void;
 }) {
   return (
     <div
       className="sc-modal-backdrop"
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) onClose?.();
       }}
     >
       <div className="sc-safety-modal" role="dialog" aria-modal="true" aria-labelledby="safety-title" ref={panelRef}>
-        <TopBack onClick={onClose} />
+        {onClose && <TopBack onClick={onClose} />}
         <h2 id="safety-title" ref={headingRef} tabIndex={-1}>
           A quick safety check
         </h2>
