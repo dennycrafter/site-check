@@ -28,7 +28,7 @@ export default function Home() {
         <div className="mt-10 md:mt-12 md:flex md:flex-1 md:items-center">
           <div className="grid w-full gap-x-16 gap-y-6 md:w-max md:max-w-full md:grid-cols-2 md:gap-y-16">
             <div className="md:col-span-2 md:row-start-1">
-              <h1 className="ui-hero text-accent font-headline font-semibold md:whitespace-nowrap md:text-[60px] md:leading-[1.05]">
+              <h1 className="ui-hero text-accent md:whitespace-nowrap md:text-[60px] md:leading-[1.05]">
                 Guided photo checks for site surveys.
               </h1>
               <p className="ui-lead mt-4 text-[length:var(--text-muted)] text-ink-strong md:text-[20px]">
@@ -44,7 +44,7 @@ export default function Home() {
                   className="border-l-[3px] border-[var(--brand-orange)] pl-5"
                 >
                   <p className="ui-eyebrow md:text-[14px]">{g.label}</p>
-                  <h2 className="ui-subtitle font-headline font-semibold md:text-[22px] text-accent">
+                  <h2 className="ui-subtitle md:text-[22px] text-accent">
                     {g.heading}
                   </h2>
                   <p className="mt-3 text-[length:var(--text-muted)] leading-normal text-ink-strong md:text-[18px]">

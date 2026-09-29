@@ -50,7 +50,7 @@ Page background on every page: about `#EEECE7` (`--brand-bg`).
 
 Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Immediate impact, Long-term impact, then both buttons full width. The green line keeps its smaller size and wraps naturally.
 
-Fonts: two only. Fraunces (`--brand-font-headline`) for the headline and the two goal headings, Geist for everything else. Laptop sizes: goal headings 22 px, goal body text 18 px, labels 14 px. Nothing is smaller than 14 px except the footer. Phone sizes are unchanged.
+Font: one only, Geist, for everything. Weights: headline and goal headings 750, buttons and labels 600, body text 400. Laptop sizes: headline 60 px, homeowners line 20 px, buttons 17 px, goal headings 22 px, goal body text 18 px, labels 14 px, footer 14 px. Nothing is smaller than 14 px except the footer. Phone sizes are unchanged.
 
 Colors come from `src/styles/brand.css`. Near black for this page is `--brand-ink-strong`.
 

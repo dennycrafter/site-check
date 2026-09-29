@@ -1,10 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Geist } from "next/font/google";
+import { Geist } from "next/font/google";
 import { BRAND } from "@/lib/brand";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces" });
 
 export const metadata: Metadata = {
   title: "site-check",
@@ -19,7 +18,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geist.variable} ${fraunces.variable} h-full antialiased`}>
+    <html lang="en" className={`${geist.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>
   );
