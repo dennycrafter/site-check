@@ -32,19 +32,19 @@ This continues `sitecheck-MASTER.md`. Tickets T0 to T4 are done and the app work
 
 Replace `/` with this layout. It overrides the master doc rule about not using Base's brand colors, for this page only. The name SiteCheck and the "Hackathon prototype" footer stay so it never looks like an official Base page.
 
-Laptop layout (768 px and wider), left aligned, max width 1152 px:
+Laptop layout (768 px and wider): two equal columns (50/50), max width 1200 px, centered, with generous side padding. The content is vertically centered in the screen height. The product name is written **site-check** (all lowercase) everywhere in the app UI, including the browser tab title.
 
-- Top left: small **SiteCheck** name in dark green. No big title, no "Guided site photos for home battery installs." line.
-- Left column, top to bottom:
-  1. **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`).
-  2. Directly under it, smaller, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
-  3. Two boxes stacked, **Today** on top, **Over time** below. Same box style as before. Box width is just enough that "Get it right the first time." stays on one line at laptop width.
-     - Small label **Today** (unchanged grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
-     - Small label **Over time** (unchanged grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
-- Right column: two buttons stacked as a pair, vertically centered next to the two boxes:
+- Top left of the page: small **site-check** name in dark green. No big title, no "Guided site photos for home battery installs." line.
+- Row 1, left side only: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), then directly under it, smaller, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
+- Row 2, left side: two goal blocks stacked, **Today** on top, **Over time** below. No card: no background, border or shadow. Each is plain text on the page background with a 3 px dark green vertical line along its left side. Spacing between row 1 and row 2 is tight so the page reads as one group.
+  - Small label **Today** (grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
+  - Small label **Over time** (grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
+- Row 2, right side: two buttons stacked, centered horizontally in the right half and vertically against the two goal blocks. Each is about 260 px wide, 52 px tall, 17 px semibold text, 10 px corner radius, 12 px gap between them.
   1. **Start demo**: lime fill (about `#B5E07B`), dark green text. For now it links to `/start`. (T9 changes it to `/demo`.)
-  2. **Surveyor dashboard**: white fill, thin dark green border, dark green text. Links to `/review`.
+  2. **Dashboard**: white fill, thin dark green border, dark green text. Links to `/review`.
 - Footer: Built for Base Power site surveys. Hackathon prototype.
+
+Page background on every page: about `#EEECE7` (`--brand-bg`).
 
 Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Today, Over time, then both buttons full width. Headings may wrap.
 

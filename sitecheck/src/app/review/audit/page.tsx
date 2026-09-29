@@ -21,7 +21,7 @@ import { getSupabase } from "@/lib/supabase";
 import type { HomeRow, PhotoStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "AI check audit | SiteCheck" };
+export const metadata: Metadata = { title: "AI check audit | site-check" };
 
 const PHOTO_LIMIT = 1000;
 const ROWS_SHOWN = 300;

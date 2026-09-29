@@ -19,7 +19,7 @@ import { getSupabase } from "@/lib/supabase";
 import type { HomeRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Surveyor queue | SiteCheck" };
+export const metadata: Metadata = { title: "Surveyor queue | site-check" };
 
 const EMPTY_TEXT: Record<QueueFilter, string> = {
   to_decide: "Nothing waiting. Submitted homes show up here for a decision.",
