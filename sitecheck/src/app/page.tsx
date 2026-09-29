@@ -1,81 +1,43 @@
 import Link from "next/link";
-import { DemoLinkForm } from "@/components/demo-link-form";
 import { Footer } from "@/components/footer";
-import { SiteHeader } from "@/components/site-header";
 import { buttonClass } from "@/components/ui";
-import { decidedToday, queueTab } from "@/lib/review";
-import { getSupabase } from "@/lib/supabase";
-import type { HomeRow } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+const GOALS = [
+  {
+    label: "Today",
+    heading: "Get it right the first time.",
+    text: "Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.",
+  },
+  {
+    label: "Over time",
+    heading: "Every survey makes the next one smarter.",
+    text: "Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.",
+  },
+];
 
-type QueueStat = { label: string; value: number };
-
-async function loadQueueStats(): Promise<QueueStat[] | null> {
-  const now = Date.now();
-  try {
-    const { data, error } = await getSupabase()
-      .from("homes")
-      .select("status, surveyor_decision, decided_at")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (error) return null;
-    const homes = (data ?? []) as Pick<HomeRow, "status" | "surveyor_decision" | "decided_at">[];
-    const counts = { to_decide: 0, in_progress: 0, decided: 0 };
-    for (const h of homes) counts[queueTab(h)] += 1;
-    return [
-      { label: "To decide", value: counts.to_decide },
-      { label: "In progress", value: counts.in_progress },
-      { label: "Decided today", value: homes.filter((h) => decidedToday(h.decided_at, now)).length },
-    ];
-  } catch {
-    return null;
-  }
-}
-
-export default async function Home() {
-  const stats = await loadQueueStats();
+export default function Home() {
   return (
     <>
-      <SiteHeader narrow />
+      <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center px-5 pt-16 pb-12 text-center md:pt-28">
+        <h1 className="ui-hero text-5xl md:text-7xl">SiteCheck</h1>
+        <p className="ui-lead mt-5 text-2xl font-semibold">Guided site photos for home battery installs.</p>
+        <p className="ui-lead mt-3 text-muted">
+          Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
+        </p>
 
-      <main className="ui-container ui-container-narrow flex-1 pt-12 pb-12 md:pt-20">
-        <section className="mx-auto max-w-3xl text-center">
-          <h1 className="ui-hero">Home battery site photos, checked on the spot</h1>
-          <p className="ui-lead mt-4 text-muted">Homeowners get it right the first time. Surveyors get a pre-checked site.</p>
-        </section>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
-          <DemoLinkForm />
-
-          <section className="ui-card flex h-full flex-col">
-            <div>
-              <p className="ui-eyebrow">For surveyors</p>
-              <h2 className="ui-title">Surveyor queue</h2>
-              <p className="ui-lead mt-3">
-                Every home arrives with photos, a preliminary check and a battery count. The surveyor makes the final call.
-              </p>
-            </div>
-            {stats && (
-              <div className="mt-6 grid grid-cols-3 gap-2">
-                {stats.map((s) => (
-                  <div key={s.label} className="ui-stat">
-                    <span className="ui-stat-value">{s.value}</span>
-                    <span className="ui-stat-label">{s.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="mt-auto grid gap-3 pt-6">
-              <Link href="/review/audit" className={buttonClass("secondary", "w-full")}>
-                Audit log
-              </Link>
-              <Link href="/review" className={buttonClass("primary", "w-full")}>
-                Open surveyor queue
-              </Link>
-            </div>
-          </section>
+        <div className="mt-14 grid w-full gap-4 text-left md:grid-cols-2">
+          {GOALS.map((g) => (
+            <section key={g.label} className="ui-card">
+              <p className="ui-eyebrow">{g.label}</p>
+              <h2 className="ui-subtitle text-2xl">{g.heading}</h2>
+              <p className="ui-muted mt-3">{g.text}</p>
+            </section>
+          ))}
         </div>
+
+        <Link href="/start" className={buttonClass("primary", "mt-14 w-full max-w-xs")}>
+          Start
+        </Link>
       </main>
 
       <Footer />
