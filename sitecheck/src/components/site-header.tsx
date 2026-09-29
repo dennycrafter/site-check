@@ -5,7 +5,7 @@ export function SiteHeader({ tag, narrow = false }: { tag?: string; narrow?: boo
   return (
     <header className={`ui-container ui-header${narrow ? " ui-container-narrow" : ""}`}>
       <Link href="/" className="ui-wordmark">
-        SiteCheck
+        site-check
       </Link>
       {tag && <span className="ui-header-tag">{tag}</span>}
     </header>

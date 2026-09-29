@@ -30,21 +30,35 @@ This continues `sitecheck-MASTER.md`. Tickets T0 to T4 are done and the app work
 
 ## T5: Landing page
 
-Replace `/` with this, top to bottom, centered, max width about 720 px:
+Replace `/` with this layout. It overrides the master doc rule about not using Base's brand colors, for this page only. The name SiteCheck and the "Hackathon prototype" footer stay so it never looks like an official Base page.
 
-- **SiteCheck** (large)
-- Guided site photos for home battery installs.
-- Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
-- Two goal blocks, side by side on laptop, stacked on phone:
-  - Small label **Today**. Heading **Get it right the first time.** Text: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
-  - Small label **Over time**. Heading **Every survey makes the next one smarter.** Text: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
-- One button: **Start**. For now it links to `/start`. (T9 changes it to `/demo`.)
+Laptop layout (768 px and wider): max width 1200 px, centered, with generous side padding. The product name is written **site-check** (all lowercase) everywhere in the app UI, including the browser tab title.
+
+- Top left of the page: small **site-check** name in dark green. No big title, no "Guided site photos for home battery installs." line.
+- At least 48 px below the name, full width, on one line: **Guided photo checks for site surveys.** in Base dark green (about `#1D4A2C`), about 60 px with line height about 1.05. No forced line break. If it does not fit on one line at 1280 px, reduce the size until it does.
+- Directly under the headline, left aligned, about 20 px, in near black (about `#1A1A1A`): Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
+- About 64 px below that, two equal halves (50/50). The whole block from the headline down is vertically centered in the space below the name, so there is no large empty band at the bottom:
+  - Left: two goal blocks stacked, **Immediate impact** on top, **Long-term impact** below. No card: no background, border or shadow. Each is plain text on the page background with a 3 px orange vertical line (about `#EE7733`, used only for these two lines) along its left side.
+    - Small label **Immediate impact** (grey). Heading **Get it right the first time.** in dark green. Text in near black: Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.
+    - Small label **Long-term impact** (grey). Heading **Every survey makes the next one smarter.** in dark green. Text in near black: Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.
+  - Right: two buttons stacked, centered horizontally in the right half and centered vertically against the two goal blocks. Each is about 280 px wide, 56 px tall, 18 px semibold text, 10 px corner radius, 12 px gap between them.
+    1. **Start demo**: lime fill (about `#B5E07B`), dark green text. For now it links to `/start`. (T9 changes it to `/demo`.)
+    2. **Dashboard**: white fill, thin dark green border, dark green text. Links to `/review`.
 - Footer: Built for Base Power site surveys. Hackathon prototype.
+
+Page background on every page: about `#EEECE7` (`--brand-bg`).
+
+Phone layout (under 768 px): one column in this order: name, green line, homeowners line, Immediate impact, Long-term impact, then both buttons full width. The green line keeps its smaller size and wraps naturally.
+
+Font: one only, Geist, for everything. Weights: headline and goal headings 750, buttons and labels 600, body text 400. Laptop sizes: headline 60 px, homeowners line 20 px, buttons 18 px, goal headings 22 px, goal body text 18 px, labels 14 px, footer 14 px. Nothing is smaller than 14 px except the footer. Phone sizes are unchanged.
+
+Colors come from `src/styles/brand.css`. Near black for this page is `--brand-ink-strong`.
 
 Remove the QR code and the Surveyor queue link from this page. `/review` still works when typed directly. Keep the `qrcode` package (T9 uses it).
 
 Checks:
 - [ ] Page text matches the above exactly.
+- [ ] The two buttons sit side by side with the boxes on laptop, and stack in the order above on phone.
 - [ ] Looks right at 375 px and 1280 px wide. No console errors.
 - [ ] Search `src` for the em dash character: none found.
 
@@ -253,7 +267,7 @@ Create `public/demo/scenarios.json`:
 - `?live=1` on review pages: refresh the server data every 2 seconds (`router.refresh()` in a small client component) so the verdict and photos update as the homeowner goes. On the detail page, `?live=1` also shows a collapsed **Engine log** at the bottom: this home's photo rows, newest first, with time, step title, status, AI tries and latency in seconds. Data from the `photos` table only.
 - Under 900 px wide, `/demo` redirects to `/start` (real camera, normal form).
 - Small link under the phone: **Try it on your own phone**. It opens a QR code of `<origin>/start`.
-- Change the landing page **Start** button to link to `/demo`.
+- Change the landing page **Start demo** button to link to `/demo`.
 
 ### 9.5 Outage switch
 

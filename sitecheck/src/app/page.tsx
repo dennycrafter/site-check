@@ -1,80 +1,74 @@
 import Link from "next/link";
-import { DemoLinkForm } from "@/components/demo-link-form";
 import { Footer } from "@/components/footer";
-import { SiteHeader } from "@/components/site-header";
-import { buttonClass } from "@/components/ui";
-import { decidedToday, queueTab } from "@/lib/review";
-import { getSupabase } from "@/lib/supabase";
-import type { HomeRow } from "@/lib/types";
 
-export const dynamic = "force-dynamic";
+const GOALS = [
+  {
+    label: "Immediate impact",
+    heading: "Get it right the first time.",
+    text: "Every homeowner, even the least tech-savvy, is guided shot by shot and told instantly if a photo won't work. Fewer retakes, faster installs, fewer customers lost while they wait.",
+  },
+  {
+    label: "Long-term impact",
+    heading: "Every survey makes the next one smarter.",
+    text: "Every home is photographed the same way, and every surveyor decision is saved with its photo. That becomes a labeled library of real homes, so the AI gets more accurate and fewer homes need manual review.",
+  },
+];
 
-type QueueStat = { label: string; value: number };
+const BUTTON =
+  "inline-flex min-h-[52px] md:min-h-[56px] w-full items-center justify-center rounded-[10px] px-6 py-3 text-[17px] md:text-[18px] leading-tight font-semibold text-accent no-underline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent md:max-w-[280px]";
 
-async function loadQueueStats(): Promise<QueueStat[] | null> {
-  const now = Date.now();
-  try {
-    const { data, error } = await getSupabase()
-      .from("homes")
-      .select("status, surveyor_decision, decided_at")
-      .order("created_at", { ascending: false })
-      .limit(500);
-    if (error) return null;
-    const homes = (data ?? []) as Pick<HomeRow, "status" | "surveyor_decision" | "decided_at">[];
-    const counts = { to_decide: 0, in_progress: 0, decided: 0 };
-    for (const h of homes) counts[queueTab(h)] += 1;
-    return [
-      { label: "To decide", value: counts.to_decide },
-      { label: "In progress", value: counts.in_progress },
-      { label: "Decided today", value: homes.filter((h) => decidedToday(h.decided_at, now)).length },
-    ];
-  } catch {
-    return null;
-  }
-}
-
-export default async function Home() {
-  const stats = await loadQueueStats();
+export default function Home() {
   return (
     <>
-      <SiteHeader narrow />
+      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-5 pt-6 pb-12 md:px-12 md:pt-8 md:pb-8">
+        <p className="text-xl font-bold tracking-tight text-accent">
+          site-check
+        </p>
 
-      <main className="ui-container ui-container-narrow flex-1 pt-12 pb-12 md:pt-20">
-        <section className="mx-auto max-w-3xl text-center">
-          <h1 className="ui-hero">Home battery site photos, checked on the spot</h1>
-          <p className="ui-lead mt-4 text-muted">Homeowners get it right the first time. Surveyors get a pre-checked site.</p>
-        </section>
-
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
-          <DemoLinkForm />
-
-          <section className="ui-card flex h-full flex-col">
-            <div>
-              <p className="ui-eyebrow">For surveyors</p>
-              <h2 className="ui-title">Surveyor queue</h2>
-              <p className="ui-lead mt-3">
-                Every home arrives with photos, a preliminary check and a battery count. The surveyor makes the final call.
+        <div className="mt-10 md:mt-12 md:flex md:flex-1 md:items-center">
+          <div className="grid w-full gap-x-16 gap-y-6 md:w-max md:max-w-full md:grid-cols-2 md:gap-y-16">
+            <div className="md:col-span-2 md:row-start-1">
+              <h1 className="ui-hero text-accent md:whitespace-nowrap md:text-[60px] md:leading-[1.05]">
+                Guided photo checks for site surveys.
+              </h1>
+              <p className="ui-lead mt-4 text-[length:var(--text-muted)] text-ink-strong md:text-[20px]">
+                Homeowners take the photos. AI checks each one on the spot.
+                Surveyors get a ready-made verdict.
               </p>
             </div>
-            {stats && (
-              <div className="mt-6 grid grid-cols-3 gap-2">
-                {stats.map((s) => (
-                  <div key={s.label} className="ui-stat">
-                    <span className="ui-stat-value">{s.value}</span>
-                    <span className="ui-stat-label">{s.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="mt-auto grid gap-3 pt-6">
-              <Link href="/review/audit" className={buttonClass("secondary", "w-full")}>
-                Audit log
+
+            <div className="grid gap-6 md:col-start-1 md:row-start-2 md:[contain:inline-size]">
+              {GOALS.map((g) => (
+                <section
+                  key={g.label}
+                  className="border-l-[3px] border-[var(--brand-orange)] pl-5"
+                >
+                  <p className="ui-eyebrow md:text-[14px]">{g.label}</p>
+                  <h2 className="ui-subtitle md:text-[22px] text-accent">
+                    {g.heading}
+                  </h2>
+                  <p className="mt-3 text-[length:var(--text-muted)] leading-normal text-ink-strong md:text-[18px]">
+                    {g.text}
+                  </p>
+                </section>
+              ))}
+            </div>
+
+            <div className="flex flex-col gap-3 md:col-start-2 md:row-start-2 md:items-center md:justify-center md:[contain:inline-size]">
+              <Link
+                href="/start"
+                className={`${BUTTON} bg-lime hover:brightness-95`}
+              >
+                Start demo
               </Link>
-              <Link href="/review" className={buttonClass("primary", "w-full")}>
-                Open surveyor queue
+              <Link
+                href="/review"
+                className={`${BUTTON} border-[length:var(--brand-border-strong)] border-accent bg-white hover:bg-lime-soft`}
+              >
+                Dashboard
               </Link>
             </div>
-          </section>
+          </div>
         </div>
       </main>
 

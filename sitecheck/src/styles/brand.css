@@ -4,16 +4,20 @@
   --brand-green: #1e4d2b;
   /* Hover and pressed state of primary buttons */
   --brand-green-dark: #163a20;
+  /* Landing page goal lines only */
+  --brand-orange: #ee7733;
   /* Success check, selected options, highlights */
   --brand-lime: #b2dd79;
   /* Soft backgrounds for icons and selected options */
   --brand-lime-soft: #e6f2d6;
   /* Page background */
-  --brand-bg: #f0eeeb;
+  --brand-bg: #eeece7;
   /* Cards and panels */
   --brand-surface: #fafaf8;
   /* Main text */
   --brand-ink: #292826;
+  /* Near-black text on the landing page */
+  --brand-ink-strong: #1a1a1a;
   /* Secondary text */
   --brand-muted: #5f5d58;
   /* Borders and dividers */

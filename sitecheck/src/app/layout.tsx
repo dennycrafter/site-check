@@ -6,7 +6,7 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 
 export const metadata: Metadata = {
-  title: "SiteCheck",
+  title: "site-check",
   description: "Get your home battery site photos right the first time.",
 };
 
