@@ -1,0 +1,72 @@
+/* Home page fit. Under 768px (phones) the page scrolls and looks as before.
+   From 768px up it is exactly one window tall: name on top, content in the middle, footer at the bottom.
+   Shorter windows shrink the spacing first (down to 660px tall), then the text (down to 600px tall).
+   Only if the content still cannot fit (very small windows) does the page area scroll instead of clipping. */
+.ui-landing {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .ui-landing {
+    /* Narrow windows wrap the text onto more lines, so they behave as if they were shorter. */
+    --lp-h: calc(100dvh - clamp(0px, (1100px - 100vw) * 0.42, 150px));
+    --lp-space-k: clamp(0px, var(--lp-h) - 660px, 140px);
+    --lp-text-k: clamp(0px, var(--lp-h) - 600px, 60px);
+
+    --space-2: calc(4px + var(--lp-space-k) * 0.02857);
+
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .ui-landing-main {
+    padding-top: calc(16px + var(--lp-space-k) * 0.11429);
+    padding-bottom: calc(12px + var(--lp-space-k) * 0.14286);
+  }
+  .ui-landing-body {
+    margin-top: calc(16px + var(--lp-space-k) * 0.22857);
+  }
+  .ui-landing-grid {
+    row-gap: calc(20px + var(--lp-space-k) * 0.31429);
+    column-gap: clamp(32px, 6vw - 12px, 64px);
+  }
+  .ui-landing-sections {
+    gap: calc(12px + var(--lp-space-k) * 0.08571);
+  }
+  .ui-landing-actions {
+    gap: calc(8px + var(--lp-space-k) * 0.02857);
+  }
+  .ui-landing-button {
+    min-height: calc(48px + var(--lp-space-k) * 0.05714);
+  }
+  .ui-landing-lead {
+    margin-top: calc(8px + var(--lp-space-k) * 0.05714);
+  }
+  .ui-landing .ui-footer {
+    padding-block: calc(10px + var(--lp-space-k) * 0.1);
+  }
+
+  /* Text: the headline also follows the window width so it never runs off the side. */
+  .ui-landing-hero {
+    font-size: min(calc(46px + var(--lp-text-k) * 0.23333), calc((100vw - 112px) / 18.2));
+  }
+  .ui-landing-lead {
+    font-size: calc(17px + var(--lp-text-k) * 0.05);
+  }
+  .ui-landing-heading {
+    font-size: calc(19px + var(--lp-text-k) * 0.05);
+  }
+  .ui-landing-text {
+    font-size: calc(16px + var(--lp-text-k) * 0.03333);
+  }
+  .ui-landing-eyebrow {
+    font-size: calc(13px + var(--lp-text-k) * 0.01667);
+  }
+  .ui-landing-button {
+    font-size: calc(16px + var(--lp-text-k) * 0.03333);
+  }
+}

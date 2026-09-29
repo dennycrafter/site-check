@@ -15,46 +15,46 @@ const GOALS = [
 ];
 
 const BUTTON =
-  "inline-flex min-h-[52px] md:min-h-[56px] w-full items-center justify-center rounded-[10px] px-6 py-3 text-[17px] md:text-[18px] leading-tight font-semibold text-accent no-underline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent md:max-w-[280px]";
+  "inline-flex ui-landing-button min-h-[52px] w-full items-center justify-center rounded-[10px] px-6 py-3 text-[17px] leading-tight font-semibold text-accent no-underline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-accent md:max-w-[280px]";
 
 export default function Home() {
   return (
-    <>
-      <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-5 pt-6 pb-12 md:px-12 md:pt-8 md:pb-8">
+    <div className="ui-landing">
+      <main className="ui-landing-main mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-5 pt-6 pb-12 md:px-12">
         <p className="text-xl font-bold tracking-tight text-accent">
           site-check
         </p>
 
-        <div className="mt-10 md:mt-12 md:flex md:flex-1 md:items-center">
-          <div className="grid w-full gap-x-16 gap-y-6 md:w-max md:max-w-full md:grid-cols-2 md:gap-y-16">
+        <div className="ui-landing-body mt-10 md:flex md:flex-1 md:items-center">
+          <div className="ui-landing-grid grid w-full gap-x-16 gap-y-6 md:w-max md:max-w-full md:grid-cols-2">
             <div className="md:col-span-2 md:row-start-1">
-              <h1 className="ui-hero text-accent md:whitespace-nowrap md:text-[60px] md:leading-[1.05]">
+              <h1 className="ui-hero ui-landing-hero text-accent md:whitespace-nowrap md:leading-[1.05]">
                 Guided photo checks for site surveys.
               </h1>
-              <p className="ui-lead mt-4 text-[length:var(--text-muted)] text-ink-strong md:text-[20px]">
+              <p className="ui-lead ui-landing-lead mt-4 text-[length:var(--text-muted)] text-ink-strong">
                 Homeowners take the photos. AI checks each one on the spot.
                 Surveyors get a ready-made verdict.
               </p>
             </div>
 
-            <div className="grid gap-6 md:col-start-1 md:row-start-2 md:[contain:inline-size]">
+            <div className="ui-landing-sections grid gap-6 md:col-start-1 md:row-start-2 md:[contain:inline-size]">
               {GOALS.map((g) => (
                 <section
                   key={g.label}
                   className="border-l-[3px] border-[var(--brand-orange)] pl-5"
                 >
-                  <p className="ui-eyebrow md:text-[14px]">{g.label}</p>
-                  <h2 className="ui-subtitle md:text-[22px] text-accent">
+                  <p className="ui-eyebrow ui-landing-eyebrow">{g.label}</p>
+                  <h2 className="ui-subtitle ui-landing-heading text-accent">
                     {g.heading}
                   </h2>
-                  <p className="mt-3 text-[length:var(--text-muted)] leading-normal text-ink-strong md:text-[18px]">
+                  <p className="ui-landing-text mt-3 text-[length:var(--text-muted)] leading-normal text-ink-strong">
                     {g.text}
                   </p>
                 </section>
               ))}
             </div>
 
-            <div className="flex flex-col gap-3 md:col-start-2 md:row-start-2 md:items-center md:justify-center md:[contain:inline-size]">
+            <div className="ui-landing-actions flex flex-col gap-3 md:col-start-2 md:row-start-2 md:items-center md:justify-center md:[contain:inline-size]">
               <Link
                 href="/start"
                 className={`${BUTTON} bg-lime hover:brightness-95`}
@@ -73,6 +73,6 @@ export default function Home() {
       </main>
 
       <Footer />
-    </>
+    </div>
   );
 }
