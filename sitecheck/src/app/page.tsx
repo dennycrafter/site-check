@@ -23,13 +23,10 @@ export default function Home() {
       <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col px-5 pt-6 pb-12 md:px-12 md:pt-8 md:pb-8">
         <p className="text-xl font-bold tracking-tight text-accent">site-check</p>
 
-        <div className="mt-10 md:mt-0 md:flex md:flex-1 md:items-center">
+        <div className="mt-10 md:mt-12">
           <div className="grid w-full gap-x-16 gap-y-6 md:grid-cols-2 md:gap-y-4">
-            <div className="md:col-start-1 md:row-start-1">
-              <h1 className="ui-hero text-accent md:text-[60px] md:leading-[1.05]">
-                Guided photo checks
-                <br className="hidden md:block" /> for site surveys.
-              </h1>
+            <div className="md:col-span-2 md:row-start-1">
+              <h1 className="ui-hero text-accent md:text-[56px] md:leading-[1.05]">Guided photo checks for site surveys.</h1>
               <p className="ui-lead mt-4 text-[length:var(--text-muted)] text-ink-strong">
                 Homeowners take the photos. AI checks each one on the spot. Surveyors get a ready-made verdict.
               </p>
