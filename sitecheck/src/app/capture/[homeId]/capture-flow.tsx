@@ -7,9 +7,18 @@ import PropertyLocator, { type PropertyContext } from "@/components/property-loc
 import { Spinner } from "@/components/ui";
 import { useDialog } from "@/components/use-dialog";
 import { guideFor, type Guide } from "@/lib/guides";
+import {
+  checkpointState,
+  followUpStep,
+  rowFromResult,
+  SENT_FAILED_MESSAGE,
+  SURVEYOR_MESSAGE,
+  type CheckpointRow,
+} from "@/lib/checkpoint";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
-import { phaseProgress, plannedForPhase, stepLabel } from "@/lib/phases";
-import { getStep, MAX_ATTEMPTS, PHASE_COUNT, PHASE_TITLES, phaseOf, type Phase } from "@/lib/steps";
+import { phaseProgress, phaseSegments, plannedForPhase, stepLabel, type ShotStatus } from "@/lib/phases";
+import { isFinished } from "@/lib/plan";
+import { getStep, isStepId, MAX_ATTEMPTS, PHASE_COUNT, PHASE_TITLES, phaseOf, type Phase } from "@/lib/steps";
 import { welcomedKey } from "@/lib/startLink";
 import type { HomeProperty, PhotoStatus, SetupType } from "@/lib/types";
 import "@/styles/customer-flow.css";
@@ -20,6 +29,7 @@ type StepView = {
   status: PhotoStatus | "pending";
   attempts: number;
   thumbnailUrl: string | null;
+  saw?: string;
 };
 
 type HomeData = {
@@ -49,6 +59,7 @@ type PhotoResult = {
 type Local =
   | { kind: "ready" }
   | { kind: "confirm"; preview: string; base64: string }
+  | { kind: "saved"; preview: string }
   | { kind: "checking"; preview: string }
   | { kind: "accepted"; preview: string; saw: string }
   | { kind: "retake"; preview: string; result: PhotoResult }
@@ -56,6 +67,45 @@ type Local =
   | { kind: "error"; message: string };
 
 type Intro = "welcome" | "meter" | "breaker";
+
+type Shot = {
+  /** Increases with every photo sent, so a late response never overwrites a newer photo of the same step. */
+  seq: number;
+  preview: string;
+  row: CheckpointRow;
+};
+
+/**
+ * One phase shot without waiting. Photos are sent as they are taken and checked at the checkpoint
+ * that follows the last one. Lives in page state only: after a reload the server decides where to resume.
+ */
+type Batch = {
+  phase: Phase;
+  /** Steps shot back to back, without waiting for their checks. */
+  queue: string[];
+  index: number;
+  /** Checkpoint rows, in order. */
+  rows: string[];
+  shots: Record<string, Shot>;
+  /** A step opened from the checkpoint (retake or follow-up). It is checked right away. */
+  focus: string | null;
+  /** Bumped whenever a result changes, so the checkpoint settles again. */
+  gen: number;
+  settled: { gen: number; next: string | null; error: boolean } | null;
+};
+
+const SAVED_MS = 500;
+
+function withShot(batch: Batch, step: string, shot: Shot): Batch {
+  return { ...batch, shots: { ...batch.shots, [step]: shot }, gen: batch.gen + 1 };
+}
+
+function withoutShot(batch: Batch, step: string, seq?: number): Batch {
+  if (seq !== undefined && batch.shots[step]?.seq !== seq) return batch;
+  const shots = { ...batch.shots };
+  delete shots[step];
+  return { ...batch, shots, gen: batch.gen + 1 };
+}
 
 const NETWORK_ERROR = "We couldn't send your photo. Check your connection and try again.";
 const FILE_ERROR = "We couldn't read that file. Try a JPG or PNG photo.";
@@ -126,6 +176,11 @@ const SCREEN_HELP = {
     "Use the arrows to check each photo.",
     "Photos marked for a surveyor are fine to send.",
     "Tap Submit when you are ready.",
+  ],
+  checkpoint: [
+    "We check each photo here, so you only wait once per part.",
+    "Tap Retake on any photo that needs a quick fix.",
+    "Photos marked for a surveyor are fine to send.",
   ],
   question: [
     "Think about which outside wall your meter is on.",
@@ -221,6 +276,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [plans, setPlans] = useState<PhasePlans>(() => loadPlans(homeId));
   const [redoStep, setRedoStep] = useState<string | null>(null);
   const [welcomed] = useState(() => readWelcomed(homeId));
+  const [batch, setBatch] = useState<Batch | null>(null);
+  const shotSeq = useRef(0);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const safetyPanel = useRef<HTMLDivElement>(null);
@@ -319,7 +376,24 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     return () => observer.disconnect();
   }, [cameraOpen]);
 
-  const flowStep = data ? (data.nextStep ?? redoStep) : null;
+  const serverNext = data?.nextStep ?? null;
+  if (data && !batch && redoStep === null && data.home.status !== "submitted" && serverNext && isStepId(serverNext)) {
+    const phase = phaseOf(serverNext);
+    const plan = plans[phase] ?? plannedForPhase(data.steps.map((item) => item.id), phase);
+    if (!plans[phase]) setPlans({ ...plans, [phase]: plan });
+    const statusById = new Map(data.steps.map((item) => [item.id, item.status]));
+    const rows = plan.filter((id) => statusById.has(id));
+    const queue = rows.filter((id) => {
+      const status = statusById.get(id);
+      return status === undefined || status === "pending" || !isFinished(status);
+    });
+    setBatch({ phase, queue, index: 0, rows, shots: {}, focus: null, gen: 0, settled: null });
+  }
+
+  const inCheckpoint = batch !== null && batch.focus === null && batch.index >= batch.queue.length;
+  /** Inside a phase: the shutter sends the photo and moves on without waiting for the check. */
+  const quick = batch !== null && batch.focus === null && !inCheckpoint;
+  const flowStep = batch ? (batch.focus ?? batch.queue[batch.index] ?? null) : data ? (data.nextStep ?? redoStep) : null;
   const stepId = flowStep && flowStep !== "question_5" && flowStep !== "site_check" ? flowStep : null;
   const stepPhase = stepId ? phaseOf(stepId) : null;
   const frozenPlan = stepPhase ? plans[stepPhase] : undefined;
@@ -328,12 +402,59 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     setPlans({ ...plans, [stepPhase]: plannedForPhase(data.steps.map((item) => item.id), stepPhase) });
   }
 
+  const views = new Map((data?.steps ?? []).map((item) => [item.id, item]));
+  const shotStatus = (id: string): ShotStatus => (batch?.shots[id] ? "sent" : (views.get(id)?.status ?? "pending"));
+  const checkpointRows = batch
+    ? batch.rows.map((id) => {
+        const shot = batch.shots[id];
+        const view = views.get(id);
+        return {
+          id,
+          title: (data && getStep(id, data.home.extra_steps)?.title) ?? view?.title ?? id,
+          thumbnail: shot?.preview ?? view?.thumbnailUrl ?? null,
+          row: shot?.row ?? rowFromResult(view?.status ?? "pending", view?.saw, undefined),
+        };
+      })
+    : [];
+  const checkpoint = batch ? checkpointState(batch.phase, checkpointRows.map((item) => item.row)) : null;
+  const settle = batch?.settled && batch.settled.gen === batch.gen ? batch.settled : null;
+  const readyToSettle = inCheckpoint && checkpoint !== null && checkpoint.settled;
+  const settleGen = batch?.gen ?? -1;
+
+  useEffect(() => {
+    if (!readyToSettle) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/homes/${homeId}/evaluate`, { method: "POST" });
+        if (!res.ok) console.error("[checkpoint] evaluate failed", res.status);
+      } catch (err) {
+        console.error("[checkpoint] evaluate failed", err);
+      }
+      const fresh = await fetchHome(homeId).catch(() => null);
+      if (cancelled || !alive.current) return;
+      if (fresh) setData(fresh);
+      setBatch((current) =>
+        current && current.gen === settleGen
+          ? {
+              ...current,
+              settled: { gen: settleGen, next: fresh ? followUpStep(fresh.nextStep, current.phase) : null, error: !fresh },
+            }
+          : current,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [readyToSettle, settleGen, homeId]);
+
   useEffect(() => {
     savePlans(homeId, plans);
   }, [homeId, plans]);
 
   const intro = !data ? null : introLocked ? introChoice : shouldWelcome(data) ? "welcome" : shouldBreaker(data) ? "breaker" : null;
-  const onReview = data?.home.status !== "submitted" && data?.nextStep === null && redoStep === null && intro === null;
+  const onReview =
+    data?.home.status !== "submitted" && data?.nextStep === null && redoStep === null && batch === null && intro === null;
 
   useEffect(() => {
     if (!onReview) return;
@@ -355,7 +476,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   useDialog(safetyShown, safetyPanel, safetyHeading, closeSafety);
 
   const modalOpen = safetyShown || pickerOpen || cameraOpen;
-  const viewKey = `${intro ?? "flow"}:${data?.nextStep ?? ""}:${redoStep ?? ""}:${local.kind}:${data?.home.status ?? ""}`;
+  const flowKey = batch ? `${batch.phase}:${batch.index}:${batch.focus ?? ""}:${inCheckpoint}` : `${data?.nextStep ?? ""}:${redoStep ?? ""}`;
+  const viewKey = `${intro ?? "flow"}:${flowKey}:${local.kind}:${data?.home.status ?? ""}`;
   useEffect(() => {
     if (modalOpen) return;
     headingRef.current?.closest(".sc-content")?.scrollTo(0, 0);
@@ -459,7 +581,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     try {
       const { base64, dataUrl } = await prepareUpload(file);
       if (!alive.current) return;
-      setLocal({ kind: "confirm", preview: dataUrl, base64 });
+      takeShot(base64, dataUrl);
     } catch {
       if (!alive.current) return;
       setLocal({ kind: "error", message: FILE_ERROR });
@@ -477,14 +599,105 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       const crop = stage?.clientWidth && stage.clientHeight ? stage.clientWidth / stage.clientHeight : undefined;
       const shot = captureVideoFrame(video, { crop });
       closeCamera();
-      setLocal({ kind: "confirm", preview: shot.dataUrl, base64: shot.base64 });
+      takeShot(shot.base64, shot.dataUrl);
     } catch {
       setCameraError("We couldn't save that picture. Try again.");
     }
   }
 
+  function takeShot(base64: string, preview: string) {
+    if (quick && stepId) queueShot(stepId, base64, preview);
+    else setLocal({ kind: "confirm", preview, base64 });
+  }
+
+  /** Records a result for the checkpoint row of a step. A no-op outside a phase. */
+  function recordShot(step: string, preview: string, row: CheckpointRow) {
+    const seq = ++shotSeq.current;
+    setBatch((current) => (current ? withShot(current, step, { seq, preview, row }) : current));
+  }
+
+  /** Sends a photo without waiting for its check, shows "Saved" briefly, then moves to the next step of the phase. */
+  function queueShot(step: string, base64: string, preview: string) {
+    const seq = ++shotSeq.current;
+    setBatch((current) => (current ? withShot(current, step, { seq, preview, row: { kind: "checking" } }) : current));
+    setLocal({ kind: "saved", preview });
+    setKeepError(null);
+
+    const settle = (row: CheckpointRow) =>
+      setBatch((current) => (current && current.shots[step]?.seq === seq ? withShot(current, step, { seq, preview, row }) : current));
+
+    void (async () => {
+      let res: Response;
+      let body: Partial<PhotoResult> & { error?: string };
+      try {
+        res = await fetch("/api/photos", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ homeId, step, imageBase64: base64 }),
+        });
+        body = await res.json().catch(() => ({}));
+      } catch (err) {
+        console.error(`[checkpoint] step=${step} request failed`, err);
+        if (alive.current) settle({ kind: "failed" });
+        return;
+      }
+      if (!alive.current) return;
+      if (res.status === 409) {
+        // The server already has a finished photo for this step, or no longer needs it: show what it has.
+        const fresh = await fetchHome(homeId).catch(() => null);
+        if (!alive.current) return;
+        if (!fresh) return settle({ kind: "failed" });
+        setData(fresh);
+        const planned = new Set(fresh.steps.map((item) => item.id));
+        setBatch((current) => {
+          if (!current) return current;
+          const next = withoutShot(current, step, seq);
+          return { ...next, rows: next.rows.filter((id) => planned.has(id)) };
+        });
+        return;
+      }
+      if (!res.ok || !body.status || !body.message || body.attempt == null) {
+        console.error(`[checkpoint] step=${step} status=${res.status}`, body.error ?? "");
+        return settle({ kind: "failed" });
+      }
+      settle(rowFromResult(body.status, body.saw, body.message));
+    })();
+
+    setTimeout(() => {
+      if (!alive.current) return;
+      setBatch((current) =>
+        current && current.focus === null && current.queue[current.index] === step ? { ...current, index: current.index + 1 } : current,
+      );
+      setLocal((current) => (current.kind === "saved" ? { kind: "ready" } : current));
+    }, SAVED_MS);
+  }
+
+  /** Back to the checkpoint from a step opened there. */
+  function leaveFocus() {
+    setBatch((current) => (current ? { ...current, focus: null } : current));
+    setLocal({ kind: "ready" });
+    setKeepError(null);
+  }
+
+  function openFocus(step: string) {
+    setBatch((current) =>
+      current ? { ...current, focus: step, rows: current.rows.includes(step) ? current.rows : [...current.rows, step] } : current,
+    );
+    setLocal({ kind: "ready" });
+    setKeepError(null);
+  }
+
+  /** Leaves a settled checkpoint for whatever the server says comes next. */
+  function continuePhase() {
+    if (!batch || !data) return;
+    const last = batch.rows[batch.rows.length - 1] ?? batch.queue[batch.queue.length - 1] ?? "";
+    setBatch(null);
+    handoff(last, data);
+  }
+
   async function sendPhoto(step: string, base64: string, preview: string) {
     const token = ++sendToken.current;
+    const focused = batch?.focus === step;
     setLocal({ kind: "checking", preview });
     setKeepError(null);
     let res: Response;
@@ -505,6 +718,11 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       const fresh = await fetchHome(homeId).catch(() => null);
       if (!alive.current || !fresh) return;
       setData(fresh);
+      if (focused) {
+        setBatch((current) => (current ? { ...withoutShot(current, step), focus: null } : current));
+        setLocal({ kind: "ready" });
+        return;
+      }
       setRedoStep(null);
       setIntroLocked(false);
       setLocal({ kind: "ready" });
@@ -515,6 +733,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       return;
     }
     const result = body as PhotoResult;
+    if (focused) recordShot(step, preview, rowFromResult(result.status, result.saw, result.message));
     if (result.status === "retake") {
       setLocal({ kind: "retake", preview, result });
       const fresh = await fetchHome(homeId).catch(() => null);
@@ -525,6 +744,10 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       setLocal({ kind: "accepted", preview, saw: result.saw ?? "Got it." });
       await sleep(1400);
       if (!alive.current || token !== sendToken.current) return;
+      if (focused) {
+        leaveFocus();
+        return;
+      }
       try {
         handoff(step, await fetchHome(homeId));
       } catch {
@@ -548,6 +771,12 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       if (!res.ok && res.status !== 409) throw new Error(body.error ?? NETWORK_ERROR);
       const fresh = await fetchHome(homeId);
       if (!alive.current) return;
+      if (batch?.focus === step) {
+        setData(fresh);
+        setBatch((current) => (current ? withoutShot(current, step) : current));
+        leaveFocus();
+        return;
+      }
       handoff(step, fresh);
     } catch (err) {
       if (alive.current) setKeepError(err instanceof Error ? err.message : NETWORK_ERROR);
@@ -557,6 +786,10 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   }
 
   async function continueHeld(step: string) {
+    if (batch?.focus === step) {
+      leaveFocus();
+      return;
+    }
     try {
       const fresh = await fetchHome(homeId);
       if (!alive.current) return;
@@ -596,6 +829,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         setKeepError(null);
         setLocal({ kind: "ready" });
       };
+    } else if (local.kind === "ready" && batch?.focus === step.id) {
+      back = leaveFocus;
     } else if (local.kind === "ready" && redoStep !== null && data.nextStep === null) {
       back = () => setRedoStep(null);
     } else if (local.kind === "ready") {
@@ -606,7 +841,12 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   }
 
   const photoStage =
-    local.kind === "confirm" || local.kind === "checking" || local.kind === "accepted" || local.kind === "retake" || local.kind === "held"
+    local.kind === "confirm" ||
+    local.kind === "saved" ||
+    local.kind === "checking" ||
+    local.kind === "accepted" ||
+    local.kind === "retake" ||
+    local.kind === "held"
       ? "confirm"
       : "photo";
 
@@ -732,10 +972,69 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     );
   }
 
-  if (data.nextStep === "question_5") return <Question5 homeId={homeId} onDone={load} />;
-  if (data.nextStep === "site_check") return <SiteCheckScreen homeId={homeId} onDone={load} />;
+  if (!batch && data.nextStep === "question_5") return <Question5 homeId={homeId} onDone={load} />;
+  if (!batch && data.nextStep === "site_check") return <SiteCheckScreen homeId={homeId} onDone={load} />;
 
-  if (data.nextStep === null && redoStep === null) {
+  if (batch && inCheckpoint && checkpoint) {
+    const next = settle?.next ?? null;
+    const nextTitle = next ? (getStep(next, data.home.extra_steps)?.title ?? next) : "";
+    return (
+      <Frame
+        stage="checkpoint"
+        headingRef={headingRef}
+        title={checkpoint.title}
+        progress={
+          <PhaseHeader
+            phase={batch.phase}
+            segments={phaseSegments(batch.phase, plans[batch.phase] ?? batch.rows, shotStatus)}
+            photo={null}
+          />
+        }
+        help={{ tips: SCREEN_HELP.checkpoint }}
+        actions={
+          settle?.error ? (
+            <Primary onClick={() => setBatch((current) => (current ? { ...current, gen: current.gen + 1, settled: null } : current))}>
+              Try again
+            </Primary>
+          ) : next ? (
+            <Primary onClick={() => openFocus(next)}>Next: {nextTitle}</Primary>
+          ) : (
+            <Primary onClick={continuePhase} disabled={!checkpoint.settled || !settle}>
+              Continue
+            </Primary>
+          )
+        }
+      >
+        <ul className="sc-checkpoint" aria-live="polite">
+          {checkpointRows.map((item) => (
+            <li key={item.id} className="sc-checkpoint-row">
+              {item.thumbnail ? (
+                <img className="sc-checkpoint-thumb" src={item.thumbnail} alt="" />
+              ) : (
+                <div className="sc-checkpoint-thumb" aria-hidden="true" />
+              )}
+              <div className="sc-checkpoint-body">
+                <strong>{item.title}</strong>
+                <CheckpointStatus row={item.row} />
+                {(item.row.kind === "retake" || item.row.kind === "failed") && (
+                  <button type="button" className="sc-option sc-checkpoint-retake" onClick={() => openFocus(item.id)}>
+                    Retake
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+        {settle?.error && (
+          <p className="sc-error" role="alert">
+            We couldn&apos;t load the next part. Check your connection and try again.
+          </p>
+        )}
+      </Frame>
+    );
+  }
+
+  if (!batch && data.nextStep === null && redoStep === null) {
     const total = data.steps.length;
     const index = total === 0 ? 0 : reviewIndex % total;
     const current = data.steps[index];
@@ -811,17 +1110,14 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const shown = SHOWN[step.id] ?? step.instruction;
   const preview = "preview" in local ? local.preview : null;
   const planned = frozenPlan ?? plannedForPhase(data.steps.map((item) => item.id), phaseOf(step.id));
-  const progressInfo = phaseProgress(
-    step.id,
-    planned,
-    (id) => data.steps.find((item) => item.id === id)?.status ?? "pending",
-    redoStep === step.id && data.nextStep === null,
-  );
+  const progressInfo = phaseProgress(step.id, planned, shotStatus, !batch && redoStep === step.id && data.nextStep === null);
   const stepName = stepLabel(step.id, step.title, progressInfo.extra);
   const title =
     local.kind === "confirm"
       ? "Use this photo?"
-      : local.kind === "checking"
+      : local.kind === "saved"
+        ? "Saved"
+        : local.kind === "checking"
         ? "Checking your photo"
         : local.kind === "accepted"
           ? local.saw
@@ -992,6 +1288,16 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             </button>
           </>
         )}
+        {local.kind === "saved" && (
+          <div className="sc-accepted">
+            <img className="sc-upload" src={local.preview} alt="Your photo" />
+            <div className="sc-accepted-badge" aria-hidden="true">
+              <span className="sc-accepted-check">
+                <CheckIcon size={44} />
+              </span>
+            </div>
+          </div>
+        )}
         {local.kind === "checking" && preview && (
           <>
             <img className="sc-upload" src={preview} alt="Your photo" />
@@ -1004,9 +1310,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
               <img className="sc-upload" src={preview} alt="Your photo" />
               <div className="sc-accepted-badge" aria-hidden="true">
                 <span className="sc-accepted-check">
-                  <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
-                    <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <CheckIcon size={44} />
                 </span>
               </div>
             </div>
@@ -1214,6 +1518,40 @@ function IconButton({ label, direction, onClick }: { label: string; direction: "
       </svg>
     </button>
   );
+}
+
+function CheckIcon({ size }: { size: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12.5 10 17.5 19 7" stroke="currentColor" strokeWidth="2.75" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CheckpointStatus({ row }: { row: CheckpointRow }) {
+  switch (row.kind) {
+    case "checking":
+      return (
+        <span className="sc-checkpoint-status">
+          <Spinner />
+        </span>
+      );
+    case "accepted":
+      return (
+        <span className="sc-checkpoint-status sc-checkpoint-ok">
+          <span className="sc-checkpoint-icon" aria-hidden="true">
+            <CheckIcon size={16} />
+          </span>
+          {row.saw}
+        </span>
+      );
+    case "retake":
+      return <span className="sc-checkpoint-status sc-checkpoint-fix">{row.message}</span>;
+    case "failed":
+      return <span className="sc-checkpoint-status sc-checkpoint-fix">{SENT_FAILED_MESSAGE}</span>;
+    case "surveyor":
+      return <span className="sc-checkpoint-status">{SURVEYOR_MESSAGE}</span>;
+  }
 }
 
 function InfoIcon() {

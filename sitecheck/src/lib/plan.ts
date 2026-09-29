@@ -43,6 +43,17 @@ export function latestFinishedByStep<T extends PlanPhoto>(photos: T[]): Map<stri
   return latestPhotoByStep(photos.filter((p) => p.status !== "retake"));
 }
 
+/**
+ * A fingerprint of the photo rows the rules depend on. Two reads with the same fingerprint would give
+ * the same verdict, so a recompute can tell whether another request changed the photos under it.
+ */
+export function photosFingerprint(photos: { id: string; status: PhotoStatus }[]): string {
+  return photos
+    .map((p) => `${p.id}:${p.status}`)
+    .sort()
+    .join(",");
+}
+
 export function isFinished(status: PhotoStatus | undefined): boolean {
   return status !== undefined && FINISHED.includes(status);
 }

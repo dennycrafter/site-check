@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { phaseProgress, plannedForPhase, stepLabel } from "./phases";
+import { phaseProgress, phaseSegments, plannedForPhase, stepLabel } from "./phases";
 import { PHASE_TITLES, phaseOf, STEPS } from "./steps";
 import type { PhotoStatus } from "./types";
 
@@ -58,6 +58,14 @@ describe("phases", () => {
       phaseProgress("left_of_meter", ["left_of_meter"], status({})).segments[0],
     ];
     expect(fills).toEqual([0, 0.5, 1]);
+  });
+
+  it("counts a photo sent inside a phase before its check is back", () => {
+    const planned = ["left_of_meter", "right_of_meter", "adjacent_wall"];
+    const sent = (id: string) => (id === "left_of_meter" || id === "right_of_meter" ? "sent" : "pending");
+    expect(phaseProgress("adjacent_wall", planned, sent)).toMatchObject({ photo: 3, photoCount: 3 });
+    expect(phaseSegments(2, planned, sent)).toEqual([1, 2 / 3, 0]);
+    expect(phaseSegments(2, planned, () => "sent")).toEqual([1, 1, 0]);
   });
 
   it("fills every segment when redoing a photo from the summary", () => {
