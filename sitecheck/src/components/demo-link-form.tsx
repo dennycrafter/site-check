@@ -35,8 +35,8 @@ function CardIntro() {
     <div>
       <p className="ui-eyebrow">For homeowners</p>
       <h2 className="ui-title">Customer photo check</h2>
-      <p className="ui-lead mt-3">Guided photos with an instant AI check on every shot.</p>
-      <p className="ui-card-note mt-3">Demo only: stands in for Base&apos;s system</p>
+      <p className="ui-lead ui-landing-intro">Guided photos with an instant AI check on every shot.</p>
+      <p className="ui-card-note ui-landing-intro">Demo only: stands in for Base&apos;s system</p>
     </div>
   );
 }
@@ -127,7 +127,7 @@ export function DemoLinkForm() {
     return (
       <section className="ui-card flex h-full flex-col">
         <CardIntro />
-        <div className="mt-6 flex flex-1 flex-col">
+        <div className="ui-landing-section flex flex-1 flex-col">
           <h3 className="ui-subtitle">Customer link ready</h3>
           <div className="mt-2 flex items-center gap-2">
             <input
@@ -168,13 +168,13 @@ export function DemoLinkForm() {
   return (
     <section className="ui-card flex h-full flex-col">
       <CardIntro />
-      <form className="mt-6 flex flex-1 flex-col" onSubmit={onSubmit}>
-        <div className="grid gap-[18px]">
+      <form className="ui-landing-section flex flex-1 flex-col" onSubmit={onSubmit}>
+        <div className="ui-landing-fields">
           <div className="pl-address-field">
             <label className="ui-label">
               Address
               <input
-                className="ui-input mt-2.5"
+                className="ui-input ui-landing-field-input"
                 ref={addressInput}
                 value={address}
                 onChange={(e) => {
@@ -220,7 +220,7 @@ export function DemoLinkForm() {
           <label className="ui-label">
             Customer name
             <input
-              className="ui-input mt-2.5"
+              className="ui-input ui-landing-field-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Jane Doe"
@@ -239,7 +239,7 @@ export function DemoLinkForm() {
             {error}
           </p>
         )}
-        <div className="mt-auto pt-6">
+        <div className="ui-landing-actions mt-auto">
           <button type="submit" className="ui-button w-full" disabled={!ready || submitting}>
             {submitting ? (
               <>

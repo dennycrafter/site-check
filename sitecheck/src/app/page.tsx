@@ -36,28 +36,28 @@ async function loadQueueStats(): Promise<QueueStat[] | null> {
 export default async function Home() {
   const stats = await loadQueueStats();
   return (
-    <>
+    <div className="ui-landing">
       <SiteHeader narrow />
 
-      <main className="ui-container ui-container-narrow flex-1 pt-12 pb-12 md:pt-20">
+      <main className="ui-container ui-container-narrow ui-landing-main">
         <section className="mx-auto max-w-3xl text-center">
           <h1 className="ui-hero">Home battery site photos, checked on the spot</h1>
-          <p className="ui-lead mt-4 text-muted">Homeowners get it right the first time. Surveyors get a pre-checked site.</p>
+          <p className="ui-lead ui-landing-hero-sub text-muted">Homeowners get it right the first time. Surveyors get a pre-checked site.</p>
         </section>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-2">
+        <div className="ui-landing-grid">
           <DemoLinkForm />
 
           <section className="ui-card flex h-full flex-col">
             <div>
               <p className="ui-eyebrow">For surveyors</p>
               <h2 className="ui-title">Surveyor queue</h2>
-              <p className="ui-lead mt-3">
+              <p className="ui-lead ui-landing-intro">
                 Every home arrives with photos, a preliminary check and a battery count. The surveyor makes the final call.
               </p>
             </div>
             {stats && (
-              <div className="mt-6 grid grid-cols-3 gap-2">
+              <div className="ui-landing-section grid grid-cols-3 gap-2">
                 {stats.map((s) => (
                   <div key={s.label} className="ui-stat">
                     <span className="ui-stat-value">{s.value}</span>
@@ -66,7 +66,7 @@ export default async function Home() {
                 ))}
               </div>
             )}
-            <div className="mt-auto grid gap-3 pt-6">
+            <div className="ui-landing-actions mt-auto grid gap-3">
               <Link href="/review/audit" className={buttonClass("secondary", "w-full")}>
                 Audit log
               </Link>
@@ -79,6 +79,6 @@ export default async function Home() {
       </main>
 
       <Footer />
-    </>
+    </div>
   );
 }

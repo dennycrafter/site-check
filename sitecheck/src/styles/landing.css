@@ -1,0 +1,106 @@
+/* Home page layout. Below 768px (phones) the page scrolls as before.
+   From 768px up it is exactly one window tall: header on top, content centred, footer at the bottom.
+   As the window gets shorter, spacing and control heights shrink first, then the headline. */
+@layer components {
+  .ui-landing {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .ui-landing-main {
+    flex: 1 1 auto;
+    padding-top: 48px;
+    padding-bottom: 48px;
+  }
+
+  .ui-landing-grid {
+    display: grid;
+    gap: var(--space-6);
+    margin-top: 48px;
+  }
+
+  .ui-landing-intro {
+    margin-top: var(--lp-intro-gap, 12px);
+  }
+  .ui-landing-hero-sub {
+    margin-top: var(--lp-hero-sub-gap, 16px);
+  }
+  .ui-landing-section {
+    margin-top: var(--lp-section-gap, 24px);
+  }
+  .ui-landing-fields {
+    display: grid;
+    gap: var(--lp-field-gap, 18px);
+  }
+  .ui-landing-field-input {
+    margin-top: var(--lp-label-gap, 10px);
+  }
+  .ui-landing-actions {
+    padding-top: var(--lp-section-gap, 24px);
+  }
+}
+
+@media (min-width: 768px) {
+  @layer components {
+    .ui-landing-main {
+      padding-top: 80px;
+    }
+    .ui-landing-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}
+
+@media (min-width: 768px) and (min-height: 600px) {
+  @layer components {
+    .ui-landing {
+      /* Progress of each phase, as a length from 0px (most compact) to its full range (normal size). */
+      --lp-space-k: clamp(0px, 100dvh - 760px, 320px);
+      --lp-head-k: clamp(0px, 100dvh - 680px, 80px);
+
+      --space-3: calc(6px + var(--lp-space-k) * 0.01875);
+      --space-4: calc(8px + var(--lp-space-k) * 0.025);
+      --space-5: 20px;
+      --space-6: calc(10px + var(--lp-space-k) * 0.04375);
+      --control-height: calc(44px + var(--lp-space-k) * 0.05);
+      --control-height-sm: calc(38px + var(--lp-space-k) * 0.03125);
+      --text-hero: calc(28px + var(--lp-head-k) * 0.1);
+
+      --lp-intro-gap: calc(6px + var(--lp-space-k) * 0.01875);
+      --lp-section-gap: calc(10px + var(--lp-space-k) * 0.04375);
+      --lp-field-gap: calc(8px + var(--lp-space-k) * 0.03125);
+      --lp-label-gap: calc(6px + var(--lp-space-k) * 0.0125);
+      --lp-hero-sub-gap: calc(8px + var(--lp-space-k) * 0.025);
+      --lp-qr: calc(120px + var(--lp-space-k) * 0.25);
+      --lp-hero-top: calc(12px + var(--lp-space-k) * 0.2125);
+      --lp-hero-gap: calc(14px + var(--lp-space-k) * 0.10625);
+
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    .ui-landing-main {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 0;
+      padding-top: var(--lp-hero-top);
+      padding-bottom: var(--space-6);
+    }
+    .ui-landing-grid {
+      margin-top: var(--lp-hero-gap);
+    }
+    .ui-landing .ui-footer {
+      padding-block: var(--space-4);
+    }
+    .ui-landing .ui-qr {
+      width: var(--lp-qr);
+      height: var(--lp-qr);
+    }
+    .ui-landing .ui-lead {
+      font-size: calc(17px + var(--lp-space-k) * 0.009375);
+    }
+  }
+}
