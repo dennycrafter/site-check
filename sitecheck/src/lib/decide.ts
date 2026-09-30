@@ -7,7 +7,7 @@ export const MESSAGES = {
   maxAttempts: "Thanks, a surveyor will take a look at this one.",
 } as const;
 
-const RETAKE_FALLBACK: Record<PhotoAnalysis["retake_reason"], string> = {
+export const RETAKE_FALLBACK: Record<PhotoAnalysis["retake_reason"], string> = {
   too_dark: "It's too dark. Turn on your flash or retake in daylight.",
   blurry: "The photo is blurry. Hold still and tap the screen to focus.",
   too_close: "Step back so we can see more around it.",
