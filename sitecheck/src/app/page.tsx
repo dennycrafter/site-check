@@ -56,7 +56,7 @@ export default function Home() {
 
             <div className="ui-landing-actions flex flex-col gap-3 md:col-start-2 md:row-start-2 md:items-center md:justify-center md:[contain:inline-size]">
               <Link
-                href="/start"
+                href="/try"
                 className={`${BUTTON} bg-lime hover:brightness-95`}
               >
                 Start demo
