@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Button, Spinner } from "@/components/ui";
 import { DECISION_LABELS } from "@/lib/labels";
 import type { SurveyorDecision } from "@/lib/types";
@@ -106,30 +106,6 @@ export function DecisionControls({
       )}
       {error && <p className="rv-error">{error}</p>}
     </div>
-  );
-}
-
-/** Everything below the decision, closed by default. */
-export function DetailsToggle({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <section className="rv-details">
-      <button
-        type="button"
-        className="rv-toggle"
-        aria-expanded={open}
-        aria-controls="rv-details-body"
-        onClick={() => setOpen((v) => !v)}
-      >
-        {open ? "Hide all photos and details" : "Show all photos and details"}
-        <svg viewBox="0 0 24 24" aria-hidden="true" className={open ? "rv-chevron rv-chevron-open" : "rv-chevron"}>
-          <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      <div id="rv-details-body" hidden={!open}>
-        {children}
-      </div>
-    </section>
   );
 }
 
