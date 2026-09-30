@@ -17,10 +17,28 @@ describe("decidePhoto decidability triggers", () => {
     }
   });
 
-  it("retakes a meter close-up with the box cut off", () => {
-    expect(retakeMessage("meter_closeup", { meter_can_edges_visible: false })).toBe(
+  it("accepts a meter close-up with the box cut off when the number is readable, locked or not", () => {
+    for (const locked of [false, true]) {
+      const a = { ...GOOD, meter_number_legible: true, meter_in_locked_cabinet: locked, meter_can_edges_visible: false };
+      expect(decidePhoto("meter_closeup", a).accept).toBe(true);
+    }
+  });
+
+  it("retakes a locked cabinet close-up with the cabinet cut off and the number not readable", () => {
+    const a = { meter_number_legible: false, meter_in_locked_cabinet: true, meter_can_edges_visible: false };
+    expect(retakeMessage("meter_closeup", a)).toBe(
       "Step back a little so the whole meter box fits, with some wall around it.",
     );
+  });
+
+  it("accepts a locked cabinet close-up with the cabinet in frame and the number not readable", () => {
+    const a = { ...GOOD, meter_in_locked_cabinet: true, meter_can_edges_visible: true, meter_number_legible: false };
+    expect(decidePhoto("meter_closeup", a).accept).toBe(true);
+  });
+
+  it("retakes a normal meter close-up when the number is not readable", () => {
+    const a = { ...GOOD, meter_in_locked_cabinet: false, meter_can_edges_visible: true, meter_number_legible: false };
+    expect(decidePhoto("meter_closeup", a).accept).toBe(false);
   });
 
   it("retakes wall photos without ground, before checking how much wall is shown", () => {
@@ -44,21 +62,12 @@ describe("decidePhoto decidability triggers", () => {
 
   it("prefers the model's own retake instruction", () => {
     expect(
-      retakeMessage("meter_closeup", { meter_can_edges_visible: false, retake_instruction: "Back up one step." }),
+      retakeMessage("meter_closeup", {
+        meter_can_edges_visible: false,
+        meter_number_legible: false,
+        retake_instruction: "Back up one step.",
+      }),
     ).toBe("Back up one step.");
-  });
-
-  it("does not need readable meter numbers when the meter is in a locked cabinet", () => {
-    expect(decidePhoto("meter_closeup", { ...GOOD, meter_number_legible: false, meter_in_locked_cabinet: true }).accept).toBe(true);
-  });
-
-  it("still needs readable meter numbers on a normal meter", () => {
-    expect(decidePhoto("meter_closeup", { ...GOOD, meter_number_legible: false, meter_in_locked_cabinet: false }).accept).toBe(false);
-  });
-
-  it("still needs the whole cabinet in frame when the meter is in a locked cabinet", () => {
-    const a = { ...GOOD, meter_number_legible: false, meter_in_locked_cabinet: true, meter_can_edges_visible: false };
-    expect(decidePhoto("meter_closeup", a).accept).toBe(false);
   });
 
   it("treats an older analysis without meter_in_locked_cabinet as a normal meter", () => {

@@ -151,7 +151,7 @@ Before a photo is accepted, it must show enough to decide. If the AI did not giv
 
 | Step | Sent back when | Instruction |
 |---|---|---|
-| Meter close-up | The whole meter box is not in the frame | Step back a little so the whole meter box fits, with some wall around it. |
+| Meter close-up | The whole meter box is not in the frame and the meter number is not readable | Step back a little so the whole meter box fits, with some wall around it. |
 | Meter and wall, left, right, around the corner, behind the fence, extra photos | The ground is not visible | Tilt your phone down a little so we can see the ground by the wall. |
 | Left, right, around the corner, behind the fence | Less than about 6 feet of wall and ground is shown (the wall may run out of the frame) | Step back so we can see more of the wall and the ground in front of it. |
 | Breaker box and surroundings | The room or wall around the box is not visible | Step back so we can see the room or wall around the breaker box. |
