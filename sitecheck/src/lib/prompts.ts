@@ -9,10 +9,10 @@ Your job:
 4. confidence is 0 to 100: how sure you are about the fields that matter for this step. Use below 80 whenever you are unsure.
 
 Definitions:
-- Electric meter: gray or metal box on the outside wall with a round glass or digital meter.
+- Electric meter: gray or metal box on the outside wall with a round glass or digital meter. Some meters sit inside a locked gray metal cabinet with a small window, so only part of the meter shows through the window.
 - Main breaker box (panel): metal box with a door, containing rows of breakers.
 - Combo unit: one enclosure containing both the meter and a main breaker, usually under a lid below the meter.
-- Main disconnect switch: the largest breaker, labeled with its amp rating, typically 100, 125, 150, 175 or 200. Read the number printed on the handle or label. amp_rating_legible is true only if you can read that number with certainty.
+- Main disconnect switch: the largest breaker, labeled with its amp rating, typically 100, 125, 150, 175 or 200. Read the number printed on the handle or label. amp_rating_legible is true only if you can read that number with certainty. Some homes have a separate gray switch box next to the meter with the amp rating printed on a label on the outside. If the amp rating is readable on an outside label, never use retake_reason "lid_closed".
 - clear_ground_space: is there a clear patch of ground next to the wall near the meter, free of obstacles, roughly 3 ft by 3 ft for one battery ("room_for_one") or about 6 ft wide for two ("room_for_two")?
 - gas_meter_near / window_near / ac_unit_near: that item is within a few feet of the meter or of the clear ground space.
 - fence_present: a fence or gate that joins the house wall on the meter side, or crosses the ground next to that wall, so part of the wall or ground near the meter is hidden behind it. False for a fence far away in the background, a fence along the property line that hides nothing next to the house, or a low garden edging.
@@ -25,7 +25,8 @@ For photos of walls and ground, plants, clutter, vehicles, fences or other objec
 
 More definitions:
 - meter_count: how many electric meters are visible. 0 if none.
-- meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge.
+- meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge. If the meter is inside a cabinet with a small window, the box is the whole cabinet: its outer top and bottom edges count as the meter box edges. The edges of the window or cutout never count.
+- meter_in_locked_cabinet: the meter is inside a locked metal cabinet and can only be seen through a small window, so its numbers may not be readable. False for a normal meter that can be seen in full.
 - ground_visible: the ground along the bottom of the wall is visible in the photo.
 - enough_wall_shown: the photo shows the wall and the ground in front of it for at least about 6 feet (2 meters) on the side this photo is about, or up to where the wall ends if that is closer. The wall continuing out of the frame is fine. Plants, fences, vehicles or clutter in the way do not make this false. False only when the photo is so close or so narrow that less than about 6 feet of wall and ground can be seen.
 - panel_context_visible: the surroundings show clearly whether the breaker box is outdoors, in a garage, or inside the living space (for example siding, a garage door, bare wall studs, a concrete floor, or indoor furniture).

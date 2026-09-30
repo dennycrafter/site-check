@@ -119,7 +119,7 @@ const SHOWN: Record<string, string> = {
   right_of_meter: "Step back. Keep the meter at the left edge of the photo.",
   panel_open: "Open the breaker box door. Show all the switches.",
   main_disconnect_closeup:
-    "Open the lid. Get close enough that the number, like 150 or 200, is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
+    "Find the number on your main switch, like 150 or 200. It's often inside the breaker box lid. It can also be printed on the outside of a gray box next to your meter.",
 };
 
 const FIND_COPY = {
@@ -1004,11 +1004,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         headingRef={headingRef}
         title={checkpoint.title}
         progress={
-          <PhaseHeader
-            phase={batch.phase}
-            segments={phaseSegments(batch.phase, plans[batch.phase] ?? batch.rows, shotStatus)}
-            photo={null}
-          />
+          <PhaseHeader phase={batch.phase} segments={phaseSegments(batch.phase, plans[batch.phase] ?? batch.rows, shotStatus)} />
         }
         help={{ tips: SCREEN_HELP.checkpoint }}
         actions={
@@ -1089,12 +1085,13 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                   </span>
                 </button>
               ) : (
-                <div className="sc-review-photo">
+                <div className="sc-review-photo sc-review-final">
                   {current.thumbnailUrl ? (
                     <img src={current.thumbnailUrl} alt={current.title} />
                   ) : (
                     <div className="sc-review-empty" role="img" aria-label={`${current.title} is missing`} />
                   )}
+                  {current.attempts >= MAX_ATTEMPTS && <span className="sc-review-redo-chip sc-review-final-chip">No retakes left</span>}
                 </div>
               )}
               <IconButton label="Next photo" direction="right" onClick={() => setReviewIndex((currentIndex) => (currentIndex + 1) % total)} />
@@ -1146,11 +1143,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             : stepName;
 
   const progress = (
-    <PhaseHeader
-      phase={progressInfo.phase}
-      segments={progressInfo.segments}
-      photo={progressInfo.photoCount > 0 ? { y: progressInfo.photo, z: progressInfo.photoCount } : null}
-    />
+    <PhaseHeader phase={progressInfo.phase} segments={progressInfo.segments} />
   );
 
   return (
@@ -1487,20 +1480,10 @@ function Example({ guide, title }: { guide: Guide; title: string }) {
   );
 }
 
-function PhaseHeader({ phase, segments, photo }: { phase: Phase; segments: number[]; photo: { y: number; z: number } | null }) {
+function PhaseHeader({ phase, segments }: { phase: Phase; segments: number[] }) {
   return (
     <div className="sc-progress">
       <p className="sc-progress-phase">{PHASE_TITLES[phase]}</p>
-      <p className="sc-progress-label">
-        <span>
-          Part {phase} of {PHASE_COUNT}
-        </span>
-        {photo && (
-          <span>
-            Photo {photo.y} of {photo.z}
-          </span>
-        )}
-      </p>
       <div
         className="sc-progress-bar"
         role="progressbar"
@@ -1773,7 +1756,7 @@ function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<H
       stage="flow"
       headingRef={headingRef}
       title="Where's your breaker box?"
-      progress={<PhaseHeader phase={3} segments={[1, 1, 0]} photo={null} />}
+      progress={<PhaseHeader phase={3} segments={[1, 1, 0]} />}
       help={{ tips: SCREEN_HELP.question }}
     >
       <p>We couldn&apos;t see it next to your meter.</p>

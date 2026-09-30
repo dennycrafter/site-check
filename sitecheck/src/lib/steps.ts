@@ -88,15 +88,17 @@ export const STEPS: Step[] = [
       "Stand straight in front of the meter.",
       "Get close enough to read the numbers.",
       "Keep the whole meter box in the photo, top to bottom.",
+      "Is your meter in a locked box? Take a photo of the whole box. That's fine.",
     ],
     baseSlot: "electric_meter_close_up",
     title: "Meter close-up",
     instruction: "Move close so the numbers are readable. Keep the whole meter box in the photo.",
     outline: "circle_large",
     description:
-      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge",
+      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge. If the meter is inside a locked metal cabinet with a small window, so only part of the meter shows, a photo of the whole cabinet with its window is correct: set meter_in_locked_cabinet to true. The outer top and bottom edges of the whole cabinet count as the meter box edges for meter_can_edges_visible, never the edges of the window",
     fields: [
       "meter_number_legible",
+      "meter_in_locked_cabinet",
       "damage_visible",
       "meter_count",
       "meter_can_edges_visible",
@@ -115,7 +117,7 @@ export const STEPS: Step[] = [
     instruction: "Step back. Keep the meter at the right edge of the photo.",
     outline: "small_right_edge",
     description:
-      "the wall and ground to the left of the electric meter, with the meter at the right edge. If the meter is at the left edge or in the middle, this is the wrong side: set photo_matches_request to false",
+      "the wall and ground to the left of the electric meter, with the meter at the right edge. The meter can be a round glass meter, a digital meter, or a locked gray cabinet with a small window. Walls often have several boxes in a row, so the meter may sit next to other boxes. Only set photo_matches_request to false for the wrong side when the meter is clearly at the left edge. If it is unclear which box is the meter, do not reject the photo for its side",
     fields: [
       "clear_ground_space",
       "gas_meter_near",
@@ -140,7 +142,7 @@ export const STEPS: Step[] = [
     instruction: "Step back. Keep the meter at the left edge of the photo.",
     outline: "small_left_edge",
     description:
-      "the wall and ground to the right of the electric meter, with the meter at the left edge. If the meter is at the right edge or in the middle, this is the wrong side: set photo_matches_request to false",
+      "the wall and ground to the right of the electric meter, with the meter at the left edge. The meter can be a round glass meter, a digital meter, or a locked gray cabinet with a small window. Walls often have several boxes in a row, so the meter may sit next to other boxes. Only set photo_matches_request to false for the wrong side when the meter is clearly at the right edge. If it is unclear which box is the meter, do not reject the photo for its side",
     fields: [
       "clear_ground_space",
       "gas_meter_near",
@@ -247,10 +249,10 @@ export const STEPS: Step[] = [
     baseSlot: "main_disconnect_switch_photo",
     title: "Main switch",
     instruction:
-      "Open the lid. Fill the box with the main switch so the number (like 150 or 200) is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
+      "Find the number on your main switch, like 150 or 200. It's often inside the breaker box lid. It can also be printed on the outside of a gray box next to your meter.",
     outline: "rect_large",
     description:
-      "a close-up of the main disconnect switch with the lid open and the amp rating number readable",
+      "a close-up of the main disconnect switch with the amp rating number readable. The number is often inside the breaker box lid, so the lid is open. Some homes have a separate gray switch box next to the meter with the amp rating printed on its outside label; a readable photo of that label is correct even with the lid closed",
     fields: ["amp_rating", "amp_rating_legible", "damage_visible"],
   },
 ];
