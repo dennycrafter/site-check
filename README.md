@@ -1,5 +1,7 @@
 # site-check
 
+![site-check: check a home's exterior electrical system in minutes](./public/og.png)
+
 **AI-assisted home battery site qualification that catches unusable photos before they become multi-day delays.**
 
 Built for the Base Power Hackathon, site-check guides homeowners through a mobile photo survey, checks every image while they are still on site, and gives surveyors a structured preliminary assessment. AI reads the photos; deterministic rules make the preliminary decision; a human reviewer makes the final call.
