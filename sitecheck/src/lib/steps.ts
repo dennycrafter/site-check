@@ -249,10 +249,10 @@ export const STEPS: Step[] = [
     baseSlot: "main_disconnect_switch_photo",
     title: "Main switch",
     instruction:
-      "Open the lid. Fill the box with the main switch so the number (like 150 or 200) is readable. If there is no big switch at the top of your breaker box, look in the gray box next to your meter.",
+      "Find the number on your main switch, like 150 or 200. It's often inside the breaker box lid. It can also be printed on the outside of a gray box next to your meter.",
     outline: "rect_large",
     description:
-      "a close-up of the main disconnect switch with the lid open and the amp rating number readable",
+      "a close-up of the main disconnect switch with the amp rating number readable. The number is often inside the breaker box lid, so the lid is open. Some homes have a separate gray switch box next to the meter with the amp rating printed on its outside label; a readable photo of that label is correct even with the lid closed",
     fields: ["amp_rating", "amp_rating_legible", "damage_visible"],
   },
 ];
