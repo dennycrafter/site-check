@@ -48,6 +48,25 @@ describe("decidePhoto decidability triggers", () => {
     ).toBe("Back up one step.");
   });
 
+  it("does not need readable meter numbers when the meter is in a locked cabinet", () => {
+    expect(decidePhoto("meter_closeup", { ...GOOD, meter_number_legible: false, meter_in_locked_cabinet: true }).accept).toBe(true);
+  });
+
+  it("still needs readable meter numbers on a normal meter", () => {
+    expect(decidePhoto("meter_closeup", { ...GOOD, meter_number_legible: false, meter_in_locked_cabinet: false }).accept).toBe(false);
+  });
+
+  it("still needs the whole cabinet in frame when the meter is in a locked cabinet", () => {
+    const a = { ...GOOD, meter_number_legible: false, meter_in_locked_cabinet: true, meter_can_edges_visible: false };
+    expect(decidePhoto("meter_closeup", a).accept).toBe(false);
+  });
+
+  it("treats an older analysis without meter_in_locked_cabinet as a normal meter", () => {
+    const old = Object.fromEntries(Object.entries(GOOD).filter(([k]) => k !== "meter_in_locked_cabinet"));
+    expect(decidePhoto("meter_closeup", old as PhotoAnalysis).accept).toBe(true);
+    expect(decidePhoto("meter_closeup", { ...old, meter_number_legible: false } as PhotoAnalysis).accept).toBe(false);
+  });
+
   it("falls back to the retake reason message when no trigger failed", () => {
     expect(retakeMessage("meter_area_wide", { usable: false, retake_reason: "too_dark" })).toBe(
       "It's too dark. Turn on your flash or retake in daylight.",

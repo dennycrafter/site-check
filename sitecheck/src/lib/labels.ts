@@ -35,6 +35,7 @@ export const FIELD_LABELS: Record<AnalysisField, string> = {
   amp_rating: "Amp rating",
   amp_rating_legible: "Amp rating legible",
   meter_number_legible: "Meter numbers legible",
+  meter_in_locked_cabinet: "Meter in locked cabinet",
   location: "Breaker box location",
   damage_visible: "Damage visible",
   gas_meter_near: "Gas meter near",

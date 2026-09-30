@@ -11,6 +11,7 @@ export const GOOD_ANALYSIS: PhotoAnalysis = {
   amp_rating: 200,
   amp_rating_legible: true,
   meter_number_legible: true,
+  meter_in_locked_cabinet: false,
   location: "outdoor",
   damage_visible: false,
   gas_meter_near: false,

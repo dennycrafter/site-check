@@ -68,7 +68,7 @@ export function decidePhoto(step: string, a: PhotoAnalysis): PhotoDecision {
     !a.photo_matches_request ||
     !a.usable ||
     a.retake_reason !== "none" ||
-    (step === "meter_closeup" && !a.meter_number_legible) ||
+    (step === "meter_closeup" && !a.meter_number_legible && !a.meter_in_locked_cabinet) ||
     (step === "main_disconnect_closeup" && !a.amp_rating_legible) ||
     failed !== undefined;
   if (!retake) return { accept: true };

@@ -88,15 +88,17 @@ export const STEPS: Step[] = [
       "Stand straight in front of the meter.",
       "Get close enough to read the numbers.",
       "Keep the whole meter box in the photo, top to bottom.",
+      "Is your meter in a locked box? Take a photo of the whole box. That's fine.",
     ],
     baseSlot: "electric_meter_close_up",
     title: "Meter close-up",
     instruction: "Move close so the numbers are readable. Keep the whole meter box in the photo.",
     outline: "circle_large",
     description:
-      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge",
+      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge. If the meter is inside a locked metal cabinet with a small window, so only part of the meter shows, a photo of the whole cabinet with its window is correct: set meter_in_locked_cabinet to true, and the cabinet's top and bottom edges count as the meter box edges for meter_can_edges_visible",
     fields: [
       "meter_number_legible",
+      "meter_in_locked_cabinet",
       "damage_visible",
       "meter_count",
       "meter_can_edges_visible",
