@@ -1004,11 +1004,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         headingRef={headingRef}
         title={checkpoint.title}
         progress={
-          <PhaseHeader
-            phase={batch.phase}
-            segments={phaseSegments(batch.phase, plans[batch.phase] ?? batch.rows, shotStatus)}
-            photo={null}
-          />
+          <PhaseHeader phase={batch.phase} segments={phaseSegments(batch.phase, plans[batch.phase] ?? batch.rows, shotStatus)} />
         }
         help={{ tips: SCREEN_HELP.checkpoint }}
         actions={
@@ -1146,11 +1142,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             : stepName;
 
   const progress = (
-    <PhaseHeader
-      phase={progressInfo.phase}
-      segments={progressInfo.segments}
-      photo={progressInfo.photoCount > 0 ? { y: progressInfo.photo, z: progressInfo.photoCount } : null}
-    />
+    <PhaseHeader phase={progressInfo.phase} segments={progressInfo.segments} />
   );
 
   return (
@@ -1487,20 +1479,10 @@ function Example({ guide, title }: { guide: Guide; title: string }) {
   );
 }
 
-function PhaseHeader({ phase, segments, photo }: { phase: Phase; segments: number[]; photo: { y: number; z: number } | null }) {
+function PhaseHeader({ phase, segments }: { phase: Phase; segments: number[] }) {
   return (
     <div className="sc-progress">
       <p className="sc-progress-phase">{PHASE_TITLES[phase]}</p>
-      <p className="sc-progress-label">
-        <span>
-          Part {phase} of {PHASE_COUNT}
-        </span>
-        {photo && (
-          <span>
-            Photo {photo.y} of {photo.z}
-          </span>
-        )}
-      </p>
       <div
         className="sc-progress-bar"
         role="progressbar"
@@ -1773,7 +1755,7 @@ function Question5({ homeId, onDone }: { homeId: string; onDone: () => Promise<H
       stage="flow"
       headingRef={headingRef}
       title="Where's your breaker box?"
-      progress={<PhaseHeader phase={3} segments={[1, 1, 0]} photo={null} />}
+      progress={<PhaseHeader phase={3} segments={[1, 1, 0]} />}
       help={{ tips: SCREEN_HELP.question }}
     >
       <p>We couldn&apos;t see it next to your meter.</p>
