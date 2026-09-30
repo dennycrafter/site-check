@@ -117,7 +117,7 @@ export const STEPS: Step[] = [
     instruction: "Step back. Keep the meter at the right edge of the photo.",
     outline: "small_right_edge",
     description:
-      "the wall and ground to the left of the electric meter, with the meter at the right edge. If the meter is at the left edge or in the middle, this is the wrong side: set photo_matches_request to false",
+      "the wall and ground to the left of the electric meter, with the meter at the right edge. The meter can be a round glass meter, a digital meter, or a locked gray cabinet with a small window. Walls often have several boxes in a row, so the meter may sit next to other boxes. Only set photo_matches_request to false for the wrong side when the meter is clearly at the left edge. If it is unclear which box is the meter, do not reject the photo for its side",
     fields: [
       "clear_ground_space",
       "gas_meter_near",
@@ -142,7 +142,7 @@ export const STEPS: Step[] = [
     instruction: "Step back. Keep the meter at the left edge of the photo.",
     outline: "small_left_edge",
     description:
-      "the wall and ground to the right of the electric meter, with the meter at the left edge. If the meter is at the right edge or in the middle, this is the wrong side: set photo_matches_request to false",
+      "the wall and ground to the right of the electric meter, with the meter at the left edge. The meter can be a round glass meter, a digital meter, or a locked gray cabinet with a small window. Walls often have several boxes in a row, so the meter may sit next to other boxes. Only set photo_matches_request to false for the wrong side when the meter is clearly at the right edge. If it is unclear which box is the meter, do not reject the photo for its side",
     fields: [
       "clear_ground_space",
       "gas_meter_near",
