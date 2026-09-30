@@ -1,7 +1,7 @@
 import { applyCorrections, editableFields, latestCorrections, type CorrectionInput } from "./corrections";
 import { latestPhotoByStep } from "./plan";
 import type { AnalysisField, PhotoAnalysis } from "./schema";
-import type { HomeRow, Outcome, PhotoRow, SurveyorDecision } from "./types";
+import type { HomeRow, Outcome, PhotoRow, PhotoStatus, SurveyorDecision } from "./types";
 
 export type LabelHome = Pick<HomeRow, "id" | "surveyor_decision" | "verdict">;
 export type LabelPhoto = Pick<PhotoRow, "id" | "home_id" | "step" | "attempt" | "storage_path" | "status" | "analysis">;
@@ -12,6 +12,8 @@ export type LabelEntry = {
   step: string;
   storagePath: string;
   aiAnalysis: PhotoAnalysis | null;
+  /** The photo status after surveyor corrections: a corrected kept-for-review photo is accepted. */
+  finalStatus: PhotoStatus;
   /** The editable readings after surveyor corrections. */
   finalValues: Partial<Record<AnalysisField, unknown>>;
   correctedFields: AnalysisField[];
@@ -63,6 +65,7 @@ export function labelEntries(homes: LabelHome[], photos: LabelPhoto[], correctio
       step: photo.step,
       storagePath: photo.storage_path,
       aiAnalysis: photo.analysis,
+      finalStatus: final.status,
       finalValues: Object.fromEntries(fields.map((f) => [f, final.analysis?.[f]])),
       correctedFields: fields.filter((f) => fixes.get(photo.id)?.has(f)),
       surveyorDecision: home.surveyor_decision,

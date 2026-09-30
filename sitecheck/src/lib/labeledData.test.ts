@@ -82,8 +82,24 @@ describe("labelEntries", () => {
   it("has only the listed keys, so no names or emails", () => {
     for (const e of entries) {
       expect(Object.keys(e).sort()).toEqual(
-        ["aiAnalysis", "correctedFields", "finalValues", "homeId", "photoId", "step", "storagePath", "surveyorDecision", "verdict"].sort(),
+        ["aiAnalysis", "correctedFields", "finalStatus", "finalValues", "homeId", "photoId", "step", "storagePath", "surveyorDecision", "verdict"].sort(),
       );
     }
+  });
+
+  it("a corrected kept-for-review photo exports as accepted with the amp legible", () => {
+    const kept: LabelPhoto = {
+      ...photo("kept", "h1", "main_disconnect_closeup", 3),
+      status: "accepted_after_max_attempts",
+      analysis: { ...GOOD_ANALYSIS, amp_rating: 0, amp_rating_legible: false },
+    };
+    const [entry] = labelEntries([homes[0]], [kept], [fix("kept", "amp_rating", 150)]);
+    expect(entry).toMatchObject({
+      finalStatus: "accepted",
+      finalValues: { amp_rating: 150, amp_rating_legible: true },
+      correctedFields: ["amp_rating"],
+    });
+    expect(entry.aiAnalysis?.amp_rating_legible).toBe(false);
+    expect(labelEntries([homes[0]], [kept], [])[0].finalStatus).toBe("accepted_after_max_attempts");
   });
 });

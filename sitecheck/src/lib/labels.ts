@@ -22,6 +22,9 @@ export const PHOTO_STATUS_LABELS: Record<PhotoStatus | "pending", string> = {
   pending: "Not taken yet",
 };
 
+/** Shown instead of "Kept for review" once the surveyor corrected a reading on the photo. */
+export const CONFIRMED_BY_SURVEYOR = "Confirmed by surveyor";
+
 export const FIELD_LABELS: Record<AnalysisField, string> = {
   photo_matches_request: "Matches request",
   usable: "Usable",
