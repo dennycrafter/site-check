@@ -1085,12 +1085,13 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                   </span>
                 </button>
               ) : (
-                <div className="sc-review-photo">
+                <div className="sc-review-photo sc-review-final">
                   {current.thumbnailUrl ? (
                     <img src={current.thumbnailUrl} alt={current.title} />
                   ) : (
                     <div className="sc-review-empty" role="img" aria-label={`${current.title} is missing`} />
                   )}
+                  {current.attempts >= MAX_ATTEMPTS && <span className="sc-review-redo-chip sc-review-final-chip">No retakes left</span>}
                 </div>
               )}
               <IconButton label="Next photo" direction="right" onClick={() => setReviewIndex((currentIndex) => (currentIndex + 1) % total)} />
