@@ -26,7 +26,6 @@ type GeocodeResult = {
 };
 export type Maps = {
   Map: new (node: HTMLElement, options: Record<string, unknown>) => MapObject;
-  Marker: new (options: Record<string, unknown>) => Marker;
   LatLng: new (lat: number, lng: number) => unknown;
   OverlayView: new () => OverlayViewBase;
   Geocoder: new () => { geocode(options: { address: string } | { location: Coordinate }): Promise<{ results: GeocodeResult[] }> };
@@ -56,7 +55,7 @@ type PlacesLibrary = {
 };
 /**
  * A pin drawn as page HTML on the map, so CSS can animate it (Google's own markers can't be styled).
- * Every placement or move restarts the pin's `pl-drop` animation, which the stylesheet turns off for reduced motion.
+ * Every placement or move restarts any CSS animation on the pin (the meter pin's `pl-drop`, off for reduced motion).
  */
 export function createPin(maps: Maps, options: { label: string; title: string; className: string }): Marker {
   const holder = document.createElement("div");
