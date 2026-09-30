@@ -95,7 +95,7 @@ export const STEPS: Step[] = [
     instruction: "Move close so the numbers are readable. Keep the whole meter box in the photo.",
     outline: "circle_large",
     description:
-      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge. If the meter is inside a locked metal cabinet with a small window, so only part of the meter shows, a photo of the whole cabinet with its window is correct: set meter_in_locked_cabinet to true. The outer top and bottom edges of the whole cabinet count as the meter box edges for meter_can_edges_visible, never the edges of the window",
+      "a close-up of the electric meter with its numbers readable, showing the whole metal box that holds the meter from its top edge to its bottom edge. If the meter is inside a locked metal cabinet with a small window, so only part of the meter shows, a photo of the whole cabinet with its window is correct: set meter_in_locked_cabinet to true. The outer top and bottom edges of the whole cabinet count as the meter box edges for meter_can_edges_visible, never the edges of the window. If the meter numbers are readable, a cut-off box edge is fine: still set meter_can_edges_visible truthfully, but never set photo_matches_request to false, usable to false, or a retake_reason just because the box edges are cut off",
     fields: [
       "meter_number_legible",
       "meter_in_locked_cabinet",

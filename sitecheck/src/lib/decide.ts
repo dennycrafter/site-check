@@ -29,7 +29,7 @@ const GROUND_STEPS: string[] = ["meter_area_wide", ...WALL_STEPS];
 const DECIDABILITY: Array<{ applies: (step: string) => boolean; fails: (a: PhotoAnalysis) => boolean; message: string }> = [
   {
     applies: (step) => step === "meter_closeup",
-    fails: (a) => !a.meter_can_edges_visible,
+    fails: (a) => !a.meter_can_edges_visible && (!a.meter_number_legible || a.meter_in_locked_cabinet),
     message: "Step back a little so the whole meter box fits, with some wall around it.",
   },
   {
