@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { HomeIdZod, jsonError, serverError } from "@/lib/api";
-import { loadHome } from "@/lib/homes";
+import { correctPhotosForExport } from "@/lib/exportCorrections";
+import { loadCorrections, loadHome } from "@/lib/homes";
 import { latestFinishedByStep, planSteps } from "@/lib/plan";
 import { baseSlotFor } from "@/lib/steps";
 import { signedUrls } from "@/lib/supabase";
@@ -20,7 +21,11 @@ export async function GET(
   try {
     const loaded = await loadHome(id);
     if (!loaded) return jsonError(404, "Home not found");
-    const { home, photos } = loaded;
+    const { home, photos: aiPhotos } = loaded;
+
+    const corrected = correctPhotosForExport(aiPhotos, await loadCorrections([home.id]));
+    const photos = corrected.map((c) => c.photo);
+    const byId = new Map(corrected.map((c) => [c.photo.id, c]));
 
     const finished = latestFinishedByStep(photos);
     const order = planSteps(home, photos) as string[];
@@ -36,6 +41,7 @@ export async function GET(
     const grouped: Record<string, unknown[]> = {};
     for (const step of steps) {
       const photo = finished.get(step)!;
+      const { aiAnalysis, correctedFields } = byId.get(photo.id)!;
       const slot = baseSlotFor(step);
       (grouped[slot] ??= []).push({
         step,
@@ -44,6 +50,8 @@ export async function GET(
         status: photo.status,
         capturedAt: photo.created_at,
         analysis: photo.analysis,
+        aiAnalysis,
+        correctedFields,
       });
     }
 
