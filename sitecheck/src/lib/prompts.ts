@@ -25,7 +25,7 @@ For photos of walls and ground, plants, clutter, vehicles, fences or other objec
 
 More definitions:
 - meter_count: how many electric meters are visible. 0 if none.
-- meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge. If the meter is inside a locked cabinet, the cabinet's edges count as the meter box edges.
+- meter_can_edges_visible: the top edge and the bottom edge of the metal box that holds the meter are both inside the photo, with some wall showing beyond each edge. If the meter is inside a cabinet with a small window, the box is the whole cabinet: its outer top and bottom edges count as the meter box edges. The edges of the window or cutout never count.
 - meter_in_locked_cabinet: the meter is inside a locked metal cabinet and can only be seen through a small window, so its numbers may not be readable. False for a normal meter that can be seen in full.
 - ground_visible: the ground along the bottom of the wall is visible in the photo.
 - enough_wall_shown: the photo shows the wall and the ground in front of it for at least about 6 feet (2 meters) on the side this photo is about, or up to where the wall ends if that is closer. The wall continuing out of the frame is fine. Plants, fences, vehicles or clutter in the way do not make this false. False only when the photo is so close or so narrow that less than about 6 feet of wall and ground can be seen.
