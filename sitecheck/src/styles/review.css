@@ -1,4 +1,4 @@
-/* Surveyor home page: decision first, details on request. */
+/* Surveyor home page: decision first, details below. */
 .rv {
   --rv-green: #1d4a2c;
   --rv-lime: #b5e07b;
@@ -105,8 +105,7 @@
   cursor: not-allowed;
 }
 .rv-btn:focus-visible,
-.rv-link:focus-visible,
-.rv-toggle:focus-visible {
+.rv-link:focus-visible {
   outline: 3px solid var(--rv-green);
   outline-offset: 3px;
 }
@@ -189,34 +188,6 @@
   margin: 12px 0 0;
   font-size: 15px;
   color: var(--status-fail);
-}
-
-.rv-details {
-  border-top: 1px solid var(--brand-border);
-}
-.rv-toggle {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 64px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--rv-green);
-  font: inherit;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.rv-chevron {
-  width: 18px;
-  height: 18px;
-  transition: transform 200ms ease;
-}
-.rv-chevron-open {
-  transform: rotate(180deg);
 }
 
 /* Editable AI readings inside the details. */
@@ -401,7 +372,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rv-chevron,
   .rv-switch-track,
   .rv-switch-knob {
     transition: none;

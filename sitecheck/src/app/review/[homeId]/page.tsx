@@ -28,7 +28,7 @@ import { signedUrls } from "@/lib/supabase";
 import type { HomeProperty, HomeRow, Outcome, PanelSameWallAnswer, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
 import "@/styles/customer-flow.css";
 import "@/styles/review.css";
-import { DecisionControls, DetailsToggle, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
+import { DecisionControls, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
 import { EditableReading } from "./readings";
 
 export const dynamic = "force-dynamic";
@@ -117,7 +117,6 @@ function ReasonSection({ outcome, groups }: { outcome: Outcome; groups: ReasonGr
                     {stepTitle(step)}
                   </a>
                 ))}
-                <span className="font-mono text-[11px] text-muted">{g.code}</span>
               </p>
             </div>
           </li>
@@ -456,96 +455,94 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
           />
         </section>
 
-        <DetailsToggle>
-          <div className="space-y-6 pb-6">
-            <HomeInfo home={home} />
-            <KeyFacts home={home} photos={photos} />
-            <Reasons home={home} hasPhotos={photos.length > 0} />
-            <SiteCoverageCard home={home} latest={latest} urls={urls} />
-            {home.property && <LocationCard property={home.property} />}
+        <div className="space-y-6 border-t border-line pt-16 pb-6">
+          <HomeInfo home={home} />
+          <KeyFacts home={home} photos={photos} />
+          <Reasons home={home} hasPhotos={photos.length > 0} />
+          <SiteCoverageCard home={home} latest={latest} urls={urls} />
+          {home.property && <LocationCard property={home.property} />}
 
-            <section>
-              <h2 className="ui-subtitle">Photos</h2>
-              {stepOrder.length === 0 && <p className="mt-2 text-muted">No steps yet.</p>}
-              <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                {stepOrder.map((stepId) => {
-                  const photo = latest.get(stepId);
-                  const history = photos.filter((p) => p.step === stepId && p.id !== photo?.id).reverse();
-                  const status = photo?.status ?? "pending";
-                  const url = photo ? urls[photo.storage_path] : undefined;
-                  return (
-                    <article
-                      key={stepId}
-                      id={photoAnchor(stepId)}
-                      className="ui-card scroll-mt-6 p-0 target:ring-2 target:ring-accent"
-                    >
-                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-brand bg-page">
-                        {url ? (
-                          <PhotoZoom src={url} alt={stepTitle(stepId)} className="h-full w-full" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-sm text-muted">No photo</div>
-                        )}
+          <section>
+            <h2 className="ui-subtitle">Photos</h2>
+            {stepOrder.length === 0 && <p className="mt-2 text-muted">No steps yet.</p>}
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              {stepOrder.map((stepId) => {
+                const photo = latest.get(stepId);
+                const history = photos.filter((p) => p.step === stepId && p.id !== photo?.id).reverse();
+                const status = photo?.status ?? "pending";
+                const url = photo ? urls[photo.storage_path] : undefined;
+                return (
+                  <article
+                    key={stepId}
+                    id={photoAnchor(stepId)}
+                    className="ui-card scroll-mt-6 p-0 target:ring-2 target:ring-accent"
+                  >
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-t-brand bg-page">
+                      {url ? (
+                        <PhotoZoom src={url} alt={stepTitle(stepId)} className="h-full w-full" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-muted">No photo</div>
+                      )}
+                    </div>
+                    <div className="space-y-3 p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="ui-label">{stepTitle(stepId)}</h3>
+                        <span className={`shrink-0 ${BADGE_CLASS[STATUS_TONES[status]]}`}>
+                          {photo ? statusLabel(photo) : PHOTO_STATUS_LABELS[status]}
+                        </span>
                       </div>
-                      <div className="space-y-3 p-4">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="ui-label">{stepTitle(stepId)}</h3>
-                          <span className={`shrink-0 ${BADGE_CLASS[STATUS_TONES[status]]}`}>
-                            {photo ? statusLabel(photo) : PHOTO_STATUS_LABELS[status]}
-                          </span>
-                        </div>
-                        {isExtraStepId(stepId) && (
-                          <p className="text-sm text-muted">{getStep(stepId, home.extra_steps)?.instruction}</p>
-                        )}
-                        {!planned.includes(stepId) && (
-                          <p className="text-xs text-muted">No longer required for this setup.</p>
-                        )}
-                        {photo && (
-                          <>
-                            <Readout
-                              photo={photo}
-                              ai={aiById.get(photo.id) ?? null}
-                              fixes={fixes.get(photo.id)}
-                              home={home}
-                              reasons={reasons}
-                            />
-                            <PhotoMeta photo={photo} />
-                          </>
-                        )}
-                        {history.length > 0 && (
-                          <details className="rounded-brand bg-page px-3 py-2">
-                            <summary className="cursor-pointer text-sm font-medium text-ink">
-                              Previous attempts ({history.length})
-                            </summary>
-                            <ul className="mt-3 space-y-3">
-                              {history.map((p) => (
-                                <li key={p.id} className="flex gap-3">
-                                  {urls[p.storage_path] && (
-                                    <PhotoZoom
-                                      src={urls[p.storage_path]}
-                                      alt={`${stepTitle(stepId)}, attempt ${p.attempt}`}
-                                      className="h-16 w-16 shrink-0 overflow-hidden rounded-md"
-                                    />
+                      {isExtraStepId(stepId) && (
+                        <p className="text-sm text-muted">{getStep(stepId, home.extra_steps)?.instruction}</p>
+                      )}
+                      {!planned.includes(stepId) && (
+                        <p className="text-xs text-muted">No longer required for this setup.</p>
+                      )}
+                      {photo && (
+                        <>
+                          <Readout
+                            photo={photo}
+                            ai={aiById.get(photo.id) ?? null}
+                            fixes={fixes.get(photo.id)}
+                            home={home}
+                            reasons={reasons}
+                          />
+                          <PhotoMeta photo={photo} />
+                        </>
+                      )}
+                      {history.length > 0 && (
+                        <details className="rounded-brand bg-page px-3 py-2">
+                          <summary className="cursor-pointer text-sm font-medium text-ink">
+                            Previous attempts ({history.length})
+                          </summary>
+                          <ul className="mt-3 space-y-3">
+                            {history.map((p) => (
+                              <li key={p.id} className="flex gap-3">
+                                {urls[p.storage_path] && (
+                                  <PhotoZoom
+                                    src={urls[p.storage_path]}
+                                    alt={`${stepTitle(stepId)}, attempt ${p.attempt}`}
+                                    className="h-16 w-16 shrink-0 overflow-hidden rounded-md"
+                                  />
+                                )}
+                                <div className="min-w-0 text-sm">
+                                  <p className="font-medium text-ink">{statusLabel(p)}</p>
+                                  {p.analysis?.retake_instruction && (
+                                    <p className="text-muted">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
                                   )}
-                                  <div className="min-w-0 text-sm">
-                                    <p className="font-medium text-ink">{statusLabel(p)}</p>
-                                    {p.analysis?.retake_instruction && (
-                                      <p className="text-muted">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
-                                    )}
-                                    <PhotoMeta photo={p} />
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </details>
-                        )}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-        </DetailsToggle>
+                                  <PhotoMeta photo={p} />
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       </main>
       <Footer />
     </>
