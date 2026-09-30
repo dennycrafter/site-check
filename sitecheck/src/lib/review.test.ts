@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  batteryText,
   decidedToday,
   decisionLabel,
+  evidenceStep,
   filterQueue,
   groupReasons,
   highlightedFields,
@@ -256,6 +258,35 @@ describe("topReason", () => {
   it("keeps the first reason on a tie", () => {
     const list = [reason("DAMAGE", "REVIEW"), reason("HEAVY_RUST", "REVIEW")];
     expect(topReason(list)).toEqual({ reason: list[0], others: 1 });
+  });
+});
+
+describe("batteryText", () => {
+  it("counts batteries for PASS and FAIL", () => {
+    expect(batteryText("PASS", 2)).toBe("2 batteries");
+    expect(batteryText("PASS", 1)).toBe("1 battery");
+    expect(batteryText("FAIL", 0)).toBe("0 batteries");
+  });
+
+  it("marks a REVIEW count as provisional", () => {
+    expect(batteryText("REVIEW", 1)).toBe("1 battery, provisional");
+    expect(batteryText("REVIEW", 2)).toBe("2 batteries, provisional");
+  });
+
+  it("is empty before the first check", () => {
+    expect(batteryText(null, null)).toBeNull();
+    expect(batteryText("PASS", null)).toBeNull();
+  });
+});
+
+describe("evidenceStep", () => {
+  it("uses the reason's step", () => {
+    expect(evidenceStep(reason("AMP_TOO_LOW", "FAIL", "main_disconnect_closeup"))).toBe("main_disconnect_closeup");
+  });
+
+  it("falls back to the wide meter photo", () => {
+    expect(evidenceStep(reason("NO_SPACE", "FAIL"))).toBe("meter_area_wide");
+    expect(evidenceStep(null)).toBe("meter_area_wide");
   });
 });
 

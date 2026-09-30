@@ -3,26 +3,33 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
-import { BADGE_CLASS, buttonClass, StatusBadges, type BadgeTone } from "@/components/ui";
-import { homeLabel, loadHome } from "@/lib/homes";
+import { BADGE_CLASS, buttonClass, type BadgeTone } from "@/components/ui";
+import { applyCorrections, editableFields, latestCorrections, type CorrectionRow } from "@/lib/corrections";
+import { homeLabel, loadCorrections, loadHome } from "@/lib/homes";
 import { FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
 import { latestFinishedByStep, latestPhotoByStep, planSteps } from "@/lib/plan";
 import { googleMapsLink } from "@/lib/property";
 import {
+  batteryText,
+  evidenceStep,
   groupReasons,
   highlightedFields,
   keyFacts,
+  topReason,
   valueLabel,
+  verdictLabel,
   type FactTone,
   type ReasonGroup,
 } from "@/lib/review";
 import { CONFIDENCE_MIN } from "@/lib/rules";
-import type { PhotoAnalysis } from "@/lib/schema";
+import type { AnalysisField, PhotoAnalysis } from "@/lib/schema";
 import { getStep, isExtraStepId, SPACE_STEPS, STEP_IDS, stepTitle } from "@/lib/steps";
 import { signedUrls } from "@/lib/supabase";
 import type { HomeProperty, HomeRow, Outcome, PanelSameWallAnswer, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
 import "@/styles/customer-flow.css";
-import { DecisionPanel, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
+import "@/styles/review.css";
+import { DecisionControls, DetailsToggle, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
+import { EditableReading } from "./readings";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Home detail | site-check" };
@@ -141,8 +148,21 @@ function Reasons({ home, hasPhotos }: { home: HomeRow; hasPhotos: boolean }) {
   );
 }
 
-function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; reasons: Reason[] }) {
-  if (!photo.analysis) {
+/** `photo` carries the corrected analysis; `ai` is what the AI read, shown next to corrected values. */
+function Readout({
+  photo,
+  ai,
+  fixes,
+  home,
+  reasons,
+}: {
+  photo: PhotoRow;
+  ai: PhotoAnalysis | null;
+  fixes: Map<AnalysisField, CorrectionRow> | undefined;
+  home: HomeRow;
+  reasons: Reason[];
+}) {
+  if (!photo.analysis || !ai) {
     return (
       <p className="text-sm text-muted">
         No AI readout. {photo.error ? <span className="text-muted">Error: {photo.error}</span> : null}
@@ -151,11 +171,13 @@ function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; rea
   }
   const a = photo.analysis;
   const fields = getStep(photo.step, home.extra_steps)?.fields ?? [];
+  const editable = editableFields(photo.step);
   const flagged = new Set(highlightedFields(photo.step, a, reasons));
   const failing = new Set(highlightedFields(photo.step, a, reasons.filter((r) => r.outcome === "FAIL")));
   const lowConfidence = a.confidence < CONFIDENCE_MIN;
+  const confirmed = (fixes?.size ?? 0) > 0;
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 text-sm">
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-sm">
       {fields.map((field) => {
         const value = valueLabel(field, a[field]);
         const tone = failing.has(field)
@@ -163,6 +185,22 @@ function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; rea
           : flagged.has(field)
             ? "bg-amber-50 font-semibold text-review"
             : "";
+        const fix = fixes?.get(field);
+        if (editable.includes(field) && a[field] !== undefined) {
+          return (
+            <EditableReading
+              key={`${field}-${fix?.id ?? "ai"}`}
+              homeId={home.id}
+              photoId={photo.id}
+              field={field}
+              label={FIELD_LABELS[field]}
+              value={a[field] as string | number | boolean}
+              aiValue={ai[field]}
+              corrected={!!fix}
+              tone={tone}
+            />
+          );
+        }
         return (
           <div key={field} className={`col-span-2 grid grid-cols-subgrid rounded-md px-2 py-0.5 ${tone}`}>
             <dt className={tone ? "" : "text-muted"}>{FIELD_LABELS[field]}</dt>
@@ -176,6 +214,7 @@ function Readout({ photo, home, reasons }: { photo: PhotoRow; home: HomeRow; rea
         <dt className="text-muted">Confidence</dt>
         <dd className={`font-medium ${lowConfidence ? "text-review" : "text-ink"}`}>
           {a.confidence}%{lowConfidence ? " (low)" : ""}
+          {confirmed && <span className="rv-ai-value">AI: {ai.confidence}%</span>}
         </dd>
       </div>
       {a.retake_reason !== "none" && (
@@ -309,88 +348,114 @@ function PhotoMeta({ photo }: { photo: PhotoRow }) {
   );
 }
 
+function HomeInfo({ home }: { home: HomeRow }) {
+  return (
+    <section className="ui-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="ui-subtitle">{homeLabel(home)}</h2>
+          {home.external_ref && <p className="mt-1 text-sm font-semibold text-ink">Order {home.external_ref}</p>}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <a
+            href={`/api/homes/${home.id}/export`}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonClass("secondary", "whitespace-nowrap")}
+          >
+            Export for Base (JSON)
+          </a>
+          <HomeMenu homeId={home.id} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+        <span>
+          Austin: <YesNo value={home.in_austin} />
+        </span>
+        <span>
+          Solar: <YesNo value={home.has_solar} />
+        </span>
+        {home.panel_same_wall_answer !== "not_asked" && (
+          <span>
+            Breaker box on meter wall:{" "}
+            <span className="font-semibold text-ink">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
+          </span>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        {home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "In progress"}
+        {` · Started ${formatTime(home.created_at)}`}
+      </p>
+    </section>
+  );
+}
+
 export default async function HomeDetailPage({ params }: PageProps<"/review/[homeId]">) {
   const { homeId } = await params;
   if (!UUID_RE.test(homeId)) notFound();
   const loaded = await loadHome(homeId);
   if (!loaded) notFound();
-  const { home, photos } = loaded;
+  const { home, photos: aiPhotos } = loaded;
 
-  const urls = await signedUrls(photos.map((p) => p.storage_path));
+  const [urls, corrections] = await Promise.all([
+    signedUrls(aiPhotos.map((p) => p.storage_path)),
+    loadCorrections([home.id]),
+  ]);
+  const photos = applyCorrections(aiPhotos, corrections);
+  const aiById = new Map(aiPhotos.map((p) => [p.id, p.analysis]));
+  const fixes = latestCorrections(corrections);
   const latest = latestPhotoByStep(photos);
   const planned = planSteps(home, photos);
   const extra = STEP_IDS.filter((id) => !planned.includes(id) && latest.has(id));
   const stepOrder = [...planned, ...extra];
   const reasons = home.reasons ?? [];
 
+  const { reason: top } = topReason(reasons);
+  const evidence = evidenceStep(top);
+  const evidencePhoto = latest.get(evidence);
+  const evidenceUrl = evidencePhoto ? urls[evidencePhoto.storage_path] : undefined;
+  const evidenceTitle = getStep(evidence, home.extra_steps)?.title ?? stepTitle(evidence);
+  const batteries = batteryText(home.verdict, home.battery_count);
+  const customer = [home.customer_name, home.customer_email].filter(Boolean).join(" · ") || homeLabel(home);
+
   return (
     <>
       <SiteHeader tag="Surveyor" />
-      <main className="ui-container flex-1 pt-4 pb-12">
+      <main className="rv ui-container flex-1 pt-4 pb-12">
         <Link href="/review" className="ui-button-ghost">
           Back to queue
         </Link>
 
-        <header className="mt-1 flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="ui-title">{homeLabel(home)}</h1>
-                <StatusBadges verdict={home.verdict} decision={home.surveyor_decision} />
-              </div>
-              <div className="md:hidden">
-                <HomeMenu homeId={home.id} />
-              </div>
-            </div>
-            {home.external_ref && (
-              <p className="mt-1 text-sm font-semibold text-ink">Order {home.external_ref}</p>
-            )}
-            {(home.customer_name || home.customer_email) && home.address && (
-              <p className="mt-1 text-muted">
-                {[home.customer_name, home.customer_email].filter(Boolean).join(" · ")}
-              </p>
-            )}
-            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
-              <span>
-                Austin: <YesNo value={home.in_austin} />
-              </span>
-              <span>
-                Solar: <YesNo value={home.has_solar} />
-              </span>
-              {home.panel_same_wall_answer !== "not_asked" && (
-                <span>
-                  Breaker box on meter wall:{" "}
-                  <span className="font-semibold text-ink">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
-                </span>
+        <section className="rv-decision" aria-label="Decision">
+          <p className="rv-customer">{customer}</p>
+          <h1 className="rv-verdict">
+            <span className={home.verdict ? OUTCOME_STYLES[home.verdict].text : "text-muted"}>
+              {verdictLabel(home.verdict)}
+            </span>
+            {batteries && <span className="rv-batteries">{batteries}</span>}
+          </h1>
+          {top && <p className="rv-reason">{top.message}</p>}
+          <figure className="rv-evidence">
+            <div className="rv-evidence-frame">
+              {evidenceUrl ? (
+                <PhotoZoom src={evidenceUrl} alt={evidenceTitle} className="h-full w-full" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted">No photo yet</div>
               )}
             </div>
-            <p className="mt-2 text-xs text-muted">
-              {home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "In progress"}
-              {` · Started ${formatTime(home.created_at)}`}
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="ui-stat bg-surface px-5 py-3">
-              <span className="ui-stat-label mt-0">Batteries</span>
-              <span className="ui-stat-value mt-1">{home.battery_count ?? "-"}</span>
-              {home.verdict === "REVIEW" && <span className="block text-xs text-review">provisional</span>}
-            </div>
-            <a
-              href={`/api/homes/${home.id}/export`}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonClass("secondary", "whitespace-nowrap")}
-            >
-              Export for Base (JSON)
-            </a>
-            <div className="hidden md:block">
-              <HomeMenu homeId={home.id} />
-            </div>
-          </div>
-        </header>
+            <figcaption>{evidenceTitle}</figcaption>
+          </figure>
+          <DecisionControls
+            key={`${home.surveyor_decision ?? "none"}-${home.decided_at ?? ""}`}
+            homeId={home.id}
+            decision={home.surveyor_decision}
+            note={home.surveyor_note ?? ""}
+          />
+        </section>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-          <div className="min-w-0 space-y-6">
+        <DetailsToggle>
+          <div className="space-y-6 pb-6">
+            <HomeInfo home={home} />
             <KeyFacts home={home} photos={photos} />
             <Reasons home={home} hasPhotos={photos.length > 0} />
             <SiteCoverageCard home={home} latest={latest} urls={urls} />
@@ -409,9 +474,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                     <article
                       key={stepId}
                       id={photoAnchor(stepId)}
-                      className="ui-card ui-card-flush scroll-mt-6 target:ring-2 target:ring-accent"
+                      className="ui-card scroll-mt-6 p-0 target:ring-2 target:ring-accent"
                     >
-                      <div className="relative aspect-[4/3] bg-page">
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-brand bg-page">
                         {url ? (
                           <PhotoZoom src={url} alt={stepTitle(stepId)} className="h-full w-full" />
                         ) : (
@@ -431,7 +496,13 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                         )}
                         {photo && (
                           <>
-                            <Readout photo={photo} home={home} reasons={reasons} />
+                            <Readout
+                              photo={photo}
+                              ai={aiById.get(photo.id) ?? null}
+                              fixes={fixes.get(photo.id)}
+                              home={home}
+                              reasons={reasons}
+                            />
                             <PhotoMeta photo={photo} />
                           </>
                         )}
@@ -469,15 +540,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               </div>
             </section>
           </div>
-
-          <aside>
-            <DecisionPanel homeId={home.id} decision={home.surveyor_decision} note={home.surveyor_note ?? ""} />
-          </aside>
-        </div>
+        </DetailsToggle>
       </main>
-      <div className="pb-48 lg:pb-0">
-        <Footer />
-      </div>
+      <Footer />
     </>
   );
 }

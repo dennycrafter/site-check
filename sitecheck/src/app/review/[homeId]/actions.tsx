@@ -1,92 +1,134 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Banner, Button, Spinner } from "@/components/ui";
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
+import { Button, Spinner } from "@/components/ui";
 import { DECISION_LABELS } from "@/lib/labels";
 import type { SurveyorDecision } from "@/lib/types";
 
-const DECISIONS: Array<{ id: SurveyorDecision; label: string }> = [
-  { id: "approved", label: "Approve" },
+const DECISIONS: Array<{ id: SurveyorDecision; label: string; primary?: boolean }> = [
+  { id: "approved", label: "Approve", primary: true },
   { id: "rejected", label: "Reject" },
-  { id: "needs_site_visit", label: "Needs site visit" },
+  { id: "needs_site_visit", label: "Site visit" },
 ];
 
-/** Fixed to the bottom of the screen on mobile, sticky in the right column on desktop. */
-export function DecisionPanel({
+const DECIDED_TONE: Record<SurveyorDecision, string> = {
+  approved: "rv-decided-pass",
+  rejected: "rv-decided-fail",
+  needs_site_visit: "rv-decided-review",
+};
+
+/** Approve, Reject or Site visit, with an optional note. Once decided, the decision shows plainly with Undo. */
+export function DecisionControls({
   homeId,
-  decision,
-  note,
+  decision: savedDecision,
+  note: savedNote,
 }: {
   homeId: string;
   decision: SurveyorDecision | null;
   note: string;
 }) {
   const router = useRouter();
-  const [draftNote, setDraftNote] = useState(note);
-  const [saving, setSaving] = useState<SurveyorDecision | null>(null);
-  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [decision, setDecision] = useState(savedDecision);
+  const [note, setNote] = useState(savedNote);
+  const [noteOpen, setNoteOpen] = useState(!savedDecision && savedNote.length > 0);
+  const [saving, setSaving] = useState<SurveyorDecision | "undo" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  async function save(value: SurveyorDecision) {
-    setSaving(value);
-    setMessage(null);
+  async function save(value: SurveyorDecision | null) {
+    setSaving(value ?? "undo");
+    setError(null);
     try {
       const res = await fetch(`/api/homes/${homeId}/decision`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ decision: value, note: draftNote }),
+        body: JSON.stringify(value ? { decision: value, note } : { decision: null }),
       });
       if (!res.ok) throw new Error();
-      setMessage({ tone: "success", text: `Saved: ${DECISION_LABELS[value]}` });
+      setDecision(value);
+      if (!value) setNoteOpen(note.length > 0);
       startTransition(() => router.refresh());
     } catch {
-      setMessage({ tone: "error", text: "Could not save the decision. Please try again." });
+      setError(value ? "Could not save the decision. Try again." : "Could not undo. Try again.");
     } finally {
       setSaving(null);
     }
   }
 
-  return (
-    <section
-      aria-label="Surveyor decision"
-      className="ui-card fixed inset-x-0 bottom-0 z-30 rounded-none border-x-0 border-b-0 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_color-mix(in_srgb,var(--brand-ink)_8%,transparent)] lg:sticky lg:inset-auto lg:top-6 lg:rounded-brand lg:border lg:p-6 lg:shadow-[var(--brand-shadow)]"
-    >
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="ui-subtitle text-base lg:text-xl">Surveyor decision</h2>
-        <span className="text-sm text-muted">{decision ? DECISION_LABELS[decision] : "Undecided"}</span>
+  if (decision) {
+    return (
+      <div className="rv-controls">
+        <p className="rv-decided" role="status">
+          <span className={DECIDED_TONE[decision]}>{DECISION_LABELS[decision]}</span>
+          <button type="button" className="rv-link" onClick={() => save(null)} disabled={saving !== null}>
+            {saving === "undo" ? "Undoing..." : "Undo"}
+          </button>
+        </p>
+        {note && <p className="rv-note-text">{note}</p>}
+        {error && <p className="rv-error">{error}</p>}
       </div>
-      <label className="mt-2 block lg:mt-4">
-        <span className="ui-label sr-only lg:not-sr-only">Note (optional)</span>
-        <textarea
-          value={draftNote}
-          onChange={(e) => setDraftNote(e.target.value)}
-          rows={1}
-          maxLength={2000}
-          placeholder="Note for the install team (optional)"
-          className="ui-input mt-1 max-h-40 resize-y lg:mt-2.5 lg:min-h-24"
-        />
-      </label>
-      <div className="mt-2 grid grid-cols-3 gap-2 lg:mt-4 lg:grid-cols-1">
+    );
+  }
+
+  return (
+    <div className="rv-controls">
+      <div className="rv-buttons">
         {DECISIONS.map((d) => (
           <button
             key={d.id}
             type="button"
             onClick={() => save(d.id)}
             disabled={saving !== null}
-            aria-pressed={decision === d.id}
-            className="ui-button-secondary px-2 text-base leading-tight lg:px-4 lg:text-lg"
+            className={d.primary ? "rv-btn rv-btn-primary" : "rv-btn"}
           >
             {saving === d.id && <Spinner className="h-4 w-4" />}
             {d.label}
           </button>
         ))}
       </div>
-      {message && (
-        <div className="mt-2 lg:mt-3">
-          <Banner tone={message.tone}>{message.text}</Banner>
-        </div>
+      {noteOpen ? (
+        <label className="rv-note">
+          <span className="sr-only">Note</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={2000}
+            autoFocus
+            placeholder="Note for the install team"
+          />
+        </label>
+      ) : (
+        <button type="button" className="rv-link" onClick={() => setNoteOpen(true)}>
+          Add note
+        </button>
       )}
+      {error && <p className="rv-error">{error}</p>}
+    </div>
+  );
+}
+
+/** Everything below the decision, closed by default. */
+export function DetailsToggle({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="rv-details">
+      <button
+        type="button"
+        className="rv-toggle"
+        aria-expanded={open}
+        aria-controls="rv-details-body"
+        onClick={() => setOpen((v) => !v)}
+      >
+        {open ? "Hide all photos and details" : "Show all photos and details"}
+        <svg viewBox="0 0 24 24" aria-hidden="true" className={open ? "rv-chevron rv-chevron-open" : "rv-chevron"}>
+          <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      <div id="rv-details-body" hidden={!open}>
+        {children}
+      </div>
     </section>
   );
 }

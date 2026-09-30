@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
 import { Banner, StatusBadges } from "@/components/ui";
-import { homeLabel } from "@/lib/homes";
+import { homeLabel, loadLabeledData } from "@/lib/homes";
+import { correctionStats } from "@/lib/labeledData";
 import { formatTime } from "@/lib/labels";
 import {
   decidedToday,
@@ -40,6 +41,17 @@ async function loadHomes(): Promise<{ homes: HomeRow[]; error: string | null; no
     return { homes: (data ?? []) as HomeRow[], error: null, now };
   } catch (err) {
     return { homes: [], error: err instanceof Error ? err.message : String(err), now };
+  }
+}
+
+/** N of M over decided homes. Null when it cannot be loaded, so the queue still shows. */
+async function correctedReadings(homes: HomeRow[]): Promise<{ corrected: number; total: number } | null> {
+  try {
+    const { homes: decided, photos, corrections } = await loadLabeledData(homes);
+    return correctionStats(decided, photos, corrections);
+  } catch (err) {
+    console.error("[review] corrected readings", err);
+    return null;
   }
 }
 
@@ -94,10 +106,12 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
   };
   for (const h of homes) counts[queueTab(h)] += 1;
   const oldest = filterQueue(homes, "to_decide")[0];
+  const corrected = await correctedReadings(homes);
   const stats = [
     { label: "To decide", value: String(counts.to_decide) },
     { label: "Oldest wait", value: oldest ? waitingTime(oldest.submitted_at, now) : "-" },
     { label: "Decided today", value: String(homes.filter((h) => decidedToday(h.decided_at, now)).length) },
+    { label: "AI readings corrected", value: corrected ? `${corrected.corrected} of ${corrected.total}` : "-" },
   ];
 
   return (
@@ -109,7 +123,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
           <p className="ui-muted">{homes.length} homes total</p>
         </div>
 
-        <section className="ui-card mt-6 grid grid-cols-3 gap-3 p-4 sm:max-w-xl">
+        <section className="ui-card mt-6 grid grid-cols-2 gap-3 p-4 sm:max-w-3xl sm:grid-cols-4">
           {stats.map((s) => (
             <div key={s.label} className="ui-stat">
               <span className="ui-stat-value">{s.value}</span>
@@ -214,6 +228,11 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
           </>
         )}
       </main>
+      <div className="flex justify-center pt-6">
+        <a href="/api/export/labels" download className="ui-button-ghost text-base">
+          Export labeled data
+        </a>
+      </div>
       <Footer />
     </>
   );
