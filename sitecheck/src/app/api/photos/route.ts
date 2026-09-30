@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { envFailureRate } from "@/lib/aiRetry";
 import { HomeIdZod, jsonError, readJson, serverError } from "@/lib/api";
 import { analyzePhoto } from "@/lib/analyze";
+import { simulatedFailureRate } from "@/lib/demo";
 import { canKeep, decidePhoto, MESSAGES } from "@/lib/decide";
 import { loadHome, recomputeHome } from "@/lib/homes";
 import { isFinished, latestPhotoByStep, nextStep, planSteps } from "@/lib/plan";
@@ -21,6 +23,9 @@ const PhotoBodyZod = z.object({
   imageBase64: z.string().min(100).max(MAX_BASE64_CHARS),
   /** The homeowner tapped a finished photo on the summary to take it again. */
   redo: z.boolean().optional(),
+  /** Sent by the capture page inside /demo, with the outage switch's rate. */
+  demo: z.boolean().optional(),
+  simulateFailureRate: z.number().min(0).max(1).optional(),
 });
 
 export async function POST(request: Request) {
@@ -57,7 +62,12 @@ export async function POST(request: Request) {
       supabase.storage
         .from(PHOTO_BUCKET)
         .upload(storagePath, buffer, { contentType: "image/jpeg", upsert: false }),
-      analyzePhoto({ homeId, step: stepDef, base64Jpeg: imageBase64 }),
+      analyzePhoto({
+        homeId,
+        step: stepDef,
+        base64Jpeg: imageBase64,
+        failureRate: simulatedFailureRate(envFailureRate(), body.data),
+      }),
     ]);
     if (upload.error) {
       const duplicate = /exist|duplicate/i.test(upload.error.message);
