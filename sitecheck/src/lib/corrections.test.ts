@@ -14,15 +14,19 @@ import { evaluate, type RulesInput } from "./rules";
 import type { PhotoAnalysis } from "./schema";
 import { STEP_IDS } from "./steps";
 import { GOOD_ANALYSIS } from "./testing";
-import type { SetupType } from "./types";
+import type { FinishedPhotoStatus, SetupType } from "./types";
 
-type Photo = { id: string; step: string; status: "accepted"; analysis: PhotoAnalysis };
+type Photo = { id: string; step: string; status: FinishedPhotoStatus; analysis: PhotoAnalysis };
 
-function homePhotos(setupType: SetupType, overrides: Record<string, Partial<PhotoAnalysis>> = {}): Photo[] {
+function homePhotos(
+  setupType: SetupType,
+  overrides: Record<string, Partial<PhotoAnalysis>> = {},
+  statuses: Record<string, FinishedPhotoStatus> = {},
+): Photo[] {
   return planSteps({ setup_type: setupType, panel_same_wall_answer: "not_asked" }, []).map((step) => ({
     id: `photo-${step}`,
     step,
-    status: "accepted",
+    status: statuses[step] ?? "accepted",
     analysis: { ...GOOD_ANALYSIS, ...overrides[step] },
   }));
 }
@@ -72,6 +76,41 @@ describe("applyCorrections with the rules", () => {
     const aiOnly = homePhotos(setup, { panel_wide: { confidence: 60, location: "closet" } });
     expect(rules(setup, aiOnly).verdict).toBe("REVIEW");
   });
+
+  const main = "main_disconnect_closeup";
+  const codesFor = (result: ReturnType<typeof rules>, step: string) =>
+    result.reasons.filter((r) => r.step === step).map((r) => r.code);
+
+  it("a kept-for-review main switch photo with the amp corrected to 200A in Austin is read by the rules", () => {
+    const setup = "combo_meter_main_unit";
+    const photos = homePhotos(
+      setup,
+      { [main]: { amp_rating: 0, amp_rating_legible: false } },
+      { [main]: "accepted_after_max_attempts" },
+    );
+    expect(codesFor(rules(setup, applyCorrections(photos, []), { inAustin: true }), main)).toEqual(["STEP_UNCLEAR"]);
+
+    const fixed = applyCorrections(photos, [correction(`photo-${main}`, "amp_rating", 200)]);
+    const photo = fixed.find((p) => p.step === main)!;
+    expect(photo.status).toBe("accepted");
+    expect(photo.analysis.amp_rating_legible).toBe(true);
+    const after = rules(setup, fixed, { inAustin: true });
+    expect(codesFor(after, main)).not.toContain("STEP_UNCLEAR");
+    expect(codesFor(after, main)).not.toContain("AMP_UNREADABLE");
+    expect(codesFor(after, main)).toContain("AMP_OK");
+    expect(after.verdict).toBe("PASS");
+  });
+
+  it("an amp_rating_legible correction to false after an amp_rating correction keeps it false", () => {
+    const setup = "combo_meter_main_unit";
+    const photos = homePhotos(setup, { [main]: { amp_rating: 0, amp_rating_legible: false } });
+    const fixed = applyCorrections(photos, [
+      correction(`photo-${main}`, "amp_rating", 200, "2026-09-30T10:00:00Z"),
+      correction(`photo-${main}`, "amp_rating_legible", false, "2026-09-30T11:00:00Z"),
+    ]);
+    expect(fixed.find((p) => p.step === main)!.analysis.amp_rating_legible).toBe(false);
+    expect(codesFor(rules(setup, fixed, { inAustin: true }), main)).toContain("AMP_UNREADABLE");
+  });
 });
 
 describe("applyCorrections", () => {
@@ -110,6 +149,57 @@ describe("applyCorrections", () => {
     expect(out[2]).toBe(photos[2]);
     expect(photos[0].analysis?.amp_rating).toBe(100);
     expect(photos[0].analysis?.confidence).toBe(70);
+  });
+
+  it("a readable amp or brand correction makes its legible flag true", () => {
+    const unreadable = { ...GOOD_ANALYSIS, amp_rating_legible: false, panel_label_legible: false };
+    const [a] = applyCorrections(
+      [{ id: "a", analysis: unreadable }],
+      [correction("a", "amp_rating", 150), correction("a", "panel_brand", "other")],
+    );
+    expect(a.analysis?.amp_rating_legible).toBe(true);
+    expect(a.analysis?.panel_label_legible).toBe(true);
+  });
+
+  it("an amp of 0 or a brand of not_visible leaves the legible flag as the AI read it", () => {
+    const unreadable = { ...GOOD_ANALYSIS, amp_rating_legible: false, panel_label_legible: false };
+    const [a] = applyCorrections(
+      [{ id: "a", analysis: unreadable }],
+      [correction("a", "amp_rating", 0), correction("a", "panel_brand", "not_visible")],
+    );
+    expect(a.analysis?.amp_rating_legible).toBe(false);
+    expect(a.analysis?.panel_label_legible).toBe(false);
+  });
+
+  it("the surveyor's own legible correction wins, even when made before the reading correction", () => {
+    const [a] = applyCorrections(
+      [{ id: "a", analysis: { ...GOOD_ANALYSIS, panel_label_legible: true } }],
+      [
+        correction("a", "panel_label_legible", false, "2026-09-30T09:00:00Z"),
+        correction("a", "panel_brand", "other", "2026-09-30T10:00:00Z"),
+      ],
+    );
+    expect(a.analysis?.panel_label_legible).toBe(false);
+  });
+
+  it("only a corrected kept-for-review photo becomes accepted", () => {
+    const withStatus = [
+      { id: "kept", status: "accepted_after_max_attempts" as const, analysis: GOOD_ANALYSIS },
+      { id: "kept-untouched", status: "accepted_after_max_attempts" as const, analysis: GOOD_ANALYSIS },
+      { id: "failed", status: "check_failed" as const, analysis: GOOD_ANALYSIS },
+      { id: "kept-no-analysis", status: "accepted_after_max_attempts" as const, analysis: null },
+    ];
+    const out = applyCorrections(
+      withStatus,
+      ["kept", "failed", "kept-no-analysis"].map((id) => correction(id, "damage_visible", true)),
+    );
+    expect(out.map((p) => p.status)).toEqual([
+      "accepted",
+      "accepted_after_max_attempts",
+      "check_failed",
+      "accepted_after_max_attempts",
+    ]);
+    expect(withStatus[0].status).toBe("accepted_after_max_attempts");
   });
 
   it("ignores unknown fields", () => {

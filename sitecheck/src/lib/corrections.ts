@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { PHOTO_ANALYSIS_SCHEMA, PhotoAnalysisZod, type AnalysisField, type PhotoAnalysis } from "./schema";
 import { getStep, isExtraStepId, isStepId, type StepId } from "./steps";
+import type { PhotoStatus } from "./types";
 
 /**
  * The analysis fields rules.ts reads from each step's photo. Keep in sync with rules.ts.
@@ -95,12 +96,19 @@ export function latestCorrections<C extends CorrectionInput>(corrections: C[]): 
   return out;
 }
 
+/** A corrected reading that makes a legibility flag true, unless the surveyor set that flag themselves. */
+const LEGIBLE_WHEN: [AnalysisField, AnalysisField, (value: unknown) => boolean][] = [
+  ["amp_rating", "amp_rating_legible", (v) => typeof v === "number" && v > 0],
+  ["panel_brand", "panel_label_legible", (v) => typeof v === "string" && v !== "not_visible"],
+];
+
 /**
- * The photos with the latest correction per photo and field applied. A corrected photo gets
- * confidence 100: a person confirmed it, so the low-confidence downgrade no longer applies.
- * Photos without an analysis are returned as they are. Inputs are not changed.
+ * The photos with the latest correction per photo and field applied. A corrected photo counts as
+ * confirmed by a person: it gets confidence 100, so the low-confidence downgrade no longer applies,
+ * and a kept-for-review photo becomes accepted, so the rules read it. Photos without an analysis
+ * are returned as they are. Inputs are not changed.
  */
-export function applyCorrections<T extends { id: string; analysis: PhotoAnalysis | null }>(
+export function applyCorrections<T extends { id: string; status?: PhotoStatus; analysis: PhotoAnalysis | null }>(
   photos: T[],
   corrections: CorrectionInput[],
 ): T[] {
@@ -110,7 +118,12 @@ export function applyCorrections<T extends { id: string; analysis: PhotoAnalysis
     if (!photo.analysis || !fields) return photo;
     const analysis: Record<string, unknown> = { ...photo.analysis };
     for (const [field, c] of fields) analysis[field] = c.corrected_value;
+    for (const [reading, legible, readable] of LEGIBLE_WHEN) {
+      if (fields.has(reading) && !fields.has(legible) && readable(analysis[reading])) analysis[legible] = true;
+    }
     analysis.confidence = 100;
-    return { ...photo, analysis: analysis as PhotoAnalysis };
+    const corrected = { ...photo, analysis: analysis as PhotoAnalysis };
+    if (photo.status === "accepted_after_max_attempts") corrected.status = "accepted";
+    return corrected;
   });
 }
