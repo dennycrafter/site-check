@@ -54,11 +54,8 @@ export type HomeProperty = {
   source: "google" | "example";
   placeId?: string;
   house?: Coordinate;
-  front?: Coordinate;
   meter?: Coordinate;
-  exampleFront?: MapPoint;
   exampleMeter?: MapPoint;
-  frontUncertain: boolean;
   meterUncertain: boolean;
   propertyConfirmed: boolean;
   /** True once the customer finished the map step. */

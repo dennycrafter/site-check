@@ -215,7 +215,6 @@ function MapLink({ point, children }: { point: { lat: number; lng: number }; chi
 function LocationCard({ property }: { property: HomeProperty }) {
   const flags = [
     !property.propertyConfirmed && "Home not confirmed",
-    property.frontUncertain && "Front marked as unsure",
     property.meterUncertain && "Meter spot marked as unsure",
   ].filter((flag): flag is string => Boolean(flag));
   return (
@@ -240,24 +239,12 @@ function LocationCard({ property }: { property: HomeProperty }) {
               <span className="text-muted">Meter spot not marked</span>
             )}
           </li>
-          <li>
-            {property.front ? (
-              <MapLink point={property.front}>Open front entrance in Google Maps</MapLink>
-            ) : (
-              <span className="text-muted">Front entrance not marked</span>
-            )}
-          </li>
         </ul>
       ) : (
         <div className="pl-reference mt-3 max-w-sm rounded-brand border border-line" style={{ height: 420 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/property-map-reference.png" alt="Example map with the front entrance and meter marked" draggable={false} />
+          <img src="/property-map-reference.png" alt="Example map with the meter marked" draggable={false} />
           <span className="pl-example-badge">Example map</span>
-          {property.exampleFront && (
-            <span className="pl-pin pl-front" style={{ left: `${property.exampleFront.x * 100}%`, top: `${property.exampleFront.y * 100}%` }}>
-              F<span>Front</span>
-            </span>
-          )}
           {property.exampleMeter && (
             <span className="pl-pin pl-meter" style={{ left: `${property.exampleMeter.x * 100}%`, top: `${property.exampleMeter.y * 100}%` }}>
               M<span>Meter</span>
