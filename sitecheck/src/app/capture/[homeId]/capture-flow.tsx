@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { HelpButton, HelpSheet } from "@/components/help-sheet";
 import { Outline } from "@/components/outline";
 import PropertyLocator, { type PropertyContext } from "@/components/property-locator";
@@ -297,6 +297,7 @@ export function CaptureFlow({ homeId, demo = null }: { homeId: string; demo?: De
   const instantFails = useRef(new Map<string, number>());
   /** Demo camera shutter presses per step in this page session. Instant-check rejections count too. */
   const [demoPresses, setDemoPresses] = useState<Record<string, number>>({});
+  const [demoAspect, setDemoAspect] = useState<number | null>(null);
   const demoImageRef = useRef<HTMLImageElement>(null);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -622,8 +623,6 @@ export function CaptureFlow({ homeId, demo = null }: { homeId: string; demo?: De
   }
 
   function capture() {
-    const stage = stageRef.current;
-    const crop = stage?.clientWidth && stage.clientHeight ? stage.clientWidth / stage.clientHeight : undefined;
     if (demoFile && stepId) {
       const image = demoImageRef.current;
       if (!image?.naturalWidth || !image.naturalHeight) {
@@ -631,7 +630,8 @@ export function CaptureFlow({ homeId, demo = null }: { homeId: string; demo?: De
         return;
       }
       try {
-        const shot = captureFrame(image, image.naturalWidth, image.naturalHeight, { crop });
+        // The demo viewfinder shows the whole photo, so the whole photo is sent.
+        const shot = captureFrame(image, image.naturalWidth, image.naturalHeight);
         const pressed = stepId;
         setDemoPresses((current) => ({ ...current, [pressed]: (current[pressed] ?? 0) + 1 }));
         closeCamera();
@@ -647,6 +647,8 @@ export function CaptureFlow({ homeId, demo = null }: { homeId: string; demo?: De
       return;
     }
     try {
+      const stage = stageRef.current;
+      const crop = stage?.clientWidth && stage.clientHeight ? stage.clientWidth / stage.clientHeight : undefined;
       const shot = captureVideoFrame(video, { crop });
       closeCamera();
       takeShot(shot.base64, shot.dataUrl, shot.gray);
@@ -1262,20 +1264,29 @@ export function CaptureFlow({ homeId, demo = null }: { homeId: string; demo?: De
                 <p className="sc-camera-hint">{shown}</p>
                 <div className="sc-camera-stage" ref={stageRef}>
                   {demoFile ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={cameraGeneration}
-                      ref={demoImageRef}
-                      className="sc-demo-frame"
-                      src={demoPhotoUrl(demoFile)}
-                      alt="Camera preview"
-                      onLoad={() => setCameraReady(true)}
-                      onError={() => setCameraError("The demo photo couldn't load. Try again.")}
-                    />
+                    <div
+                      className="sc-demo-view"
+                      style={demoAspect ? ({ "--demo-aspect": demoAspect } as CSSProperties) : undefined}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        key={cameraGeneration}
+                        ref={demoImageRef}
+                        src={demoPhotoUrl(demoFile)}
+                        alt="Camera preview"
+                        onLoad={(event) => {
+                          const { naturalWidth, naturalHeight } = event.currentTarget;
+                          if (naturalWidth && naturalHeight) setDemoAspect(naturalWidth / naturalHeight);
+                          setCameraReady(true);
+                        }}
+                        onError={() => setCameraError("The demo photo couldn't load. Try again.")}
+                      />
+                      {cameraReady && demoAspect && <Outline id={step.outline} aspect={demoAspect} />}
+                    </div>
                   ) : (
                     <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
                   )}
-                  {stageAspect && <Outline id={step.outline} aspect={stageAspect} />}
+                  {!demoFile && stageAspect && <Outline id={step.outline} aspect={stageAspect} />}
                   {!cameraReady && !cameraError && <p className="sc-camera-status">Opening camera…</p>}
                 </div>
                 {cameraError && (
