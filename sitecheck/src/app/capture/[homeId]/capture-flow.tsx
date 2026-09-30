@@ -16,6 +16,7 @@ import {
   type CheckpointRow,
 } from "@/lib/checkpoint";
 import { captureVideoFrame, prepareUpload } from "@/lib/image";
+import { instantCheck, type GrayImage } from "@/lib/instantCheck";
 import { phaseProgress, phaseSegments, plannedForPhase, stepLabel, type ShotStatus } from "@/lib/phases";
 import { isFinished } from "@/lib/plan";
 import { getStep, isStepId, MAX_ATTEMPTS, PHASE_COUNT, PHASE_TITLES, phaseOf, type Phase } from "@/lib/steps";
@@ -64,6 +65,8 @@ type Local =
   | { kind: "accepted"; preview: string; saw: string }
   | { kind: "retake"; preview: string; result: PhotoResult }
   | { kind: "held"; preview: string; result: PhotoResult }
+  /** Turned away on the phone (too dark or blurry) before anything was sent. No attempt is used. */
+  | { kind: "instant"; preview: string; message: string }
   | { kind: "error"; message: string };
 
 type Intro = "welcome" | "meter" | "breaker";
@@ -278,6 +281,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [welcomed] = useState(() => readWelcomed(homeId));
   const [batch, setBatch] = useState<Batch | null>(null);
   const shotSeq = useRef(0);
+  const instantFails = useRef(new Map<string, number>());
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const safetyPanel = useRef<HTMLDivElement>(null);
@@ -579,9 +583,9 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       return;
     }
     try {
-      const { base64, dataUrl } = await prepareUpload(file);
+      const { base64, dataUrl, gray } = await prepareUpload(file);
       if (!alive.current) return;
-      takeShot(base64, dataUrl);
+      takeShot(base64, dataUrl, gray);
     } catch {
       if (!alive.current) return;
       setLocal({ kind: "error", message: FILE_ERROR });
@@ -599,13 +603,22 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       const crop = stage?.clientWidth && stage.clientHeight ? stage.clientWidth / stage.clientHeight : undefined;
       const shot = captureVideoFrame(video, { crop });
       closeCamera();
-      takeShot(shot.base64, shot.dataUrl);
+      takeShot(shot.base64, shot.dataUrl, shot.gray);
     } catch {
       setCameraError("We couldn't save that picture. Try again.");
     }
   }
 
-  function takeShot(base64: string, preview: string) {
+  /** Every photo, from the camera or the library, passes through here before it can be sent. */
+  function takeShot(base64: string, preview: string, gray: GrayImage) {
+    if (stepId) {
+      const check = instantCheck(stepId, gray, instantFails.current);
+      if (!check.pass) {
+        setKeepError(null);
+        setLocal({ kind: "instant", preview, message: check.message });
+        return;
+      }
+    }
     if (quick && stepId) queueShot(stepId, base64, preview);
     else setLocal({ kind: "confirm", preview, base64 });
   }
@@ -824,7 +837,13 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
 
   let back: (() => void) | null = null;
   if (data && step && intro === null) {
-    if (local.kind === "confirm" || local.kind === "retake" || local.kind === "held" || local.kind === "error") {
+    if (
+      local.kind === "confirm" ||
+      local.kind === "retake" ||
+      local.kind === "held" ||
+      local.kind === "instant" ||
+      local.kind === "error"
+    ) {
       back = () => {
         setKeepError(null);
         setLocal({ kind: "ready" });
@@ -846,7 +865,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     local.kind === "checking" ||
     local.kind === "accepted" ||
     local.kind === "retake" ||
-    local.kind === "held"
+    local.kind === "held" ||
+    local.kind === "instant"
       ? "confirm"
       : "photo";
 
@@ -1121,7 +1141,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         ? "Checking your photo"
         : local.kind === "accepted"
           ? local.saw
-          : local.kind === "retake"
+          : local.kind === "retake" || local.kind === "instant"
             ? "Let's try that photo again"
             : stepName;
 
@@ -1235,7 +1255,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
             <Primary disabled>
               <Spinner /> Checking your photo...
             </Primary>
-          ) : local.kind === "retake" ? (
+          ) : local.kind === "retake" || local.kind === "instant" ? (
             <Primary
               disabled={keeping}
               onClick={() => {
@@ -1335,6 +1355,14 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                 {keepError}
               </p>
             )}
+          </>
+        )}
+        {local.kind === "instant" && (
+          <>
+            <p className="sc-warning" role="alert">
+              {local.message}
+            </p>
+            <img className="sc-upload" src={local.preview} alt="Your photo" />
           </>
         )}
         {local.kind === "held" && (
