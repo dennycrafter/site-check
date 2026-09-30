@@ -128,19 +128,14 @@ export default function PropertyLocator({
   );
 
   const mark = (kind: PinPhase, point: Coordinate, maps: Maps) => {
-    if (markers.current[kind]) markers.current[kind].setPosition(point);
-    else if (kind === "meter") {
-      const pin = createPin(maps, { label: "M", title: "Meter location", className: "pl-meter" });
-      pin.setPosition(point);
-      pin.setMap(map.current);
-      markers.current[kind] = pin;
-    } else
-      markers.current[kind] = new maps.Marker({
-        map: map.current,
-        position: point,
-        label: { text: "H", color: "white", fontWeight: "bold" },
-        title: "House location",
-      });
+    if (!markers.current[kind]) {
+      markers.current[kind] =
+        kind === "meter"
+          ? createPin(maps, { label: "M", title: "Meter location", className: "pl-meter" })
+          : createPin(maps, { label: "H", title: "House location", className: "pl-house" });
+      markers.current[kind].setMap(map.current);
+    }
+    markers.current[kind].setPosition(point);
   };
   const putPoint = (kind: Phase, point: Coordinate, maps: Maps) => {
     if (kind === "search") return;
