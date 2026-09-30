@@ -2,11 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
+import { LiveRefresh } from "@/components/live-refresh";
 import { SiteHeader } from "@/components/site-header";
 import { BADGE_CLASS, buttonClass, type BadgeTone } from "@/components/ui";
 import { applyCorrections, editableFields, latestCorrections, type CorrectionRow } from "@/lib/corrections";
 import { homeLabel, loadCorrections, loadHome } from "@/lib/homes";
-import { CONFIRMED_BY_SURVEYOR, FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
+import { CONFIRMED_BY_SURVEYOR, FIELD_LABELS, formatClock, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
+import { isLive, liveHref } from "@/lib/live";
 import { latestFinishedByStep, latestPhotoByStep, planSteps } from "@/lib/plan";
 import { googleMapsLink } from "@/lib/property";
 import {
@@ -389,8 +391,47 @@ function HomeInfo({ home }: { home: HomeRow }) {
   );
 }
 
-export default async function HomeDetailPage({ params }: PageProps<"/review/[homeId]">) {
-  const { homeId } = await params;
+/** Every AI check on this home, newest first, straight from the photos table. */
+function EngineLog({ photos }: { photos: PhotoRow[] }) {
+  const rows = [...photos].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return (
+    <details className="ui-card">
+      <summary className="ui-subtitle cursor-pointer">Engine log</summary>
+      {rows.length === 0 ? (
+        <p className="mt-3 text-muted">No photos checked yet.</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="ui-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Step</th>
+                <th>Status</th>
+                <th>AI tries</th>
+                <th>Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => (
+                <tr key={p.id}>
+                  <td className="whitespace-nowrap">{formatClock(p.created_at)}</td>
+                  <td>{stepTitle(p.step)}</td>
+                  <td>{PHOTO_STATUS_LABELS[p.status]}</td>
+                  <td className={p.ai_attempts > 1 ? "font-semibold text-review" : undefined}>{p.ai_attempts}</td>
+                  <td className="whitespace-nowrap">{p.latency_ms === null ? "-" : `${(p.latency_ms / 1000).toFixed(1)} s`}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </details>
+  );
+}
+
+export default async function HomeDetailPage({ params, searchParams }: PageProps<"/review/[homeId]">) {
+  const [{ homeId }, query] = await Promise.all([params, searchParams]);
+  const live = isLive(query);
   if (!UUID_RE.test(homeId)) notFound();
   const loaded = await loadHome(homeId);
   if (!loaded) notFound();
@@ -423,8 +464,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
   return (
     <>
       <SiteHeader tag="Surveyor" />
+      {live && <LiveRefresh />}
       <main className="rv ui-container flex-1 pt-4 pb-12">
-        <Link href="/review" className="ui-button-ghost">
+        <Link href={liveHref("/review", live)} className="ui-button-ghost">
           Back to queue
         </Link>
 
@@ -542,6 +584,7 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               })}
             </div>
           </section>
+          {live && <EngineLog photos={aiPhotos} />}
         </div>
       </main>
       <Footer />

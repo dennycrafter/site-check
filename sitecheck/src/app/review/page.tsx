@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
+import { LiveRefresh } from "@/components/live-refresh";
 import { SiteHeader } from "@/components/site-header";
 import { Banner, StatusBadges } from "@/components/ui";
 import { homeLabel, loadLabeledData } from "@/lib/homes";
 import { correctionStats } from "@/lib/labeledData";
 import { formatTime } from "@/lib/labels";
+import { isLive, liveHref } from "@/lib/live";
 import {
   decidedToday,
   filterQueue,
@@ -96,6 +98,7 @@ function WhenText({ home, now }: { home: HomeRow; now: number }) {
 export default async function ReviewPage({ searchParams }: PageProps<"/review">) {
   const params = await searchParams;
   const filter = parseQueueFilter(params.tab);
+  const live = isLive(params);
   const { homes, error, now } = await loadHomes();
   const shown = filterQueue(homes, filter);
   const counts: Record<QueueFilter, number> = {
@@ -117,6 +120,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
   return (
     <>
       <SiteHeader tag="Surveyor" />
+      {live && <LiveRefresh />}
       <main className="ui-container flex-1 pt-4 pb-12">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
           <h1 className="ui-title">Surveyor queue</h1>
@@ -136,7 +140,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
           {QUEUE_FILTERS.map((f) => (
             <Link
               key={f.id}
-              href={f.id === "to_decide" ? "/review" : `/review?tab=${f.id}`}
+              href={liveHref(f.id === "to_decide" ? "/review" : `/review?tab=${f.id}`, live)}
               aria-current={filter === f.id ? "page" : undefined}
               className="ui-tab"
             >
@@ -179,7 +183,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                   {shown.map((h) => (
                     <tr key={h.id} className="relative">
                       <td>
-                        <Link href={`/review/${h.id}`} className="after:absolute after:inset-0 hover:text-accent">
+                        <Link href={liveHref(`/review/${h.id}`, live)} className="after:absolute after:inset-0 hover:text-accent">
                           <HomeName home={h} />
                         </Link>
                       </td>
@@ -204,7 +208,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
             <ul className="mt-6 space-y-3 md:hidden">
               {shown.map((h) => (
                 <li key={h.id}>
-                  <Link href={`/review/${h.id}`} className="ui-card block p-4 active:bg-page">
+                  <Link href={liveHref(`/review/${h.id}`, live)} className="ui-card block p-4 active:bg-page">
                     <div className="flex items-start justify-between gap-3">
                       <span className="min-w-0">
                         <HomeName home={h} />

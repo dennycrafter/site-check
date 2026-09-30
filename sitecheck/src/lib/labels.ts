@@ -76,6 +76,16 @@ export const HAZARD_FIELDS: AnalysisField[] = [
   "heavy_rust",
 ];
 
+/** Time of day with seconds, for the engine log. */
+export function formatClock(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone: "America/Chicago",
+  }).format(new Date(iso));
+}
+
 export function formatTime(iso: string | null): string {
   if (!iso) return "";
   return new Intl.DateTimeFormat("en-US", {
