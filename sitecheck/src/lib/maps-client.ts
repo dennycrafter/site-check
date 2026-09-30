@@ -12,6 +12,11 @@ export type MapObject = {
   addListener(t: string, cb: (e: { latLng?: LatLng }) => void): { remove(): void };
 };
 export type Marker = { setMap(m: MapObject | null): void; setPosition(p: Coordinate): void };
+type OverlayViewBase = {
+  setMap(m: MapObject | null): void;
+  getPanes(): { overlayMouseTarget: HTMLElement } | null;
+  getProjection(): { fromLatLngToDivPixel(p: unknown): { x: number; y: number } | null } | null;
+};
 type GeocodeResult = {
   formatted_address: string;
   place_id: string;
@@ -22,6 +27,8 @@ type GeocodeResult = {
 export type Maps = {
   Map: new (node: HTMLElement, options: Record<string, unknown>) => MapObject;
   Marker: new (options: Record<string, unknown>) => Marker;
+  LatLng: new (lat: number, lng: number) => unknown;
+  OverlayView: new () => OverlayViewBase;
   Geocoder: new () => { geocode(options: { address: string } | { location: Coordinate }): Promise<{ results: GeocodeResult[] }> };
   importLibrary?(name: string): Promise<PlacesLibrary>;
 };
@@ -47,6 +54,44 @@ type PlacesLibrary = {
   };
   AutocompleteSessionToken: new () => object;
 };
+/**
+ * A pin drawn as page HTML on the map, so CSS can animate it (Google's own markers can't be styled).
+ * Every placement or move restarts the pin's `pl-drop` animation, which the stylesheet turns off for reduced motion.
+ */
+export function createPin(maps: Maps, options: { label: string; title: string; className: string }): Marker {
+  const holder = document.createElement("div");
+  holder.className = "pl-overlay-pin";
+  const pin = document.createElement("span");
+  pin.className = `pl-pin ${options.className}`;
+  pin.title = options.title;
+  pin.textContent = options.label;
+  holder.appendChild(pin);
+  let position: Coordinate | null = null;
+
+  class PinOverlay extends maps.OverlayView {
+    onAdd() {
+      this.getPanes()?.overlayMouseTarget.appendChild(holder);
+    }
+    draw() {
+      const point = position && this.getProjection()?.fromLatLngToDivPixel(new maps.LatLng(position.lat, position.lng));
+      if (!point) return;
+      holder.style.left = `${point.x}px`;
+      holder.style.top = `${point.y}px`;
+    }
+    onRemove() {
+      holder.remove();
+    }
+    setPosition(next: Coordinate) {
+      position = next;
+      this.draw();
+      pin.style.animation = "none";
+      void pin.offsetWidth;
+      pin.style.animation = "";
+    }
+  }
+  return new PinOverlay();
+}
+
 export type AddressSuggestion = { placeId: string; label: string; main: string; secondary: string; toPlace: () => Place };
 export type FoundAddress = { address: string; point: Coordinate; placeId?: string };
 

@@ -38,6 +38,7 @@ export function StartWelcome({ link }: { link: StartLink }) {
           customerEmail: link.email,
           inAustin: link.inAustin,
           hasSolar: link.hasSolar,
+          ...(link.address ? { address: link.address } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));

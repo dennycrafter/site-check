@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AddressSuggestions } from "@/components/address-suggestions";
 import { HelpButton, HelpSheet } from "@/components/help-sheet";
 import {
+  createPin,
   findAddress,
   loadMaps,
   MAPS_API_KEY,
@@ -16,13 +17,12 @@ import {
 import type { Coordinate, HomeProperty, MapPoint } from "@/lib/types";
 
 export type PropertyContext = Omit<HomeProperty, "mapDone">;
-type Phase = "search" | "house" | "front" | "meter";
+type Phase = "search" | "house" | "meter";
 type PinPhase = Exclude<Phase, "search">;
 
 const EMPTY: PropertyContext = {
   address: "",
   source: "example",
-  frontUncertain: false,
   meterUncertain: false,
   propertyConfirmed: false,
 };
@@ -33,22 +33,11 @@ const MAP_TIPS: Record<Phase, string[]> = {
     "Or share your location if you are at home right now.",
   ],
   house: ["Zoom in or out to check the roof and the street around it.", "The H pin should sit on your house."],
-  front: ["Tap the side of the house with the front door.", "Tap again to move the F pin."],
   meter: ["Tap the outside wall where the electric meter hangs.", "Tap again to move the M pin."],
 };
 
-const UNSURE: Record<PinPhase, string> = {
-  house: "I'm not sure this is my home",
-  front: "I'm not sure where the front is",
-  meter: "I'm not sure where my meter is",
-};
-
-const EXAMPLE_POSITIONS = [
-  { label: "Top", x: 0.55, y: 0.29 },
-  { label: "Right", x: 0.76, y: 0.55 },
-  { label: "Bottom", x: 0.47, y: 0.74 },
-  { label: "Left", x: 0.3, y: 0.5 },
-];
+const METER_PROMPT = "Tap the wall where your meter is located.";
+const METER_MARKED = "Meter marked. Tap again to move it.";
 
 function BackIcon() {
   return (
@@ -67,7 +56,8 @@ function BackButton({ onClick }: { onClick: () => void }) {
 }
 
 /**
- * Map step: find the home, then tap the front entrance and the meter wall.
+ * Map step: confirm the home, then tap the wall where the meter is.
+ * A home that already has an address opens straight on the map ("Is this your home?") instead of the search screen.
  * Without a Maps key it uses the example map image. Never blocks: onFail is called when the map can't load.
  */
 export default function PropertyLocator({
@@ -81,12 +71,21 @@ export default function PropertyLocator({
   onDone: (value: PropertyContext) => void;
   onFail?: (error: unknown) => void;
 }) {
+  const knownAddress = initial?.address || startAddress || "";
   const openOnHouse = Boolean(initial?.house && MAPS_API_KEY);
-  const [phase, setPhase] = useState<Phase>(openOnHouse ? "house" : "search");
-  const [query, setQuery] = useState(initial?.address || startAddress || "");
-  const [context, setContext] = useState<PropertyContext>(initial ? { ...EMPTY, ...initial } : { ...EMPTY, address: startAddress || "" });
-  const [active, setActive] = useState(openOnHouse);
-  const [busy, setBusy] = useState(Boolean(!openOnHouse && MAPS_API_KEY && startAddress));
+  const lookUp = Boolean(knownAddress && !openOnHouse && MAPS_API_KEY);
+  const openOnExample = Boolean(knownAddress && !MAPS_API_KEY);
+  const [phase, setPhase] = useState<Phase>(knownAddress ? "house" : "search");
+  const [addressKnown, setAddressKnown] = useState(Boolean(knownAddress));
+  const [query, setQuery] = useState(knownAddress);
+  const [context, setContext] = useState<PropertyContext>(() => ({
+    ...EMPTY,
+    ...initial,
+    address: knownAddress,
+    ...(openOnExample ? { source: "example" as const } : {}),
+  }));
+  const [active, setActive] = useState(openOnHouse || openOnExample);
+  const [busy, setBusy] = useState(lookUp);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
@@ -130,22 +129,23 @@ export default function PropertyLocator({
 
   const mark = (kind: PinPhase, point: Coordinate, maps: Maps) => {
     if (markers.current[kind]) markers.current[kind].setPosition(point);
-    else
+    else if (kind === "meter") {
+      const pin = createPin(maps, { label: "M", title: "Meter location", className: "pl-meter" });
+      pin.setPosition(point);
+      pin.setMap(map.current);
+      markers.current[kind] = pin;
+    } else
       markers.current[kind] = new maps.Marker({
         map: map.current,
         position: point,
-        label: { text: kind === "house" ? "H" : kind === "front" ? "F" : "M", color: "white", fontWeight: "bold" },
-        title: kind === "front" ? "Front of house" : kind === "meter" ? "Meter location" : "House location",
+        label: { text: "H", color: "white", fontWeight: "bold" },
+        title: "House location",
       });
   };
   const putPoint = (kind: Phase, point: Coordinate, maps: Maps) => {
     if (kind === "search") return;
     mark(kind, point, maps);
-    setContext((c) => ({
-      ...c,
-      [kind]: point,
-      ...(kind === "front" ? { frontUncertain: false } : kind === "meter" ? { meterUncertain: false } : {}),
-    }));
+    setContext((c) => ({ ...c, [kind]: point, ...(kind === "meter" ? { meterUncertain: false } : {}) }));
   };
   const drawMap = (maps: Maps, point: Coordinate) => {
     mapFrame.current = requestAnimationFrame(() => {
@@ -180,6 +180,11 @@ export default function PropertyLocator({
     changePhase("house");
     drawMap(maps, point);
   };
+  const backToSearch = (message: string) => {
+    setAddressKnown(false);
+    setPhase("search");
+    setError(message);
+  };
   const showExample = (address: string) => {
     setContext((c) => ({ ...EMPTY, ...c, address, source: "example" }));
     setActive(true);
@@ -199,13 +204,17 @@ export default function PropertyLocator({
           console.error("[map] could not load", err);
           if (!cancelled) onFailRef.current?.(err);
         });
-    } else if (startAddress) {
-      findAddress(startAddress)
+    } else if (lookUp) {
+      findAddress(knownAddress)
         .then(async (found) => {
           if (cancelled) return;
           if (found) showProperty(await loadMaps(), found.point, found.address, found.placeId);
+          else backToSearch("We couldn't find an exact home for that address. Add the house number, city and ZIP code, then try again.");
         })
-        .catch((err) => console.error("[map] could not find the start address", err))
+        .catch((err) => {
+          console.error("[map] could not find the home address", err);
+          if (!cancelled) backToSearch("We couldn't load your home. Check your address and try again.");
+        })
         .finally(() => {
           if (!cancelled) setBusy(false);
         });
@@ -317,30 +326,26 @@ export default function PropertyLocator({
   };
 
   const selectExample = (point: MapPoint) => {
-    if (phase === "front") setContext((c) => ({ ...c, exampleFront: point, frontUncertain: false }));
     if (phase === "meter") setContext((c) => ({ ...c, exampleMeter: point, meterUncertain: false }));
   };
-  const ready =
-    phase === "house" ||
-    (phase === "front" && !!(context.front || context.exampleFront || context.frontUncertain)) ||
-    (phase === "meter" && !!(context.meter || context.exampleMeter || context.meterUncertain));
+  const meterMarked = !!(context.meter || context.exampleMeter);
   const advance = () => {
     if (phase === "house") {
       setContext((c) => ({ ...c, propertyConfirmed: true }));
-      changePhase("front");
-    } else if (phase === "front") changePhase("meter");
-    else if (phase === "meter") onDone(context);
+      changePhase("meter");
+    } else if (phase === "meter") onDone(context);
+  };
+  const notQuite = () => {
+    setAddressKnown(false);
+    changePhase("search");
   };
 
   const closeHelp = () => setHelpOpen(false);
   const unsure = () => {
     closeHelp();
-    if (phase === "house") onDone({ ...context, propertyConfirmed: false });
-    else if (phase === "front") {
-      setContext((c) => ({ ...c, frontUncertain: true }));
-      changePhase("meter");
-    } else if (phase === "meter") onDone({ ...context, meterUncertain: true });
+    onDone({ ...context, propertyConfirmed: false });
   };
+  const meterUnknown = () => onDone({ ...context, meter: undefined, exampleMeter: undefined, meterUncertain: true });
 
   const help = <HelpButton ref={helpButton} onClick={() => setHelpOpen(true)} />;
   let top: ReactNode;
@@ -348,16 +353,16 @@ export default function PropertyLocator({
   else if (phase === "house")
     top = (
       <div className="sc-topbar">
-        <BackButton onClick={() => changePhase("search")} />
+        {!addressKnown && <BackButton onClick={() => changePhase("search")} />}
         {help}
       </div>
     );
   else
     top = (
-      <div className="pl-front-bar">
-        <BackButton onClick={() => changePhase(phase === "front" ? "house" : "front")} />
-        <p ref={setHeading} tabIndex={-1}>
-          {phase === "front" ? "Tap the front entrance on your house." : "Tap the wall where your meter is located."}
+      <div className="pl-tap-bar">
+        <BackButton onClick={() => changePhase("house")} />
+        <p ref={setHeading} tabIndex={-1} aria-live="polite">
+          {meterMarked ? METER_MARKED : METER_PROMPT}
         </p>
         {help}
       </div>
@@ -370,7 +375,7 @@ export default function PropertyLocator({
           {top}
           {phase === "house" && (
             <h1 ref={setHeading} tabIndex={-1}>
-              Does this look familiar?
+              {addressKnown ? "Is this your home?" : "Does this look familiar?"}
             </h1>
           )}
           {phase === "search" && (
@@ -426,7 +431,9 @@ export default function PropertyLocator({
               </button>
             </form>
           )}
-          {active && phase === "house" && context.address && <div className="pl-address">{context.address}</div>}
+          {phase === "house" && (active ? context.address : knownAddress) && (
+            <div className="pl-address">{active ? context.address : knownAddress}</div>
+          )}
           <div className={`pl-map-wrap ${phase === "search" ? "pl-map-hidden" : ""}`} aria-hidden={phase === "search"}>
             <div
               ref={mapNode}
@@ -434,9 +441,14 @@ export default function PropertyLocator({
               style={{ display: active && context.source === "google" ? "block" : "none" }}
               aria-label="Google property map"
             />
-            {(!active || context.source === "example") && (
+            {phase === "house" && !active && (
+              <div className="pl-map-loading" role="status">
+                Finding your home...
+              </div>
+            )}
+            {active && context.source === "example" && (
               <div
-                className={`pl-reference ${phase === "front" || phase === "meter" ? "pl-selectable" : ""}`}
+                className={`pl-reference ${phase === "meter" ? "pl-selectable" : ""}`}
                 role="group"
                 aria-label="Reference map example, not a searched property"
                 onClick={(e) => {
@@ -447,40 +459,18 @@ export default function PropertyLocator({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/property-map-reference.png" alt="Reference map showing neighboring house footprints" draggable={false} />
                 <span className="pl-example-badge">Example map</span>
-                {context.exampleFront && (
-                  <span className="pl-pin pl-front" style={{ left: `${context.exampleFront.x * 100}%`, top: `${context.exampleFront.y * 100}%` }}>
-                    F<span>Front</span>
-                  </span>
-                )}
                 {context.exampleMeter && (
-                  <span className="pl-pin pl-meter" style={{ left: `${context.exampleMeter.x * 100}%`, top: `${context.exampleMeter.y * 100}%` }}>
+                  <span
+                    key={`${context.exampleMeter.x}:${context.exampleMeter.y}`}
+                    className="pl-pin pl-meter"
+                    style={{ left: `${context.exampleMeter.x * 100}%`, top: `${context.exampleMeter.y * 100}%` }}
+                  >
                     M<span>Meter</span>
                   </span>
                 )}
               </div>
             )}
           </div>
-          {(phase === "front" || phase === "meter") && (
-            <>
-              {context.source === "example" && (
-                <details className="pl-keyboard">
-                  <summary>Choose without tapping the map</summary>
-                  <div className="pl-position-buttons">
-                    {EXAMPLE_POSITIONS.map((p) => (
-                      <button key={p.label} type="button" onClick={() => selectExample({ x: p.x, y: p.y })}>
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              )}
-              {((phase === "front" && context.frontUncertain) || (phase === "meter" && context.meterUncertain)) && (
-                <p className="pl-selection" aria-live="polite">
-                  {phase === "front" ? "Front marked as unsure" : "Meter marked as unsure"}
-                </p>
-              )}
-            </>
-          )}
           {error && (
             <p className="sc-error" role="alert">
               {error}
@@ -488,20 +478,41 @@ export default function PropertyLocator({
           )}
         </div>
         <footer className="sc-actions">
-          {phase === "search" ? (
+          {phase === "search" && (
             <button type="button" className="sc-primary" disabled={busy} onClick={() => void search()}>
               {busy ? "Finding your home..." : "Find my home"}
             </button>
-          ) : (
-            <button type="button" className="sc-primary" disabled={!ready} onClick={advance}>
+          )}
+          {phase === "house" && addressKnown && (
+            <>
+              <button type="button" className="sc-primary" disabled={!active} onClick={advance}>
+                Yes, that&apos;s my home
+              </button>
+              <button type="button" className="sc-option pl-location" disabled={busy} onClick={notQuite}>
+                Not quite
+              </button>
+            </>
+          )}
+          {phase === "house" && !addressKnown && (
+            <button type="button" className="sc-primary" onClick={advance}>
               Confirm
             </button>
+          )}
+          {phase === "meter" && (
+            <>
+              <button type="button" className={`sc-primary pl-meter-confirm ${meterMarked ? "pl-meter-ready" : ""}`} disabled={!meterMarked} onClick={advance}>
+                Confirm meter location
+              </button>
+              <button type="button" className="sc-text-button pl-meter-unknown" onClick={meterUnknown}>
+                I don&apos;t know where my meter is
+              </button>
+            </>
           )}
         </footer>
       </section>
       {helpOpen && (
         <HelpSheet tips={MAP_TIPS[phase]} onClose={closeHelp} returnFocus={helpButton}>
-          {phase === "search" ? (
+          {phase === "search" && (
             <button
               type="button"
               className="sc-option"
@@ -512,9 +523,10 @@ export default function PropertyLocator({
             >
               I&apos;m not sure of my address
             </button>
-          ) : (
+          )}
+          {phase === "house" && (
             <button type="button" className="sc-option" onClick={unsure}>
-              {UNSURE[phase]}
+              I&apos;m not sure this is my home
             </button>
           )}
         </HelpSheet>

@@ -48,7 +48,6 @@ export async function POST(request: Request) {
           source: "google" as const,
           placeId,
           house: { lat, lng },
-          frontUncertain: false,
           meterUncertain: false,
           propertyConfirmed: false,
         }

@@ -70,14 +70,16 @@ Checks:
 
 In real use, Base already knows the customer and sends them a link. Simulate that link with URL parameters:
 
-`/start?name=Jordan%20Lee&email=jordan@example.com&austin=yes&solar=no`
+`/start?name=Jordan%20Lee&email=jordan@example.com&austin=yes&solar=no&address=1100%20Congress%20Ave%2C%20Austin%2C%20TX%2078701`
 
-- If all four parameters are present and valid, `/start` skips the form and shows the welcome screen:
+`address` is optional (5 to 300 characters; if it is empty, too short or too long it is ignored and the link still works). It is not carried through to the capture URL.
+
+- If all four required parameters are present and valid, `/start` skips the form and shows the welcome screen:
   - **Hi {first name}.**
   - Let's photograph your meter and breaker box. About 5 minutes.
   - Three short lines with small check icons: Go out in daylight. / Unlock any gate near your meter. / Be ready to open your breaker box lid.
   - Above the Begin button, a small grey label **3 short parts** (same style as the landing page goal labels) and the 3 phases in order as a short numbered list: 1. Your meter / 2. The space around it / 3. Your breaker box. Take the titles from the phase titles exported by `src/lib/steps.ts` so the two never drift apart.
-  - Button **Begin**: calls the existing `POST /api/homes` with the four values, then goes to `/capture/[homeId]`. Carry any other URL parameters through to the capture URL (T9 adds `demo`).
+  - Button **Begin**: calls the existing `POST /api/homes` with the four values (plus `address` when the link has one, so the home is created with that address), then goes to `/capture/[homeId]`. Carry any other URL parameters through to the capture URL (T9 adds `demo`).
 - If any parameter is missing or invalid, show the existing form (fallback for people trying it without a link).
 - The customer has been welcomed already, so the capture page skips its own "Let's check your home" screen: after the map step it goes straight to the safety dialog, then Find your meter. Begin sets a per-tab flag for this; people who arrive without the welcome link keep the capture welcome.
 
@@ -134,8 +136,25 @@ On the final summary screen, tapping a photo opens that step again. The new phot
 
 `POST /api/photos` accepts `redo: true` to take a new attempt on a step that is already finished (only while it has fewer than 3 attempts). Without it, a finished step still returns 409. The redo header shows the step's phase with a full bar.
 
+### 6.6 Map step
+
+The map step (`src/components/property-locator.tsx`) confirms the home and marks the meter wall. There is no front entrance step.
+
+1. **Home with an address** (the link had `address`, or the home was created with one): skip the search screen. Open the map on that address with the title **Is this your home?**, the address under it, and two buttons: **Yes, that's my home** (primary) and **Not quite** (secondary). Yes goes to the meter tap. Not quite goes to the search screen with the address filled in; after searching, the old **Does this look familiar?** screen with **Confirm** applies. If the address can't be found on the map, go to the search screen with a short message.
+2. **Home without an address**: search screen as before, then **Does this look familiar?** and **Confirm**.
+3. **Meter tap** (instruction line at the top, next to the back button):
+   - Before the tap: the line reads **Tap the wall where your meter is located.** The button **Confirm meter location** is disabled and grey.
+   - When the pin is placed it drops in with a small bounce (about 300 ms). The line changes to **Meter marked. Tap again to move it.** (announced to screen readers). Tapping again moves the pin with the same drop.
+   - The button becomes enabled, turns lime (`#B5E07B`) with dark green text, reads **Confirm meter location**, and pulses once.
+   - If the phone has reduce motion turned on, there is no bounce and no pulse.
+   - Always shown under the button, as a plain text link: **I don't know where my meter is**. It saves `meterUncertain: true` (and clears any pin), and moves on to the next screen. There is no "Choose without tapping the map" section.
+4. The property record no longer has `front`, `exampleFront` or `frontUncertain`. Old records that still have them are read without error and the extra fields are ignored. The surveyor page no longer shows a front entrance line.
+
 Checks:
 - [ ] `/start` with the four parameters shows the welcome screen and never the form. Without them it shows the form.
+- [ ] `/start` with the four parameters plus `address` creates the home with that address, and the map opens on it with "Is this your home?", "Yes, that's my home" and "Not quite". Not quite opens the search screen.
+- [ ] The map step has no front entrance tap. Before the meter tap the confirm button is grey and disabled. After the tap the pin bounces in, the text reads "Meter marked. Tap again to move it.", and the lime button pulses once. With reduce motion on, neither animates.
+- [ ] "I don't know where my meter is" is visible before and after the tap, and moves on with the meter marked as unsure.
 - [ ] The welcome screen lists the 3 phases as a numbered list above Begin, in the order Your meter, The space around it, Your breaker box.
 - [ ] Every capture screen shows the phase title with "Part X of 3" and "Photo Y of Z" under it. Z does not change during a phase.
 - [ ] A conditional step that appears mid-phase is labeled "One extra photo: {step title}" and Z stays the same.

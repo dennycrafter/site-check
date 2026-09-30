@@ -11,8 +11,23 @@ describe("parseStartLink", () => {
       email: "jordan@example.com",
       inAustin: true,
       hasSolar: false,
+      address: null,
       extra: "",
     });
+  });
+
+  it("reads an optional address and does not carry it through", () => {
+    const link = parseStartLink({ ...valid, address: "  1100 Congress Ave, Austin, TX 78701 ", demo: "good" });
+    expect(link?.address).toBe("1100 Congress Ave, Austin, TX 78701");
+    expect(link?.extra).toBe("demo=good");
+  });
+
+  it("ignores an address that is empty, too short, too long or repeated", () => {
+    expect(parseStartLink({ ...valid, address: "   " })?.address).toBeNull();
+    expect(parseStartLink({ ...valid, address: "1 A" })?.address).toBeNull();
+    expect(parseStartLink({ ...valid, address: "x".repeat(301) })?.address).toBeNull();
+    expect(parseStartLink({ ...valid, address: ["1100 Congress Ave", "2"] })?.address).toBeNull();
+    expect(parseStartLink({ ...valid, address: "x".repeat(301) })).not.toBeNull();
   });
 
   it("carries other parameters through", () => {
