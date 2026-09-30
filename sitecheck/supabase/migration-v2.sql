@@ -1,4 +1,4 @@
--- SiteCheck v2: order reference from the source system, whole-site check, extra steps.
+-- site-check v2: order reference from the source system, whole-site check, extra steps.
 -- Safe to run more than once.
 alter table public.homes
   add column if not exists external_ref text,

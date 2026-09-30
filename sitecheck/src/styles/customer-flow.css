@@ -125,7 +125,7 @@
   .sc-stage-find,.sc-stage-review{max-height:100%;height:100%}
 }
 
-/* SiteCheck: the capture page fills the browser; the home-page card does not. */
+/* site-check: the capture page fills the browser; the home-page card does not. */
 .sc-root .sc-primary{display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
 .sc-root .sc-warning{padding:14px;background:color-mix(in srgb,var(--status-review) 10%,white);border-left:4px solid var(--status-review);color:var(--status-review);font-size:18px;line-height:1.4;margin:0 0 16px}
 .sc-root legend{font-size:18px;font-weight:700;padding:0;margin:0 0 8px}

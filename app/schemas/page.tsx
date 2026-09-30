@@ -74,7 +74,7 @@ export default function SchemasPage() {
 
       <div className="sv-page">
         <header className="sv-hero">
-          <p className="sv-kicker">SiteCheck data</p>
+          <p className="sv-kicker">site-check data</p>
           <h1>How a home check is shaped.</h1>
           <p>
             The model fills one fixed object per photo. Those readings, plus a few JSON documents, land on two

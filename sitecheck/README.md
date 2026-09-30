@@ -1,4 +1,4 @@
-# SiteCheck
+# site-check
 
 Home batteries are installed next to the electric meter, so before an install a review team looks at photos of the meter, the breaker box and the walls around them to decide if the home qualifies and for how many batteries. Homeowners often send photos that cannot be used (too dark, too close, door closed, clutter in the way), and every retake request costs days. SiteCheck fixes this at the source. The homeowner arrives from a link that already knows who they are, and the app walks them around the meter shot by shot with an outline on the live camera. A bad photo is rejected on the spot with one plain instruction. When the regular shots are done, a whole-site check makes sure the photos cover everything and asks for up to 2 more if they do not. The review team gets a labelled photo set, the AI's reading of each photo and a preliminary check from fixed rules. The AI only reads photos, fixed rules produce the preliminary check, and the final decision stays with the review team.
 
@@ -84,7 +84,7 @@ flowchart TD
 
 ## How it plugs into an existing flow
 
-SiteCheck does not own the customer. It starts from a link sent by the system that already knows the customer, and it hands the finished photo set back.
+site-check does not own the customer. It starts from a link sent by the system that already knows the customer, and it hands the finished photo set back.
 
 1. **Create the home and send the link.** Base already knows the customer at signup, so the homeowner is never asked for their details. The only question left is whether an indoor breaker box is on the meter wall. Base's signup system creates the home with `POST /api/homes` (`address`, `customerName`, optional `customerEmail`, `inAustin`, `hasSolar`, `externalRef`) and sends the customer the returned link, `/capture/{id}`. The link opens straight on the first photo step.
 
@@ -192,7 +192,7 @@ npx vitest run
 ## Data and provenance
 
 - Rules come from Base Power's public help center and public customer-facing requirements only (links above).
-- Photos used in the demo were taken by the team of their own or consenting friends' homes.
+- Demo photos are example images, not photos of real customer homes.
 - No Base customer data was used.
 - No model training. Photos are only sent to the Anthropic API for analysis.
 

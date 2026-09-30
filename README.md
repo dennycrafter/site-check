@@ -1,10 +1,8 @@
-# SiteCheck
-
-![SiteCheck — check a home's exterior electrical system in minutes](./public/og.png)
+# site-check
 
 **AI-assisted home battery site qualification that catches unusable photos before they become multi-day delays.**
 
-Built for the Base Power Hackathon, SiteCheck guides homeowners through a mobile photo survey, checks every image while they are still on site, and gives surveyors a structured preliminary assessment. AI reads the photos; deterministic rules make the preliminary decision; a human reviewer makes the final call.
+Built for the Base Power Hackathon, site-check guides homeowners through a mobile photo survey, checks every image while they are still on site, and gives surveyors a structured preliminary assessment. AI reads the photos; deterministic rules make the preliminary decision; a human reviewer makes the final call.
 
 [Try the live demo](https://sitecheck-sigma.vercel.app) · [Open the surveyor queue](https://sitecheck-sigma.vercel.app/review) · [Detailed technical documentation](./sitecheck/README.md)
 
@@ -14,7 +12,7 @@ Home battery qualification starts with photos of the meter, breaker panel, and s
 
 ## The solution
 
-SiteCheck moves the first quality check to the moment of capture:
+site-check moves the first quality check to the moment of capture:
 
 1. A customer receives a unique `/capture/{homeId}` link.
 2. The mobile flow shows exactly what to photograph with step-specific camera guides.
@@ -28,13 +26,13 @@ SiteCheck moves the first quality check to the moment of capture:
 
 ## Why it is trustworthy
 
-SiteCheck deliberately separates perception from policy:
+site-check deliberately separates perception from policy:
 
 - **AI reads:** Claude identifies equipment, labels, damage, obstructions, and whether the requested view is usable.
 - **Rules decide:** TypeScript rules apply Base Power's published eligibility requirements to the structured reading.
 - **Humans approve:** Uncertainty, low confidence, missing views, and repairable issues route to the surveyor queue. Homeowners never see an automated approval.
 
-If an AI call fails, SiteCheck retries it up to three times. A photo that still cannot be checked is saved for review instead of blocking the homeowner or silently producing a decision.
+If an AI call fails, site-check retries it up to three times. A photo that still cannot be checked is saved for review instead of blocking the homeowner or silently producing a decision.
 
 ## Features
 
@@ -138,7 +136,7 @@ After setup, [`/api/health`](https://sitecheck-sigma.vercel.app/api/health) repo
 
 ## Integration API
 
-SiteCheck is designed to sit inside an existing customer signup flow:
+site-check is designed to sit inside an existing customer signup flow:
 
 - `POST /api/homes` creates a home and returns its capture link.
 - `POST /api/homes/{id}/submit` completes the homeowner flow and calculates the preliminary result.
@@ -152,7 +150,7 @@ Request and response details, the full rules table, retake behavior, and export 
 
 - Photos are stored in a private bucket and shown through expiring signed URLs.
 - API secrets stay server-side; none use the `NEXT_PUBLIC_` prefix.
-- Demo photos belong to the team or consenting friends. No Base customer data was used.
+- Demo photos are example images, not photos of real customer homes. No Base customer data was used.
 - The model was not trained on submitted photos.
 - The capture flow tells homeowners never to remove a screwed-on panel cover or touch wiring.
 - Rules are based on Base Power's public [electrical requirements](https://help.basepowercompany.com/en/articles/10280705) and [site requirements](https://help.basepowercompany.com/en/articles/10280641).

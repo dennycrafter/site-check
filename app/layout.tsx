@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   title: 'Base | Photo Qualification',
   description: 'Photo qualification in seconds, with human review only when it matters.',
   openGraph: {
-    title: 'Base Home Check',
+    title: 'site-check',
     description: 'Photo qualification in seconds. Human review only when it matters.',
-    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'Base Home Check' }],
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: 'site-check' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Base Home Check',
+    title: 'site-check',
     description: 'Photo qualification in seconds. Human review only when it matters.',
     images: ['/og.png'],
   },
