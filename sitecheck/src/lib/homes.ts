@@ -7,6 +7,7 @@ import {
   planSteps,
 } from "./plan";
 import { applyCorrections, type CorrectionRow } from "./corrections";
+import type { LabelHome, LabelPhoto } from "./labeledData";
 import { evaluate, type RulesPhoto } from "./rules";
 import { sawLine } from "./sawLine";
 import { getStep, stepTitle } from "./steps";
@@ -66,6 +67,40 @@ export async function loadCorrections(homeIds: string[], columns = "*"): Promise
     out.push(...((data ?? []) as unknown as CorrectionRow[]));
   }
   return out;
+}
+
+/**
+ * Photos and corrections of the decided homes, for the labeled data stat and export. Pass the homes
+ * when they are already loaded; otherwise every decided home is read.
+ */
+export async function loadLabeledData(homes?: LabelHome[]): Promise<{
+  homes: LabelHome[];
+  photos: LabelPhoto[];
+  corrections: CorrectionRow[];
+}> {
+  const supabase = getSupabase();
+  let decided = homes?.filter((h) => h.surveyor_decision);
+  if (!decided) {
+    const { data, error } = await supabase
+      .from("homes")
+      .select("id, surveyor_decision, verdict")
+      .not("surveyor_decision", "is", null)
+      .order("created_at", { ascending: true });
+    if (error) throw new Error(`Load homes failed: ${error.message}`);
+    decided = (data ?? []) as LabelHome[];
+  }
+  const ids = decided.map((h) => h.id);
+  const photos: LabelPhoto[] = [];
+  for (let i = 0; i < ids.length; i += ID_CHUNK) {
+    const { data, error } = await supabase
+      .from("photos")
+      .select("id, home_id, step, attempt, storage_path, status, analysis")
+      .in("home_id", ids.slice(i, i + ID_CHUNK))
+      .order("attempt", { ascending: true });
+    if (error) throw new Error(`Load photos failed: ${error.message}`);
+    photos.push(...((data ?? []) as LabelPhoto[]));
+  }
+  return { homes: decided, photos, corrections: await loadCorrections(ids) };
 }
 
 const MAX_RECOMPUTE_PASSES = 3;
