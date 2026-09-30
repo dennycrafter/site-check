@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/site-header";
 import { BADGE_CLASS, buttonClass, type BadgeTone } from "@/components/ui";
 import { applyCorrections, editableFields, latestCorrections, type CorrectionRow } from "@/lib/corrections";
 import { homeLabel, loadCorrections, loadHome } from "@/lib/homes";
-import { FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
+import { CONFIRMED_BY_SURVEYOR, FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
 import { latestFinishedByStep, latestPhotoByStep, planSteps } from "@/lib/plan";
 import { googleMapsLink } from "@/lib/property";
 import {
@@ -196,7 +196,7 @@ function Readout({
               label={FIELD_LABELS[field]}
               value={a[field] as string | number | boolean}
               aiValue={ai[field]}
-              corrected={!!fix}
+              corrected={!!fix || a[field] !== ai[field]}
               tone={tone}
             />
           );
@@ -403,6 +403,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
   ]);
   const photos = applyCorrections(aiPhotos, corrections);
   const aiById = new Map(aiPhotos.map((p) => [p.id, p.analysis]));
+  const kept = new Set(aiPhotos.filter((p) => p.status === "accepted_after_max_attempts").map((p) => p.id));
+  const statusLabel = (p: PhotoRow) =>
+    kept.has(p.id) && p.status === "accepted" ? CONFIRMED_BY_SURVEYOR : PHOTO_STATUS_LABELS[p.status];
   const fixes = latestCorrections(corrections);
   const latest = latestPhotoByStep(photos);
   const planned = planSteps(home, photos);
@@ -486,7 +489,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                       <div className="space-y-3 p-4">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="ui-label">{stepTitle(stepId)}</h3>
-                          <span className={`shrink-0 ${BADGE_CLASS[STATUS_TONES[status]]}`}>{PHOTO_STATUS_LABELS[status]}</span>
+                          <span className={`shrink-0 ${BADGE_CLASS[STATUS_TONES[status]]}`}>
+                            {photo ? statusLabel(photo) : PHOTO_STATUS_LABELS[status]}
+                          </span>
                         </div>
                         {isExtraStepId(stepId) && (
                           <p className="text-sm text-muted">{getStep(stepId, home.extra_steps)?.instruction}</p>
@@ -522,7 +527,7 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
                                     />
                                   )}
                                   <div className="min-w-0 text-sm">
-                                    <p className="font-medium text-ink">{PHOTO_STATUS_LABELS[p.status]}</p>
+                                    <p className="font-medium text-ink">{statusLabel(p)}</p>
                                     {p.analysis?.retake_instruction && (
                                       <p className="text-muted">&ldquo;{p.analysis.retake_instruction}&rdquo;</p>
                                     )}
