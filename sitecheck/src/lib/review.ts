@@ -138,6 +138,18 @@ export function topReason(reasons: Reason[] | null | undefined): { reason: Reaso
   return { reason: top, others };
 }
 
+/** "2 batteries", or "1 battery, provisional" for REVIEW. Null before the first check. */
+export function batteryText(verdict: Outcome | null | undefined, count: number | null | undefined): string | null {
+  if (!verdict || count === null || count === undefined) return null;
+  const text = count === 1 ? "1 battery" : `${count} batteries`;
+  return verdict === "REVIEW" ? `${text}, provisional` : text;
+}
+
+/** The step whose photo backs a reason. Reasons with no step point at the wide meter photo. */
+export function evidenceStep(reason: Pick<Reason, "step"> | null | undefined): string {
+  return reason?.step ?? "meter_area_wide";
+}
+
 export type ReasonGroup = { code: string; outcome: Outcome; message: string; steps: string[] };
 
 /**

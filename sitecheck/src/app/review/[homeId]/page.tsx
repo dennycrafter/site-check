@@ -3,16 +3,20 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Footer } from "@/components/footer";
 import { SiteHeader } from "@/components/site-header";
-import { BADGE_CLASS, buttonClass, StatusBadges, type BadgeTone } from "@/components/ui";
+import { BADGE_CLASS, buttonClass, type BadgeTone } from "@/components/ui";
 import { homeLabel, loadHome } from "@/lib/homes";
 import { FIELD_LABELS, formatTime, PHOTO_STATUS_LABELS } from "@/lib/labels";
 import { latestFinishedByStep, latestPhotoByStep, planSteps } from "@/lib/plan";
 import { googleMapsLink } from "@/lib/property";
 import {
+  batteryText,
+  evidenceStep,
   groupReasons,
   highlightedFields,
   keyFacts,
+  topReason,
   valueLabel,
+  verdictLabel,
   type FactTone,
   type ReasonGroup,
 } from "@/lib/review";
@@ -22,7 +26,8 @@ import { getStep, isExtraStepId, SPACE_STEPS, STEP_IDS, stepTitle } from "@/lib/
 import { signedUrls } from "@/lib/supabase";
 import type { HomeProperty, HomeRow, Outcome, PanelSameWallAnswer, PhotoRow, PhotoStatus, Reason } from "@/lib/types";
 import "@/styles/customer-flow.css";
-import { DecisionPanel, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
+import "@/styles/review.css";
+import { DecisionControls, DetailsToggle, HomeMenu, PhotoZoom, RecheckButton } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Home detail | site-check" };
@@ -309,6 +314,48 @@ function PhotoMeta({ photo }: { photo: PhotoRow }) {
   );
 }
 
+function HomeInfo({ home }: { home: HomeRow }) {
+  return (
+    <section className="ui-card">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="ui-subtitle">{homeLabel(home)}</h2>
+          {home.external_ref && <p className="mt-1 text-sm font-semibold text-ink">Order {home.external_ref}</p>}
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <a
+            href={`/api/homes/${home.id}/export`}
+            target="_blank"
+            rel="noreferrer"
+            className={buttonClass("secondary", "whitespace-nowrap")}
+          >
+            Export for Base (JSON)
+          </a>
+          <HomeMenu homeId={home.id} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+        <span>
+          Austin: <YesNo value={home.in_austin} />
+        </span>
+        <span>
+          Solar: <YesNo value={home.has_solar} />
+        </span>
+        {home.panel_same_wall_answer !== "not_asked" && (
+          <span>
+            Breaker box on meter wall:{" "}
+            <span className="font-semibold text-ink">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
+          </span>
+        )}
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        {home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "In progress"}
+        {` · Started ${formatTime(home.created_at)}`}
+      </p>
+    </section>
+  );
+}
+
 export default async function HomeDetailPage({ params }: PageProps<"/review/[homeId]">) {
   const { homeId } = await params;
   if (!UUID_RE.test(homeId)) notFound();
@@ -323,74 +370,52 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
   const stepOrder = [...planned, ...extra];
   const reasons = home.reasons ?? [];
 
+  const { reason: top } = topReason(reasons);
+  const evidence = evidenceStep(top);
+  const evidencePhoto = latest.get(evidence);
+  const evidenceUrl = evidencePhoto ? urls[evidencePhoto.storage_path] : undefined;
+  const evidenceTitle = getStep(evidence, home.extra_steps)?.title ?? stepTitle(evidence);
+  const batteries = batteryText(home.verdict, home.battery_count);
+  const customer = [home.customer_name, home.customer_email].filter(Boolean).join(" · ") || homeLabel(home);
+
   return (
     <>
       <SiteHeader tag="Surveyor" />
-      <main className="ui-container flex-1 pt-4 pb-12">
+      <main className="rv ui-container flex-1 pt-4 pb-12">
         <Link href="/review" className="ui-button-ghost">
           Back to queue
         </Link>
 
-        <header className="mt-1 flex flex-col gap-4 border-b border-line pb-6 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="ui-title">{homeLabel(home)}</h1>
-                <StatusBadges verdict={home.verdict} decision={home.surveyor_decision} />
-              </div>
-              <div className="md:hidden">
-                <HomeMenu homeId={home.id} />
-              </div>
-            </div>
-            {home.external_ref && (
-              <p className="mt-1 text-sm font-semibold text-ink">Order {home.external_ref}</p>
-            )}
-            {(home.customer_name || home.customer_email) && home.address && (
-              <p className="mt-1 text-muted">
-                {[home.customer_name, home.customer_email].filter(Boolean).join(" · ")}
-              </p>
-            )}
-            <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
-              <span>
-                Austin: <YesNo value={home.in_austin} />
-              </span>
-              <span>
-                Solar: <YesNo value={home.has_solar} />
-              </span>
-              {home.panel_same_wall_answer !== "not_asked" && (
-                <span>
-                  Breaker box on meter wall:{" "}
-                  <span className="font-semibold text-ink">{WALL_ANSWER_LABELS[home.panel_same_wall_answer]}</span>
-                </span>
+        <section className="rv-decision" aria-label="Decision">
+          <p className="rv-customer">{customer}</p>
+          <h1 className="rv-verdict">
+            <span className={home.verdict ? OUTCOME_STYLES[home.verdict].text : "text-muted"}>
+              {verdictLabel(home.verdict)}
+            </span>
+            {batteries && <span className="rv-batteries">{batteries}</span>}
+          </h1>
+          {top && <p className="rv-reason">{top.message}</p>}
+          <figure className="rv-evidence">
+            <div className="rv-evidence-frame">
+              {evidenceUrl ? (
+                <PhotoZoom src={evidenceUrl} alt={evidenceTitle} className="h-full w-full" />
+              ) : (
+                <div className="flex h-full items-center justify-center text-muted">No photo yet</div>
               )}
             </div>
-            <p className="mt-2 text-xs text-muted">
-              {home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "In progress"}
-              {` · Started ${formatTime(home.created_at)}`}
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="ui-stat bg-surface px-5 py-3">
-              <span className="ui-stat-label mt-0">Batteries</span>
-              <span className="ui-stat-value mt-1">{home.battery_count ?? "-"}</span>
-              {home.verdict === "REVIEW" && <span className="block text-xs text-review">provisional</span>}
-            </div>
-            <a
-              href={`/api/homes/${home.id}/export`}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonClass("secondary", "whitespace-nowrap")}
-            >
-              Export for Base (JSON)
-            </a>
-            <div className="hidden md:block">
-              <HomeMenu homeId={home.id} />
-            </div>
-          </div>
-        </header>
+            <figcaption>{evidenceTitle}</figcaption>
+          </figure>
+          <DecisionControls
+            key={`${home.surveyor_decision ?? "none"}-${home.decided_at ?? ""}`}
+            homeId={home.id}
+            decision={home.surveyor_decision}
+            note={home.surveyor_note ?? ""}
+          />
+        </section>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_340px]">
-          <div className="min-w-0 space-y-6">
+        <DetailsToggle>
+          <div className="space-y-6 pb-6">
+            <HomeInfo home={home} />
             <KeyFacts home={home} photos={photos} />
             <Reasons home={home} hasPhotos={photos.length > 0} />
             <SiteCoverageCard home={home} latest={latest} urls={urls} />
@@ -469,15 +494,9 @@ export default async function HomeDetailPage({ params }: PageProps<"/review/[hom
               </div>
             </section>
           </div>
-
-          <aside>
-            <DecisionPanel homeId={home.id} decision={home.surveyor_decision} note={home.surveyor_note ?? ""} />
-          </aside>
-        </div>
+        </DetailsToggle>
       </main>
-      <div className="pb-48 lg:pb-0">
-        <Footer />
-      </div>
+      <Footer />
     </>
   );
 }
