@@ -50,19 +50,40 @@ export async function removeFiles(paths: string[]): Promise<void> {
   }
 }
 
+/**
+ * Signed URLs are reused while at least half their lifetime is left. Live review pages refresh
+ * every 2 seconds, and a new URL each time would make the browser download every photo again.
+ */
+const urlCache = new Map<string, { url: string; expires: number }>();
+const URL_CACHE_MAX = 5000;
+
 export async function signedUrls(
   paths: string[],
   seconds = SIGNED_URL_SECONDS,
 ): Promise<Record<string, string>> {
   const unique = [...new Set(paths.filter(Boolean))];
   if (unique.length === 0) return {};
+  const now = Date.now();
+  const out: Record<string, string> = {};
+  const missing: string[] = [];
+  for (const path of unique) {
+    const hit = urlCache.get(`${seconds}:${path}`);
+    if (hit && hit.expires - now > (seconds * 1000) / 2) out[path] = hit.url;
+    else missing.push(path);
+  }
+  if (missing.length === 0) return out;
   const { data, error } = await getSupabase()
     .storage.from(PHOTO_BUCKET)
-    .createSignedUrls(unique, seconds);
-  if (error || !data) return {};
-  const out: Record<string, string> = {};
+    .createSignedUrls(missing, seconds);
+  if (error || !data) return out;
+  if (urlCache.size > URL_CACHE_MAX) {
+    for (const [key, entry] of urlCache) if (entry.expires <= now) urlCache.delete(key);
+    if (urlCache.size > URL_CACHE_MAX) urlCache.clear();
+  }
   for (const item of data) {
-    if (item.path && item.signedUrl) out[item.path] = item.signedUrl;
+    if (!item.path || !item.signedUrl) continue;
+    out[item.path] = item.signedUrl;
+    urlCache.set(`${seconds}:${item.path}`, { url: item.signedUrl, expires: now + seconds * 1000 });
   }
   return out;
 }

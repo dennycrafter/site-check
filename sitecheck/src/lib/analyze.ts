@@ -17,8 +17,10 @@ export async function analyzePhoto(params: {
   homeId: string;
   step: Step;
   base64Jpeg: string;
+  /** Simulated AI failure rate for this call. Defaults to SIMULATE_AI_FAILURE_RATE. */
+  failureRate?: number;
 }): Promise<AnalyzeResult> {
-  const { homeId, step, base64Jpeg } = params;
+  const { homeId, step, base64Jpeg, failureRate } = params;
   const model = analysisModel();
 
   const result = await withAiRetries(
@@ -51,6 +53,7 @@ export async function analyzePhoto(params: {
     },
     (attempt, ok, ms, err) =>
       console.log(`[analyze] home=${homeId} step=${step.id} attempt=${attempt} ok=${ok} ms=${ms} err=${err}`),
+    failureRate,
   );
 
   if (result.ok) {

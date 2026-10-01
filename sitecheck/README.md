@@ -189,6 +189,26 @@ Run the unit tests (rules engine, photo decisions, step planning and review page
 npx vitest run
 ```
 
+## Swapping demo photos
+
+The demo camera on `/demo` uses the JPEG photos in `public/demo/photos/`. `public/demo/scenarios.json` is the only place that names them, so to swap photos, replace the files and keep the names. Expected files:
+
+| File | Shot |
+|---|---|
+| `meter-wide.jpg` | Meter and wall from about 10 steps back |
+| `meter-close.jpg` | Meter close-up, numbers readable |
+| `meter-close-dark.jpg` | Same close-up, too dark: must fail the on-phone dark check |
+| `left.jpg` | Left of the meter |
+| `right.jpg` | Right of the meter |
+| `corner.jpg` | Around the nearest corner |
+| `corner-blurry.jpg` | Same corner shot, blurred but bright: must fail the on-phone blur check |
+| `panel-wide.jpg` | Breaker box and surroundings |
+| `panel-open.jpg` | Breaker box with the door open |
+| `main-switch.jpg` | Main switch with the amp number readable |
+| `main-switch-100a.jpg` | A 100A main switch, for "Doesn't qualify" |
+
+New photos must have no EXIF or GPS data: they are public in the repo and on the site. If you add or rename a photo, update `scenarios.json` too; `npx vitest run` fails when it names a photo that is missing.
+
 ## Data and provenance
 
 - Rules come from Base Power's public help center and public customer-facing requirements only (links above).

@@ -63,9 +63,13 @@ function exportJpeg(canvas: HTMLCanvasElement): { base64: string; dataUrl: strin
  * preview shown with object-fit: cover in a box of that ratio.
  */
 export function captureVideoFrame(video: HTMLVideoElement, options: { crop?: number } = {}) {
-  const { videoWidth: width, videoHeight: height } = video;
+  return captureFrame(video, video.videoWidth, video.videoHeight, options);
+}
+
+/** Same as captureVideoFrame for any drawable source, such as the demo camera's photo. */
+export function captureFrame(source: CanvasImageSource, width: number, height: number, options: { crop?: number } = {}) {
   const rect = options.crop ? centerCrop(width, height, options.crop) : undefined;
-  return exportJpeg(drawScaled(video, width, height, rect));
+  return exportJpeg(drawScaled(source, width, height, rect));
 }
 
 function loadImage(file: File): Promise<HTMLImageElement> {

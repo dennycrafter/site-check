@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { HelpButton, HelpSheet } from "@/components/help-sheet";
 import { Outline } from "@/components/outline";
 import PropertyLocator, { type PropertyContext } from "@/components/property-locator";
@@ -15,7 +15,8 @@ import {
   SURVEYOR_MESSAGE,
   type CheckpointRow,
 } from "@/lib/checkpoint";
-import { captureVideoFrame, prepareUpload } from "@/lib/image";
+import { demoPhotoUrl, FAILURE_RATE_KEY, fileForPress, HOME_MESSAGE, storedFailureRate, type DemoCamera } from "@/lib/demo";
+import { captureFrame, captureVideoFrame, prepareUpload } from "@/lib/image";
 import { instantCheck, type GrayImage } from "@/lib/instantCheck";
 import { phaseProgress, phaseSegments, plannedForPhase, stepLabel, type ShotStatus } from "@/lib/phases";
 import { isFinished } from "@/lib/plan";
@@ -249,6 +250,18 @@ function savePlans(homeId: string, plans: PhasePlans) {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Extra upload fields in demo mode. The /demo outage switch is read at every upload. */
+function demoUploadFields(demo: DemoCamera | null) {
+  if (!demo) return {};
+  let stored: string | null = null;
+  try {
+    stored = window.localStorage.getItem(FAILURE_RATE_KEY);
+  } catch {
+    // No storage: no simulated outages.
+  }
+  return { demo: true, simulateFailureRate: storedFailureRate(stored) };
+}
+
 async function fetchHome(homeId: string): Promise<HomeData> {
   const res = await fetch(`/api/homes/${homeId}`, { cache: "no-store" });
   const body = await res.json().catch(() => ({}));
@@ -257,7 +270,7 @@ async function fetchHome(homeId: string): Promise<HomeData> {
   return body as HomeData;
 }
 
-export function CaptureFlow({ homeId }: { homeId: string }) {
+export function CaptureFlow({ homeId, demo = null }: { homeId: string; demo?: DemoCamera | null }) {
   const [data, setData] = useState<HomeData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [local, setLocal] = useState<Local>({ kind: "ready" });
@@ -282,6 +295,10 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const [batch, setBatch] = useState<Batch | null>(null);
   const shotSeq = useRef(0);
   const instantFails = useRef(new Map<string, number>());
+  /** Demo camera shutter presses per step in this page session. Instant-check rejections count too. */
+  const [demoPresses, setDemoPresses] = useState<Record<string, number>>({});
+  const [demoAspect, setDemoAspect] = useState<number | null>(null);
+  const demoImageRef = useRef<HTMLImageElement>(null);
 
   const headingRef = useRef<HTMLHeadingElement>(null);
   const safetyPanel = useRef<HTMLDivElement>(null);
@@ -350,6 +367,12 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     };
   }, []);
 
+  const demoId = demo?.id ?? null;
+  useEffect(() => {
+    if (!demoId || window.parent === window) return;
+    window.parent.postMessage({ type: HOME_MESSAGE, homeId }, window.location.origin);
+  }, [demoId, homeId]);
+
   useEffect(() => {
     const video = videoRef.current;
     const stream = streamRef.current;
@@ -401,6 +424,8 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   const stepId = flowStep && flowStep !== "question_5" && flowStep !== "site_check" ? flowStep : null;
   const stepPhase = stepId ? phaseOf(stepId) : null;
   const frozenPlan = stepPhase ? plans[stepPhase] : undefined;
+  /** The photo the demo camera shows for the next press. Null outside demo mode or when the scenario has none for this step. */
+  const demoFile = demo && stepId ? fileForPress(demo.files[stepId] ?? [], demoPresses[stepId] ?? 0) : null;
 
   if (data && stepPhase && !frozenPlan) {
     setPlans({ ...plans, [stepPhase]: plannedForPhase(data.steps.map((item) => item.id), stepPhase) });
@@ -541,6 +566,11 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
     setCameraReady(false);
     setPickerOpen(false);
     setCameraOpen(true);
+    if (demoFile) {
+      // The demo camera shows a photo instead of a live stream. It is ready once the photo loads.
+      setCameraGeneration((current) => current + 1);
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError("The camera couldn't open in this browser. You can choose a photo from your library instead.");
       return;
@@ -593,6 +623,24 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
   }
 
   function capture() {
+    if (demoFile && stepId) {
+      const image = demoImageRef.current;
+      if (!image?.naturalWidth || !image.naturalHeight) {
+        setCameraError("The demo photo isn't ready yet. Try again.");
+        return;
+      }
+      try {
+        // The demo viewfinder shows the whole photo, so the whole photo is sent.
+        const shot = captureFrame(image, image.naturalWidth, image.naturalHeight);
+        const pressed = stepId;
+        setDemoPresses((current) => ({ ...current, [pressed]: (current[pressed] ?? 0) + 1 }));
+        closeCamera();
+        takeShot(shot.base64, shot.dataUrl, shot.gray);
+      } catch {
+        setCameraError("We couldn't save that picture. Try again.");
+      }
+      return;
+    }
     const video = videoRef.current;
     if (!video?.videoWidth || !video.videoHeight) {
       setCameraError("The camera isn't ready yet. Try again.");
@@ -646,7 +694,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
         res = await fetch("/api/photos", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ homeId, step, imageBase64: base64 }),
+          body: JSON.stringify({ homeId, step, imageBase64: base64, ...demoUploadFields(demo) }),
         });
         body = await res.json().catch(() => ({}));
       } catch (err) {
@@ -719,7 +767,13 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       res = await fetch("/api/photos", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ homeId, step, imageBase64: base64, ...(redoStep === step ? { redo: true } : {}) }),
+        body: JSON.stringify({
+          homeId,
+          step,
+          imageBase64: base64,
+          ...(redoStep === step ? { redo: true } : {}),
+          ...demoUploadFields(demo),
+        }),
       });
       body = await res.json().catch(() => ({}));
     } catch {
@@ -1209,8 +1263,30 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                 </div>
                 <p className="sc-camera-hint">{shown}</p>
                 <div className="sc-camera-stage" ref={stageRef}>
-                  <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
-                  {stageAspect && <Outline id={step.outline} aspect={stageAspect} />}
+                  {demoFile ? (
+                    <div
+                      className="sc-demo-view"
+                      style={demoAspect ? ({ "--demo-aspect": demoAspect } as CSSProperties) : undefined}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        key={cameraGeneration}
+                        ref={demoImageRef}
+                        src={demoPhotoUrl(demoFile)}
+                        alt="Camera preview"
+                        onLoad={(event) => {
+                          const { naturalWidth, naturalHeight } = event.currentTarget;
+                          if (naturalWidth && naturalHeight) setDemoAspect(naturalWidth / naturalHeight);
+                          setCameraReady(true);
+                        }}
+                        onError={() => setCameraError("The demo photo couldn't load. Try again.")}
+                      />
+                      {cameraReady && demoAspect && <Outline id={step.outline} aspect={demoAspect} />}
+                    </div>
+                  ) : (
+                    <video ref={videoRef} autoPlay playsInline muted disablePictureInPicture aria-label="Camera preview" />
+                  )}
+                  {!demoFile && stageAspect && <Outline id={step.outline} aspect={stageAspect} />}
                   {!cameraReady && !cameraError && <p className="sc-camera-status">Opening camera…</p>}
                 </div>
                 {cameraError && (
@@ -1224,9 +1300,11 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
                       <button type="button" className="sc-primary" onClick={openCamera}>
                         Try again
                       </button>
-                      <button type="button" className="sc-option" onClick={() => fileRef.current?.click()}>
-                        Select from library
-                      </button>
+                      {!demoFile && (
+                        <button type="button" className="sc-option" onClick={() => fileRef.current?.click()}>
+                          Select from library
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button type="button" className="sc-primary" onClick={capture} disabled={!cameraReady}>
@@ -1241,7 +1319,7 @@ export function CaptureFlow({ homeId }: { homeId: string }) {
       }
       actions={
           local.kind === "ready" ? (
-            <Primary onClick={() => setPickerOpen(true)}>Take photo</Primary>
+            <Primary onClick={() => (demoFile ? openCamera() : setPickerOpen(true))}>Take photo</Primary>
           ) : local.kind === "confirm" ? (
             <Primary onClick={() => void sendPhoto(step.id, local.base64, local.preview)}>Use this photo</Primary>
           ) : local.kind === "checking" ? (

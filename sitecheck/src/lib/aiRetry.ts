@@ -28,13 +28,19 @@ export type RetryResult<T> =
   | { ok: true; value: T; aiAttempts: number; latencyMs: number }
   | { ok: false; error: string; aiAttempts: number; latencyMs: number };
 
+export function envFailureRate(): number {
+  return Number(process.env.SIMULATE_AI_FAILURE_RATE ?? 0);
+}
+
 /**
  * Runs one AI call with a 30 s timeout per attempt, 3 attempts, 1 s then 3 s
- * backoff and SIMULATE_AI_FAILURE_RATE injection. Never throws.
+ * backoff and simulated failures (SIMULATE_AI_FAILURE_RATE unless the caller
+ * passes a rate). Never throws.
  */
 export async function withAiRetries<T>(
   call: (client: Anthropic, signal: AbortSignal) => Promise<T>,
   log: (attempt: number, ok: boolean, ms: number, err: string) => void,
+  failureRate = envFailureRate(),
 ): Promise<RetryResult<T>> {
   const started = Date.now();
   let lastError = "Unknown error";
@@ -42,7 +48,7 @@ export async function withAiRetries<T>(
   for (let attempt = 1; attempt <= MAX_AI_ATTEMPTS; attempt++) {
     const attemptStart = Date.now();
     try {
-      const value = await attemptOnce(call);
+      const value = await attemptOnce(call, failureRate);
       log(attempt, true, Date.now() - attemptStart, "");
       return { ok: true, value, aiAttempts: attempt, latencyMs: Date.now() - started };
     } catch (err) {
@@ -57,8 +63,7 @@ export async function withAiRetries<T>(
   return { ok: false, error: lastError, aiAttempts: MAX_AI_ATTEMPTS, latencyMs: Date.now() - started };
 }
 
-async function attemptOnce<T>(call: (client: Anthropic, signal: AbortSignal) => Promise<T>): Promise<T> {
-  const failureRate = Number(process.env.SIMULATE_AI_FAILURE_RATE ?? 0);
+async function attemptOnce<T>(call: (client: Anthropic, signal: AbortSignal) => Promise<T>, failureRate: number): Promise<T> {
   if (failureRate > 0 && Math.random() < failureRate) {
     throw new Error("Simulated AI failure");
   }
