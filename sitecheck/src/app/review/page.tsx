@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { LiveRefresh } from "@/components/live-refresh";
-import { SiteHeader } from "@/components/site-header";
 import { Banner, QueueResult } from "@/components/ui";
 import { homeLabel, loadLabeledData } from "@/lib/homes";
 import { correctionStats } from "@/lib/labeledData";
@@ -187,9 +186,8 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   return (
     <>
-      <SiteHeader tag="Surveyor" wide />
       {live && <LiveRefresh />}
-      <main className="ui-container ui-container-wide flex-1 pt-4 pb-12">
+      <main className="ui-container ui-container-wide flex-1 pt-8 pb-12">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="review-title">Surveyor queue</h1>
           <p className="review-count">{homes.length} homes</p>
