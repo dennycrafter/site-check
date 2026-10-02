@@ -9,7 +9,6 @@ import { correctionStats } from "@/lib/labeledData";
 import { formatTime } from "@/lib/labels";
 import { isLive, liveHref } from "@/lib/live";
 import {
-  decidedToday,
   filterQueue,
   parseQueueFilter,
   QUEUE_FILTERS,
@@ -108,47 +107,33 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
     all: homes.length,
   };
   for (const h of homes) counts[queueTab(h)] += 1;
-  const oldest = filterQueue(homes, "to_decide")[0];
   const corrected = await correctedReadings(homes);
-  const stats = [
-    { label: "To decide", value: String(counts.to_decide) },
-    { label: "Oldest wait", value: oldest ? waitingTime(oldest.submitted_at, now) : "-" },
-    { label: "Decided today", value: String(homes.filter((h) => decidedToday(h.decided_at, now)).length) },
-    { label: "AI readings corrected", value: corrected ? `${corrected.corrected} of ${corrected.total}` : "-" },
-  ];
 
   return (
     <>
       <SiteHeader tag="Surveyor" />
       {live && <LiveRefresh />}
       <main className="ui-container flex-1 pt-4 pb-12">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h1 className="ui-title">Surveyor queue</h1>
-          <p className="ui-muted">{homes.length} homes total</p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="review-title">Surveyor queue</h1>
+          <p className="review-count">{homes.length} homes</p>
         </div>
 
-        <section className="ui-card mt-6 grid grid-cols-2 gap-3 p-4 sm:max-w-3xl sm:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="ui-stat">
-              <span className="ui-stat-value">{s.value}</span>
-              <span className="ui-stat-label">{s.label}</span>
-            </div>
-          ))}
-        </section>
-
-        <nav aria-label="Queue tabs" className="mt-6 flex flex-wrap items-center gap-2">
-          {QUEUE_FILTERS.map((f) => (
-            <Link
-              key={f.id}
-              href={liveHref(f.id === "to_decide" ? "/review" : `/review?tab=${f.id}`, live)}
-              aria-current={filter === f.id ? "page" : undefined}
-              className="ui-tab"
-            >
-              {f.label}
-              <span className="ui-tab-count">{counts[f.id]}</span>
-            </Link>
-          ))}
-          <Link href="/review/audit" className="ui-button-ghost ml-2">
+        <nav aria-label="Queue tabs" className="review-tabs mt-5">
+          <div className="review-tabs-list">
+            {QUEUE_FILTERS.map((f) => (
+              <Link
+                key={f.id}
+                href={liveHref(f.id === "to_decide" ? "/review" : `/review?tab=${f.id}`, live)}
+                aria-current={filter === f.id ? "page" : undefined}
+                className="review-tab"
+              >
+                {f.label}
+                <span className="review-tab-count">{counts[f.id]}</span>
+              </Link>
+            ))}
+          </div>
+          <Link href="/review/audit" className="review-tabs-link">
             Audit
           </Link>
         </nav>
@@ -232,11 +217,13 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
           </>
         )}
       </main>
-      <div className="flex justify-center pt-6">
-        <a href="/api/export/labels" download className="ui-button-ghost text-base">
+      <p className="review-footnote">
+        AI readings corrected: {corrected ? `${corrected.corrected} of ${corrected.total}` : "-"}
+        {" · "}
+        <a href="/api/export/labels" download>
           Export labeled data
         </a>
-      </div>
+      </p>
       <Footer />
     </>
   );

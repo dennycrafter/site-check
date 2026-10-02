@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   batteryText,
-  decidedToday,
   decisionLabel,
   evidenceStep,
   filterQueue,
@@ -204,24 +203,6 @@ describe("filterQueue", () => {
 
   it("returns an empty list when nothing matches", () => {
     expect(filterQueue([], "to_decide")).toEqual([]);
-  });
-});
-
-describe("decidedToday", () => {
-  const now = new Date("2026-09-27T15:00:00Z");
-
-  it("counts decisions from the same Austin day", () => {
-    expect(decidedToday("2026-09-27T06:00:00Z", now)).toBe(true);
-  });
-
-  it("uses Austin time, not UTC, for the day boundary", () => {
-    expect(decidedToday("2026-09-27T03:00:00Z", now)).toBe(false);
-    expect(decidedToday("2026-09-27T03:00:00Z", now, "UTC")).toBe(true);
-  });
-
-  it("ignores missing or invalid times", () => {
-    expect(decidedToday(null, now)).toBe(false);
-    expect(decidedToday("bad", now)).toBe(false);
   });
 });
 
