@@ -10,6 +10,10 @@
   .ui-container-narrow {
     max-width: 1040px;
   }
+  .ui-container-wide {
+    max-width: 1600px;
+    padding: 0 var(--space-8);
+  }
 
   .ui-header {
     display: flex;
@@ -349,6 +353,164 @@
     color: var(--brand-ink);
   }
 
+  .review-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: var(--text-small);
+    line-height: 1.4;
+    color: var(--brand-ink);
+  }
+  .review-col-when {
+    width: 190px;
+  }
+  .review-col-waiting {
+    width: 88px;
+  }
+  .review-col-result {
+    width: 190px;
+  }
+  .review-col-batteries {
+    width: 92px;
+  }
+  .review-col-reason {
+    width: 32%;
+  }
+  .review-table th {
+    height: 36px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--brand-border);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--brand-muted);
+    white-space: nowrap;
+  }
+  .review-table td {
+    height: 54px;
+    padding: 0 var(--space-3);
+    border-bottom: 1px solid var(--brand-border);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .review-table th:first-child,
+  .review-table td:first-child {
+    padding-left: var(--space-2);
+  }
+  .review-table tbody tr {
+    position: relative;
+  }
+  .review-table tbody tr:hover {
+    background: color-mix(in srgb, var(--brand-ink) 4%, transparent);
+  }
+  .review-row-link {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: inherit;
+    text-decoration: none;
+  }
+  .review-row-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .review-row-link:focus-visible {
+    outline: none;
+  }
+  .review-row-link:focus-visible::after {
+    outline: 2px solid var(--brand-green);
+    outline-offset: -2px;
+  }
+  .review-cell-link {
+    position: relative;
+    z-index: 1;
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+  .review-home-address {
+    font-weight: 500;
+  }
+  .review-home-detail {
+    font-size: 13px;
+    color: var(--brand-muted);
+  }
+  .review-numeric {
+    font-variant-numeric: tabular-nums;
+  }
+  .review-nowrap {
+    white-space: nowrap;
+  }
+  .review-reason {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+  }
+  .review-reason-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .review-reason-more {
+    flex: none;
+    font-size: 13px;
+    color: var(--brand-muted);
+  }
+
+  .review-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px solid var(--brand-border);
+  }
+  .review-list li {
+    border-bottom: 1px solid var(--brand-border);
+  }
+  .review-list-link {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    padding: var(--space-3) 0;
+    color: inherit;
+    text-decoration: none;
+  }
+  .review-list-link:active {
+    background: color-mix(in srgb, var(--brand-ink) 4%, transparent);
+  }
+  .review-list-link:focus-visible {
+    outline: 2px solid var(--brand-green);
+    outline-offset: -2px;
+  }
+  .review-list-address {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-small);
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .review-list-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
+  }
+  .review-list-meta > :first-child {
+    flex: none;
+  }
+  .review-list-when {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    color: var(--brand-muted);
+  }
+
   .ui-badge-pass,
   .ui-badge-review,
   .ui-badge-fail,
@@ -467,6 +629,14 @@
   }
   .ui-table tbody tr:hover {
     background: var(--brand-bg);
+  }
+}
+
+@media (max-width: 767px) {
+  @layer components {
+    .ui-container-wide {
+      padding: 0 var(--space-5);
+    }
   }
 }
 
