@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 import {
   batteryText,
   decisionLabel,
+  effectiveQueueSort,
   evidenceStep,
   filterQueue,
   groupReasons,
   highlightedFields,
   keyFacts,
+  nextQueueSort,
   parseQueueFilter,
+  parseQueueSort,
   QUEUE_FILTERS,
+  queueHref,
   queueTab,
+  sortQueue,
   topReason,
   valueLabel,
   verdictLabel,
@@ -19,6 +24,7 @@ import { AI_SETUP_TYPES, GROUND_SPACE, LOCATIONS, PANEL_BRANDS, PHOTO_ANALYSIS_S
 import { evaluate } from "./rules";
 import type { PhotoAnalysis } from "./schema";
 import { GOOD_ANALYSIS } from "./testing";
+import type { QueueSort } from "./review";
 import type { Outcome, Reason } from "./types";
 
 const reason = (code: string, outcome: Outcome, step: string | null = null, message = `${code} message`): Reason => ({
@@ -477,5 +483,163 @@ describe("highlightedFields", () => {
   it("does not repeat a field", () => {
     const reasons = [reason("PANEL_BRAND_CHECK", "REVIEW", "panel_open"), reason("PANEL_BRAND_UNREADABLE", "REVIEW", "panel_open")];
     expect(highlightedFields("panel_open", a(), reasons)).toEqual(["panel_brand", "panel_label_legible"]);
+  });
+});
+
+type SortHome = { id: string; verdict: Outcome | null; submitted_at: string | null };
+const sortHome = (id: string, verdict: Outcome | null, submitted_at: string | null): SortHome => ({
+  id,
+  verdict,
+  submitted_at,
+});
+const ids = (homes: SortHome[]) => homes.map((h) => h.id);
+
+describe("parseQueueSort", () => {
+  it("reads sort and dir", () => {
+    expect(parseQueueSort("waiting", "asc")).toEqual({ key: "waiting", dir: "asc" });
+    expect(parseQueueSort("result", "desc")).toEqual({ key: "result", dir: "desc" });
+  });
+
+  it("uses the default direction when dir is missing or unknown", () => {
+    expect(parseQueueSort("waiting", undefined)).toEqual({ key: "waiting", dir: "desc" });
+    expect(parseQueueSort("result", "sideways")).toEqual({ key: "result", dir: "desc" });
+  });
+
+  it("means no sort when sort is missing or unknown, whatever dir says", () => {
+    expect(parseQueueSort(undefined, "asc")).toBeNull();
+    expect(parseQueueSort("batteries", "asc")).toBeNull();
+    expect(parseQueueSort(["waiting"], "asc")).toBeNull();
+  });
+});
+
+describe("nextQueueSort", () => {
+  it("cycles default direction, flipped, then none", () => {
+    const first = nextQueueSort(null, "waiting");
+    expect(first).toEqual({ key: "waiting", dir: "desc" });
+    const second = nextQueueSort(first, "waiting");
+    expect(second).toEqual({ key: "waiting", dir: "asc" });
+    expect(nextQueueSort(second, "waiting")).toBeNull();
+  });
+
+  it("cycles the Result header the same way", () => {
+    const first = nextQueueSort(null, "result");
+    expect(first).toEqual({ key: "result", dir: "desc" });
+    const second = nextQueueSort(first, "result");
+    expect(second).toEqual({ key: "result", dir: "asc" });
+    expect(nextQueueSort(second, "result")).toBeNull();
+  });
+
+  it("starts a different header at its first state", () => {
+    expect(nextQueueSort({ key: "waiting", dir: "asc" }, "result")).toEqual({ key: "result", dir: "desc" });
+    expect(nextQueueSort({ key: "result", dir: "desc" }, "waiting")).toEqual({ key: "waiting", dir: "desc" });
+  });
+
+  it("starts over from a sort that came from a hand-edited URL", () => {
+    expect(nextQueueSort(parseQueueSort("waiting", "bogus"), "waiting")).toEqual({ key: "waiting", dir: "asc" });
+  });
+});
+
+describe("effectiveQueueSort", () => {
+  it("drops a waiting sort outside To decide, where there is no Waiting column", () => {
+    const waiting: QueueSort = { key: "waiting", dir: "desc" };
+    expect(effectiveQueueSort(waiting, "to_decide")).toEqual(waiting);
+    expect(effectiveQueueSort(waiting, "in_progress")).toBeNull();
+    expect(effectiveQueueSort(waiting, "decided")).toBeNull();
+    expect(effectiveQueueSort(waiting, "all")).toBeNull();
+  });
+
+  it("keeps a result sort on every tab", () => {
+    const result: QueueSort = { key: "result", dir: "asc" };
+    for (const f of QUEUE_FILTERS) expect(effectiveQueueSort(result, f.id)).toEqual(result);
+  });
+
+  it("passes no sort through", () => {
+    expect(effectiveQueueSort(null, "to_decide")).toBeNull();
+  });
+});
+
+describe("queueHref", () => {
+  const waiting: QueueSort = { key: "waiting", dir: "desc" };
+
+  it("is the plain queue with no tab, sort or live", () => {
+    expect(queueHref("to_decide", null, false)).toBe("/review");
+  });
+
+  it("keeps the tab, sort and live together", () => {
+    expect(queueHref("decided", null, false)).toBe("/review?tab=decided");
+    expect(queueHref("to_decide", waiting, false)).toBe("/review?sort=waiting&dir=desc");
+    expect(queueHref("all", { key: "result", dir: "asc" }, false)).toBe("/review?tab=all&sort=result&dir=asc");
+    expect(queueHref("to_decide", null, true)).toBe("/review?live=1");
+    expect(queueHref("in_progress", waiting, true)).toBe("/review?tab=in_progress&sort=waiting&dir=desc&live=1");
+  });
+
+  it("drops sort and dir after the third click", () => {
+    const third = nextQueueSort(nextQueueSort(waiting, "waiting"), "waiting");
+    expect(queueHref("decided", third, true)).toBe("/review?tab=decided&live=1");
+  });
+});
+
+describe("sortQueue", () => {
+  const A = sortHome("a", "PASS", "2026-10-01T10:00:00Z");
+  const B = sortHome("b", "FAIL", "2026-10-01T12:00:00Z");
+  const C = sortHome("c", "REVIEW", "2026-10-01T08:00:00Z");
+  const D = sortHome("d", null, "2026-10-01T09:00:00Z");
+
+  it("returns the original order for no sort, without changing the input", () => {
+    const input = [A, B, C, D];
+    expect(ids(sortQueue(input, null))).toEqual(["a", "b", "c", "d"]);
+    sortQueue(input, { key: "waiting", dir: "desc" });
+    expect(ids(input)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("sorts Waiting with the longest wait first by default", () => {
+    expect(ids(sortQueue([A, B, C, D], { key: "waiting", dir: "desc" }))).toEqual(["c", "d", "a", "b"]);
+  });
+
+  it("sorts Waiting with the shortest wait first when flipped", () => {
+    expect(ids(sortQueue([A, B, C, D], { key: "waiting", dir: "asc" }))).toEqual(["b", "a", "d", "c"]);
+  });
+
+  it("keeps equal waits in their original order in both directions", () => {
+    const x = sortHome("x", "PASS", "2026-10-01T10:00:00Z");
+    const y = sortHome("y", "FAIL", "2026-10-01T10:00:00Z");
+    expect(ids(sortQueue([x, y], { key: "waiting", dir: "desc" }))).toEqual(["x", "y"]);
+    expect(ids(sortQueue([x, y], { key: "waiting", dir: "asc" }))).toEqual(["x", "y"]);
+  });
+
+  it("puts homes with no submit time last when sorting by Waiting, in both directions", () => {
+    const none = sortHome("none", "PASS", null);
+    expect(ids(sortQueue([none, A, B], { key: "waiting", dir: "desc" }))).toEqual(["a", "b", "none"]);
+    expect(ids(sortQueue([none, A, B], { key: "waiting", dir: "asc" }))).toEqual(["b", "a", "none"]);
+  });
+
+  it("sorts Result Fail, Needs review, Pass, then no result by default", () => {
+    expect(ids(sortQueue([A, B, C, D], { key: "result", dir: "desc" }))).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("sorts Result Pass, Needs review, Fail when flipped, with no result still last", () => {
+    expect(ids(sortQueue([D, B, C, A], { key: "result", dir: "asc" }))).toEqual(["a", "c", "b", "d"]);
+  });
+
+  it("breaks Result ties by longest wait, in both directions", () => {
+    const f1 = sortHome("f1", "FAIL", "2026-10-01T12:00:00Z");
+    const f2 = sortHome("f2", "FAIL", "2026-10-01T08:00:00Z");
+    const f3 = sortHome("f3", "FAIL", "2026-10-01T10:00:00Z");
+    const p1 = sortHome("p1", "PASS", "2026-10-01T11:00:00Z");
+    const p2 = sortHome("p2", "PASS", "2026-10-01T07:00:00Z");
+    expect(ids(sortQueue([f1, p1, f2, p2, f3], { key: "result", dir: "desc" }))).toEqual(["f2", "f3", "f1", "p2", "p1"]);
+    expect(ids(sortQueue([f1, p1, f2, p2, f3], { key: "result", dir: "asc" }))).toEqual(["p2", "p1", "f2", "f3", "f1"]);
+  });
+
+  it("orders homes with no result by longest wait, and puts a missing submit time after that", () => {
+    const n1 = sortHome("n1", null, "2026-10-01T12:00:00Z");
+    const n2 = sortHome("n2", null, "2026-10-01T06:00:00Z");
+    const n3 = sortHome("n3", null, null);
+    expect(ids(sortQueue([n3, n1, n2], { key: "result", dir: "desc" }))).toEqual(["n2", "n1", "n3"]);
+    expect(ids(sortQueue([n3, n1, n2], { key: "result", dir: "asc" }))).toEqual(["n2", "n1", "n3"]);
+  });
+
+  it("does not crash on an empty list", () => {
+    expect(sortQueue([], { key: "result", dir: "desc" })).toEqual([]);
   });
 });

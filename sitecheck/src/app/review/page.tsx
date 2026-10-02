@@ -3,19 +3,27 @@ import Link from "next/link";
 import { Footer } from "@/components/footer";
 import { LiveRefresh } from "@/components/live-refresh";
 import { SiteHeader } from "@/components/site-header";
-import { Banner, StatusBadges } from "@/components/ui";
+import { Banner, QueueResult } from "@/components/ui";
 import { homeLabel, loadLabeledData } from "@/lib/homes";
 import { correctionStats } from "@/lib/labeledData";
 import { formatTime } from "@/lib/labels";
 import { isLive, liveHref } from "@/lib/live";
 import {
+  effectiveQueueSort,
   filterQueue,
+  nextQueueSort,
   parseQueueFilter,
+  parseQueueSort,
   QUEUE_FILTERS,
+  queueHref,
   queueTab,
+  SORT_KEYS,
+  sortQueue,
   topReason,
   waitingTime,
   type QueueFilter,
+  type QueueSort,
+  type SortKey,
 } from "@/lib/review";
 import { getSupabase } from "@/lib/supabase";
 import type { HomeRow } from "@/lib/types";
@@ -123,12 +131,51 @@ function WhenText({ home, now, bare = false }: { home: HomeRow; now: number; bar
   );
 }
 
+function SortArrow({ dir }: { dir: "asc" | "desc" }) {
+  return (
+    <svg viewBox="0 0 10 10" aria-hidden="true" focusable="false" className="review-sort-arrow">
+      <path
+        d={dir === "asc" ? "M5 1.5v7M2 4.5l3-3 3 3" : "M5 8.5v-7M2 5.5l3 3 3-3"}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ariaSort(sort: QueueSort, key: SortKey) {
+  if (sort?.key !== key) return undefined;
+  return sort.dir === "asc" ? "ascending" : "descending";
+}
+
+type SortLinkProps = { sortKey: SortKey; label: string; filter: QueueFilter; sort: QueueSort; live: boolean };
+
+/** One click moves to the next state: default direction, flipped, then no sort. */
+function SortLink({ sortKey, label, filter, sort, live }: SortLinkProps) {
+  const active = sort?.key === sortKey ? sort : null;
+  return (
+    <Link
+      href={queueHref(filter, nextQueueSort(sort, sortKey), live)}
+      aria-current={active ? "true" : undefined}
+      className="review-sort-link"
+    >
+      {label}
+      {active && <SortArrow dir={active.dir} />}
+    </Link>
+  );
+}
+
 export default async function ReviewPage({ searchParams }: PageProps<"/review">) {
   const params = await searchParams;
   const filter = parseQueueFilter(params.tab);
   const live = isLive(params);
+  const sort = effectiveQueueSort(parseQueueSort(params.sort, params.dir), filter);
+  const urlSort = parseQueueSort(params.sort, params.dir);
   const { homes, error, now } = await loadHomes();
-  const shown = filterQueue(homes, filter);
+  const shown = sortQueue(filterQueue(homes, filter), sort);
   const counts: Record<QueueFilter, number> = {
     to_decide: 0,
     in_progress: 0,
@@ -153,7 +200,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
             {QUEUE_FILTERS.map((f) => (
               <Link
                 key={f.id}
-                href={liveHref(f.id === "to_decide" ? "/review" : `/review?tab=${f.id}`, live)}
+                href={queueHref(f.id, urlSort, live)}
                 aria-current={filter === f.id ? "page" : undefined}
                 className="review-tab"
               >
@@ -193,8 +240,16 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
               <thead>
                 <tr>
                   <th>Home</th>
-                  <th>{filter === "to_decide" ? "Waiting" : "Status"}</th>
-                  <th>Result</th>
+                  <th aria-sort={ariaSort(sort, "waiting")}>
+                    {filter === "to_decide" ? (
+                      <SortLink sortKey="waiting" label="Waiting" filter={filter} sort={sort} live={live} />
+                    ) : (
+                      "Status"
+                    )}
+                  </th>
+                  <th aria-sort={ariaSort(sort, "result")}>
+                    <SortLink sortKey="result" label="Result" filter={filter} sort={sort} live={live} />
+                  </th>
                   <th>Batteries</th>
                   <th>Top reason</th>
                 </tr>
@@ -213,7 +268,7 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
                         <WhenText home={h} now={now} bare={filter === "to_decide"} />
                       </td>
                       <td>
-                        <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
+                        <QueueResult verdict={h.verdict} decision={h.surveyor_decision} />
                       </td>
                       <td className="review-numeric">
                         <Link href={href} tabIndex={-1} aria-hidden="true" className="review-cell-link">
@@ -231,13 +286,23 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
               </tbody>
             </table>
 
-            <ul className="review-list mt-4 md:hidden">
+            <p className="review-sort-bar md:hidden">
+              <span>Sort:</span>
+              {SORT_KEYS.filter((k) => k.id === "result" || filter === "to_decide").map((k, i) => (
+                <span key={k.id} className="contents">
+                  {i > 0 && <span aria-hidden="true">·</span>}
+                  <SortLink sortKey={k.id} label={k.label} filter={filter} sort={sort} live={live} />
+                </span>
+              ))}
+            </p>
+
+            <ul className="review-list mt-2 md:hidden">
               {shown.map((h) => (
                 <li key={h.id}>
                   <Link href={liveHref(`/review/${h.id}`, live)} className="review-list-link">
                     <span className="review-list-address">{homeLabel(h)}</span>
                     <span className="review-list-meta">
-                      <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
+                      <QueueResult verdict={h.verdict} decision={h.surveyor_decision} />
                       <span className="review-list-when">
                         <WhenText home={h} now={now} />
                       </span>

@@ -546,6 +546,62 @@
     border-color: var(--brand-border);
   }
 
+  .review-result-pass,
+  .review-result-review,
+  .review-result-fail,
+  .review-result-neutral {
+    white-space: nowrap;
+    font-size: var(--text-note);
+    line-height: 1.4;
+    font-weight: 700;
+  }
+  .review-result-pass {
+    color: var(--status-pass);
+  }
+  .review-result-review {
+    color: var(--status-review);
+  }
+  .review-result-fail {
+    color: var(--status-fail);
+  }
+  .review-result-neutral {
+    color: var(--brand-muted);
+  }
+
+  .review-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .review-sort-link:hover {
+    color: var(--brand-ink);
+  }
+  .review-sort-link[aria-current] {
+    color: var(--brand-green);
+    font-weight: 600;
+  }
+  .review-sort-link:focus-visible {
+    outline: 2px solid var(--brand-green);
+    outline-offset: 2px;
+  }
+  .review-sort-arrow {
+    flex: none;
+    width: 10px;
+    height: 10px;
+  }
+  .review-sort-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: var(--space-4) 0 0;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--brand-muted);
+  }
+
   .ui-stat {
     padding: var(--space-4);
     border: 1px solid var(--brand-border);

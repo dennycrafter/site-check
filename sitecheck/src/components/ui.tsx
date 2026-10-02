@@ -66,6 +66,27 @@ export function StatusBadges({ verdict, decision }: { verdict: Outcome | null; d
   );
 }
 
+const QUEUE_RESULT_CLASS: Record<BadgeTone, string> = {
+  pass: "review-result-pass",
+  review: "review-result-review",
+  fail: "review-result-fail",
+  neutral: "review-result-neutral",
+};
+
+/** StatusBadges for the surveyor queue: the same words and colors as plain text, with no box. */
+export function QueueResult({ verdict, decision }: { verdict: Outcome | null; decision: SurveyorDecision | null }) {
+  if (!decision) {
+    const tone = verdict ? VERDICT_TONES[verdict] : "neutral";
+    return <span className={QUEUE_RESULT_CLASS[tone]}>{verdictLabel(verdict)}</span>;
+  }
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className={QUEUE_RESULT_CLASS[DECISION_TONES[decision]]}>{decisionLabel(decision)}</span>
+      <span className="whitespace-nowrap text-xs text-muted">AI: {verdictLabel(verdict)}</span>
+    </span>
+  );
+}
+
 export function Banner({
   tone,
   children,
