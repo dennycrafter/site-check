@@ -111,7 +111,77 @@ export function filterQueue<T extends QueueHome>(homes: T[], filter: QueueFilter
   return shown.sort((a, b) => lastActivity(b) - lastActivity(a));
 }
 
+export type SortKey = "waiting" | "result";
+export type SortDir = "asc" | "desc";
+export type QueueSort = { key: SortKey; dir: SortDir } | null;
+
+export const SORT_KEYS: { id: SortKey; label: string }[] = [
+  { id: "waiting", label: "Waiting" },
+  { id: "result", label: "Result" },
+];
+
+/** Longest wait first, and Fail first. Both are "desc"; "asc" flips them. */
+const DEFAULT_SORT_DIR: SortDir = "desc";
+
+/** Reads ?sort and ?dir. Anything unknown means no sort. A missing or unknown dir uses the default. */
+export function parseQueueSort(sort: unknown, dir: unknown): QueueSort {
+  const key = SORT_KEYS.find((k) => k.id === sort)?.id;
+  if (!key) return null;
+  return { key, dir: dir === "asc" || dir === "desc" ? dir : DEFAULT_SORT_DIR };
+}
+
+/** The sort after clicking a header: default direction, then flipped, then none. A different header starts over. */
+export function nextQueueSort(current: QueueSort, key: SortKey): QueueSort {
+  if (!current || current.key !== key) return { key, dir: DEFAULT_SORT_DIR };
+  if (current.dir === DEFAULT_SORT_DIR) return { key, dir: "asc" };
+  return null;
+}
+
+/** The Waiting column only exists on To decide, so a waiting sort is ignored on other tabs. */
+export function effectiveQueueSort(sort: QueueSort, filter: QueueFilter): QueueSort {
+  return sort && sort.key === "waiting" && filter !== "to_decide" ? null : sort;
+}
+
+/** The queue link for a tab and sort. Keeps the sort and ?live=1 so neither is lost when clicking around. */
+export function queueHref(filter: QueueFilter, sort: QueueSort, live: boolean): string {
+  const query: string[] = [];
+  if (filter !== "to_decide") query.push(`tab=${filter}`);
+  if (sort) query.push(`sort=${sort.key}`, `dir=${sort.dir}`);
+  if (live) query.push("live=1");
+  return query.length ? `/review?${query.join("&")}` : "/review";
+}
+
 const SEVERITY: Record<Outcome, number> = { FAIL: 0, REVIEW: 1, PASS: 2 };
+
+/**
+ * Sorts a copy of the list. Waiting: longest wait first, or shortest first when flipped.
+ * Result: Fail, Needs review, Pass, or the reverse when flipped. Homes with no submit time
+ * or no result always come last. Result ties go to the longest wait; other ties keep their order.
+ */
+export function sortQueue<T extends { verdict: Outcome | null; submitted_at: string | null }>(
+  homes: T[],
+  sort: QueueSort,
+): T[] {
+  if (!sort) return [...homes];
+  const sign = sort.dir === "desc" ? 1 : -1;
+  const submitted = (h: T) => (h.submitted_at ? new Date(h.submitted_at).getTime() : NaN);
+  const missingLast = (aMissing: boolean, bMissing: boolean) => (aMissing === bMissing ? 0 : aMissing ? 1 : -1);
+  const byWait = (a: T, b: T, dir: 1 | -1) => {
+    const x = submitted(a);
+    const y = submitted(b);
+    if (Number.isNaN(x) || Number.isNaN(y)) return missingLast(Number.isNaN(x), Number.isNaN(y));
+    return (x - y) * dir;
+  };
+  const byResult = (a: T, b: T) => {
+    if (!a.verdict || !b.verdict) return missingLast(!a.verdict, !b.verdict);
+    return (SEVERITY[a.verdict] - SEVERITY[b.verdict]) * sign;
+  };
+  const compare =
+    sort.key === "waiting"
+      ? (a: T, b: T) => byWait(a, b, sign)
+      : (a: T, b: T) => byResult(a, b) || byWait(a, b, 1);
+  return [...homes].sort(compare);
+}
 
 /** The most severe reason (first one wins a tie) and how many other non-Pass reasons there are. */
 export function topReason(reasons: Reason[] | null | undefined): { reason: Reason | null; others: number } {
