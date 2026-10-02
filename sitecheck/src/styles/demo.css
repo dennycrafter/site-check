@@ -85,6 +85,12 @@
 .demo-bar .demo-name {
   margin-right: 12px;
 }
+.demo-pills-label {
+  margin-right: -4px;
+  font-size: 14px;
+  white-space: nowrap;
+  color: var(--brand-muted);
+}
 .demo-pills {
   display: flex;
   gap: 8px;

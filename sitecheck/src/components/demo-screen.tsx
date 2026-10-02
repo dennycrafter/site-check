@@ -129,7 +129,10 @@ export function DemoScreen({ scenarios }: { scenarios: DemoChoice[] }) {
           <Link href="/" className="demo-name">
             site-check
           </Link>
-          <div className="demo-pills" role="group" aria-label="Scenario">
+          <span className="demo-pills-label" id="demo-scenario-label">
+            Try a scenario:
+          </span>
+          <div className="demo-pills" role="group" aria-labelledby="demo-scenario-label">
             {scenarios.map((s) => (
               <button
                 key={s.id}

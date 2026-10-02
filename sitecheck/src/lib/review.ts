@@ -111,21 +111,6 @@ export function filterQueue<T extends QueueHome>(homes: T[], filter: QueueFilter
   return shown.sort((a, b) => lastActivity(b) - lastActivity(a));
 }
 
-const dayKey = (d: Date | number, timeZone: string) =>
-  new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
-
-/** Whether the decision was saved on the same calendar day as now, in Austin time by default. */
-export function decidedToday(
-  decidedAt: string | null | undefined,
-  now: Date | number = Date.now(),
-  timeZone = "America/Chicago",
-): boolean {
-  if (!decidedAt) return false;
-  const at = new Date(decidedAt);
-  if (Number.isNaN(at.getTime())) return false;
-  return dayKey(at, timeZone) === dayKey(now, timeZone);
-}
-
 const SEVERITY: Record<Outcome, number> = { FAIL: 0, REVIEW: 1, PASS: 2 };
 
 /** The most severe reason (first one wins a tie) and how many other non-Pass reasons there are. */
