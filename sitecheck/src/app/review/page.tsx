@@ -58,40 +58,69 @@ async function correctedReadings(homes: HomeRow[]): Promise<{ corrected: number;
 
 function BatteryCell({ home }: { home: HomeRow }) {
   if (home.battery_count === null) return <span className="text-muted">-</span>;
-  return (
-    <span>
-      <span className="font-semibold text-ink">{home.battery_count}</span>
-      {home.verdict === "REVIEW" && <span className="ml-1 text-xs text-muted">provisional</span>}
-    </span>
-  );
+  if (home.verdict === "REVIEW") {
+    return (
+      <span className="text-muted" title="Provisional">
+        {home.battery_count}
+      </span>
+    );
+  }
+  return <span className="text-ink">{home.battery_count}</span>;
 }
 
 function TopReason({ home }: { home: HomeRow }) {
   const { reason, others } = topReason(home.reasons);
   if (!reason) return <span className="text-muted">-</span>;
   return (
-    <span>
-      {reason.message}
-      {others > 0 && <span className="ml-1 whitespace-nowrap text-xs font-semibold text-muted">+{others} more</span>}
+    <span className="review-reason" title={reason.message}>
+      <span className="review-reason-text">{reason.message}</span>
+      {others > 0 && <span className="review-reason-more">+{others} more</span>}
     </span>
   );
 }
 
+function homeFullText(home: HomeRow): string {
+  const parts = [homeLabel(home)];
+  if (home.address && home.customer_name) parts.push(home.customer_name);
+  if (home.external_ref) parts.push(`Order ${home.external_ref}`);
+  return parts.join(" · ");
+}
+
 function HomeName({ home }: { home: HomeRow }) {
+  const detail = [home.address ? home.customer_name : null, home.external_ref ? `Order ${home.external_ref}` : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <>
-      <span className="font-semibold text-ink">{homeLabel(home)}</span>
-      {home.address && home.customer_name && <span className="block text-sm text-muted">{home.customer_name}</span>}
-      {home.external_ref && <span className="block text-xs text-muted">Order {home.external_ref}</span>}
-    </>
+    <span className="review-home">
+      <span className="review-home-address">{homeLabel(home)}</span>
+      {detail && <span className="review-home-detail">{` · ${detail}`}</span>}
+    </span>
   );
 }
 
-function WhenText({ home, now }: { home: HomeRow; now: number }) {
+function shortSubmitted(iso: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  }).format(new Date(iso));
+}
+
+/** `bare` drops the "Waiting" label where the column header already says it. */
+function WhenText({ home, now, bare = false }: { home: HomeRow; now: number; bare?: boolean }) {
   const tab = queueTab(home);
-  if (tab === "to_decide") return <>Waiting {waitingTime(home.submitted_at, now)}</>;
+  if (tab === "to_decide") {
+    const wait = waitingTime(home.submitted_at, now);
+    return <>{bare ? wait : `Waiting ${wait}`}</>;
+  }
   if (tab === "in_progress") return <span className="text-muted">Taking photos</span>;
-  return <>{home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : "Not submitted"}</>;
+  return (
+    <span title={home.submitted_at ? `Submitted ${formatTime(home.submitted_at)}` : undefined}>
+      {home.submitted_at ? `Submitted ${shortSubmitted(home.submitted_at)}` : "Not submitted"}
+    </span>
+  );
 }
 
 export default async function ReviewPage({ searchParams }: PageProps<"/review">) {
@@ -111,9 +140,9 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
   return (
     <>
-      <SiteHeader tag="Surveyor" />
+      <SiteHeader tag="Surveyor" wide />
       {live && <LiveRefresh />}
-      <main className="ui-container flex-1 pt-4 pb-12">
+      <main className="ui-container ui-container-wide flex-1 pt-4 pb-12">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h1 className="review-title">Surveyor queue</h1>
           <p className="review-count">{homes.length} homes</p>
@@ -153,63 +182,66 @@ export default async function ReviewPage({ searchParams }: PageProps<"/review">)
 
         {shown.length > 0 && (
           <>
-            <div className="ui-card ui-card-flush mt-6 hidden overflow-x-auto md:block">
-              <table className="ui-table">
-                <thead>
-                  <tr>
-                    <th>Home</th>
-                    <th>{filter === "to_decide" ? "Waiting" : "Status"}</th>
-                    <th>Result</th>
-                    <th>Batteries</th>
-                    <th>Top reason</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((h) => (
-                    <tr key={h.id} className="relative">
+            <table className="review-table mt-6 hidden md:table">
+              <colgroup>
+                <col />
+                <col className={filter === "to_decide" ? "review-col-waiting" : "review-col-when"} />
+                <col className="review-col-result" />
+                <col className="review-col-batteries" />
+                <col className="review-col-reason" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Home</th>
+                  <th>{filter === "to_decide" ? "Waiting" : "Status"}</th>
+                  <th>Result</th>
+                  <th>Batteries</th>
+                  <th>Top reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((h) => {
+                  const href = liveHref(`/review/${h.id}`, live);
+                  return (
+                    <tr key={h.id}>
                       <td>
-                        <Link href={liveHref(`/review/${h.id}`, live)} className="after:absolute after:inset-0 hover:text-accent">
+                        <Link href={href} title={homeFullText(h)} className="review-row-link">
                           <HomeName home={h} />
                         </Link>
                       </td>
-                      <td className="whitespace-nowrap">
-                        <WhenText home={h} now={now} />
+                      <td className="review-nowrap">
+                        <WhenText home={h} now={now} bare={filter === "to_decide"} />
                       </td>
                       <td>
                         <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
                       </td>
-                      <td>
-                        <BatteryCell home={h} />
+                      <td className="review-numeric">
+                        <Link href={href} tabIndex={-1} aria-hidden="true" className="review-cell-link">
+                          <BatteryCell home={h} />
+                        </Link>
                       </td>
-                      <td className="max-w-sm">
-                        <TopReason home={h} />
+                      <td>
+                        <Link href={href} tabIndex={-1} aria-hidden="true" className="review-cell-link">
+                          <TopReason home={h} />
+                        </Link>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </table>
 
-            <ul className="mt-6 space-y-3 md:hidden">
+            <ul className="review-list mt-4 md:hidden">
               {shown.map((h) => (
                 <li key={h.id}>
-                  <Link href={liveHref(`/review/${h.id}`, live)} className="ui-card block p-4 active:bg-page">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="min-w-0">
-                        <HomeName home={h} />
+                  <Link href={liveHref(`/review/${h.id}`, live)} className="review-list-link">
+                    <span className="review-list-address">{homeLabel(h)}</span>
+                    <span className="review-list-meta">
+                      <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
+                      <span className="review-list-when">
+                        <WhenText home={h} now={now} />
                       </span>
-                      <span className="shrink-0">
-                        <StatusBadges verdict={h.verdict} decision={h.surveyor_decision} />
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm text-muted">
-                      <WhenText home={h} now={now} />
-                      {" · "}
-                      Batteries: <BatteryCell home={h} />
-                    </p>
-                    <p className="mt-2 text-sm text-ink">
-                      <TopReason home={h} />
-                    </p>
+                    </span>
                   </Link>
                 </li>
               ))}
